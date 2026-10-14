@@ -1,0 +1,154 @@
+<mxfile host="app.diagrams.net" agent="LearnHub LMS" type="device">
+  <diagram id="UC-P04-service-level" name="UC-P04 Submit quiz (service level)">
+    <mxGraphModel dx="1700" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1660" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="legend" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#FFF9E6;strokeColor=#D6B656;fontColor=#7F6000;fontSize=10;align=left;verticalAlign=top;spacing=4;size=14;" value="&lt;b&gt;Communication Diagram — UC-P04: Submit quiz &amp;amp; record score&lt;/b&gt;&lt;br&gt;&lt;i&gt;Mức chi tiết: SERVICE — bỏ class / repository / DB / Redis / broker nội bộ.&lt;/i&gt;&lt;br&gt;&lt;br&gt;• Số trên mũi tên = thứ tự message.&lt;br&gt;• Mũi tên &lt;b&gt;tím&lt;/b&gt; = self-message (xử lý nội bộ của service).&lt;br&gt;• &lt;b&gt;8–9&lt;/b&gt;: idempotency theo submissionId + guard attemptNo ≤ maxAttempts (409).&lt;br&gt;• &lt;b&gt;12&lt;/b&gt;: tính lại tiến độ (UC-P07). &lt;b&gt;15&lt;/b&gt;: cấp chứng chỉ (UC-P08).&lt;br&gt;• &lt;b&gt;16&lt;/b&gt;: báo hoàn thành (async) để mở quyền đánh giá." vertex="1">
+          <mxGeometry height="190" width="430" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="act" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#E8F0FE;strokeColor=#1F3864;fontColor=#1F3864;fontSize=11;fontStyle=1;" value="a:Student" vertex="1">
+          <mxGeometry height="70" width="50" x="40" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="gw" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CFE2F3;strokeColor=#1F3864;fontColor=#1F3864;fontSize=11;align=center;verticalAlign=middle;spacing=4;strokeWidth=1;" value="&lt;div&gt;&lt;b&gt;&lt;u&gt;gw:ApiGateway&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;«Spring Cloud Gateway»&lt;/div&gt;" vertex="1">
+          <mxGeometry height="250" width="170" x="390" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="ps" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E2EFDA;strokeColor=#385723;fontColor=#385723;fontSize=11;align=center;verticalAlign=middle;spacing=4;strokeWidth=1;verticalAlign=top;spacingTop=8;" value="&lt;div&gt;&lt;b&gt;&lt;u&gt;ps:ProgressService&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size:9px;&quot;&gt;tracks progress &amp;amp; quiz scores&lt;/div&gt;" vertex="1">
+          <mxGeometry height="720" width="230" x="900" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="enr" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D9E2F3;strokeColor=#2E5395;fontColor=#2E5395;fontSize=11;align=center;verticalAlign=middle;spacing=4;strokeWidth=1;" value="&lt;div&gt;&lt;b&gt;&lt;u&gt;enr:EnrollmentService&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="210" x="1320" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="cs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D9E2F3;strokeColor=#2E5395;fontColor=#2E5395;fontSize=11;align=center;verticalAlign=middle;spacing=4;strokeWidth=1;" value="&lt;div&gt;&lt;b&gt;&lt;u&gt;cs:CourseService&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="200" width="210" x="1320" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="us" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D9E2F3;strokeColor=#2E5395;fontColor=#2E5395;fontSize=11;align=center;verticalAlign=middle;spacing=4;strokeWidth=1;" value="&lt;div&gt;&lt;b&gt;&lt;u&gt;us:UserService&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="210" x="1320" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="rs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D9E2F3;strokeColor=#2E5395;fontColor=#2E5395;fontSize=11;align=center;verticalAlign=middle;spacing=4;strokeWidth=1;" value="&lt;div&gt;&lt;b&gt;&lt;u&gt;rs:ReviewRatingService&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="210" x="1320" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="act" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" target="gw" value="1: POST /api/v1/progress/&lt;br/&gt;quizzes/{quizId}/submit&lt;br/&gt;{submissionId, answers[]}&lt;br/&gt;+ Bearer JWT">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-10" y="-55" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="gw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#7030A0;strokeWidth=1;fontColor=#7030A0;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;innerLoopWaypoints=1;exitX=0.3;exitY=0;exitDx=0;exitDy=0;entryX=0.6;entryY=0;entryDx=0;entryDy=0;" target="gw" value="2: validateToken(jwt)&lt;br/&gt;→ X-User-Id, X-User-Role&lt;br/&gt;[else 401 Unauthorized]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="441" y="428" />
+              <mxPoint x="492" y="428" />
+            </Array>
+            <mxPoint x="-30" y="-70" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="gw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=1;exitY=0.76;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="ps" value="3: submitQuiz(quizId,&lt;br/&gt;submissionId, answers, studentId)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-32" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=1;exitY=0.05;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" target="enr" value="4: GET /enrollments/check&lt;br/&gt;?studentId=&amp;amp;courseId=&lt;br/&gt;[guard: phải đăng ký]">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-14" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="enr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.1;entryDx=0;entryDy=0;" target="ps" value="5: EnrollmentStatus&lt;br/&gt;= ACTIVE&lt;br/&gt;[else 403 NotEnrolled]">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="24" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.15;entryDx=0;entryDy=0;" target="cs" value="6: GET /courses/{courseId}&lt;br/&gt;/quizzes/{quizId}">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-18" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="cs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="ps" value="7: QuizDefinition(&lt;br/&gt;questions, answerKey,&lt;br/&gt;passingScore, maxAttempts)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="28" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#7030A0;strokeWidth=1;fontColor=#7030A0;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;innerLoopWaypoints=1;exitX=0;exitY=0.05;exitDx=0;exitDy=0;entryX=0;entryY=0.09;entryDx=0;entryDy=0;" target="ps" value="8: [idempotent]&lt;br/&gt;findBySubmissionId(&lt;br/&gt;submissionId) — đã có&lt;br/&gt;⇒ trả kết quả đã lưu">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="788" y="286.0" />
+              <mxPoint x="788" y="314.8" />
+            </Array>
+            <mxPoint x="-60" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#7030A0;strokeWidth=1;fontColor=#7030A0;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;innerLoopWaypoints=1;exitX=0;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.24;entryDx=0;entryDy=0;" target="ps" value="9: [attemptNo ≤ maxAttempts]&lt;br/&gt;[else 409]&lt;br/&gt;grade() + saveAttempt()">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="788" y="394.0" />
+              <mxPoint x="788" y="422.8" />
+            </Array>
+            <mxPoint x="-60" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=1;exitY=0.45;exitDx=0;exitDy=0;entryX=0;entryY=0.65;entryDx=0;entryDy=0;" target="cs" value="10: GET /courses/{courseId}&lt;br/&gt;/curriculum/published">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-18" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="cs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="ps" value="11: Curriculum(&lt;br/&gt;totalPublishedLessons,&lt;br/&gt;requiredQuizzes)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="26" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#7030A0;strokeWidth=1;fontColor=#7030A0;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;innerLoopWaypoints=1;exitX=0;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.64;entryDx=0;entryDy=0;" target="ps" value="12: [UC-P07] recalculate&lt;br/&gt;→ upsertCourseProgress(&lt;br/&gt;percent, courseCompleted)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="788" y="682.0" />
+              <mxPoint x="788" y="710.8" />
+            </Array>
+            <mxPoint x="-60" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=1;exitY=0.66;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" target="us" value="13: GET /users/{studentId}&lt;br/&gt;/profile&lt;br/&gt;[khi courseCompleted]">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-18" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="us" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.71;entryDx=0;entryDy=0;" target="ps" value="14: UserProfile(&lt;br/&gt;fullName, email, roles)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="24" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#7030A0;strokeWidth=1;fontColor=#7030A0;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;innerLoopWaypoints=1;exitX=0;exitY=0.76;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" target="ps" value="15: [UC-P08] issueCertificate&lt;br/&gt;[courseCompleted &amp;amp;&amp;amp;&lt;br/&gt;requiredQuizzesPassed]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="788" y="797.2" />
+              <mxPoint x="788" y="826.0" />
+            </Array>
+            <mxPoint x="-60" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=1;exitY=0.85;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" target="rs" value="16: notifyCourseCompleted(&lt;br/&gt;studentId, courseId)&lt;br/&gt;[async — mở quyền đánh giá]">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-18" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="rs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.9;entryDx=0;entryDy=0;" target="ps" value="17: 200 OK&lt;br/&gt;(reviewPermissionGranted)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="24" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="ps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=0;exitY=0.97;exitDx=0;exitDy=0;entryX=1;entryY=0.85;entryDx=0;entryDy=0;" target="gw" value="18: QuizResult(score, passed,&lt;br/&gt;attemptNo, percentComplete)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="620" y="948.4" />
+              <mxPoint x="620" y="682.5" />
+            </Array>
+            <mxPoint x="120" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="gw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#1F3864;strokeWidth=1;fontColor=#1F3864;fontSize=10;labelBackgroundColor=#FFFFFF;verticalAlign=middle;align=center;exitPerimeter=0;entryPerimeter=0;exitX=0;exitY=0.62;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="act" value="19: 200 OK&lt;br/&gt;{ score, passed, attemptNo,&lt;br/&gt;percentComplete }">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-10" y="64" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

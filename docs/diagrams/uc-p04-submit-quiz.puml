@@ -1,0 +1,59 @@
+@startuml uc-p04-submit-quiz
+' ============================================================================
+' LearnHub LMS - COMMUNICATION DIAGRAM (SERVICE LEVEL)
+' UC-P04: Submit quiz & record score
+' Progress Service | Key challenge: Progress tracking (idempotent, event-driven)
+' Chi tiet den muc SERVICE: không vẽ class / repository / DB nội bộ.
+' ============================================================================
+title <size:18>Communication Diagram - UC-P04: Submit quiz & record score</size>\n<size:13>Mức chi tiết: SERVICE | Progress Service | Key challenge: Progress tracking</size>
+
+left to right direction
+skinparam style strictuml
+skinparam shadowing false
+skinparam dpi 150
+skinparam defaultFontName "DejaVu Sans"
+skinparam object {
+  BackgroundColor #FFFFFF
+  BorderColor #385723
+  FontColor #385723
+  AttributeFontSize 12
+}
+
+object "a:Student\n(Actor)" as ACT #E8F0FE
+object "gw:ApiGateway\n<<Spring Cloud Gateway>>" as GW #CFE2F3
+object "ps:ProgressService" as PS #E2EFDA
+object "enr:EnrollmentService" as ENR #D9E2F3
+object "cs:CourseService" as CS #D9E2F3
+object "us:UserService" as US #D9E2F3
+object "rs:ReviewRatingService" as RS #D9E2F3
+
+ACT --> GW   : 1: POST /api/v1/progress/quizzes/{quizId}/submit\n{submissionId, answers[]} + Bearer JWT
+GW  --> GW   : 2: validateToken(jwt) -> X-User-Id, X-User-Role\n[else 401 Unauthorized]
+GW  --> PS   : 3: submitQuiz(quizId, submissionId, answers, studentId)
+
+PS  --> ENR  : 4: GET /api/v1/enrollments/check\n?studentId={id}&courseId={id}\n[guard: phải đăng ký khoá học]
+ENR --> PS   : 5: EnrollmentStatus = ACTIVE\n[else 403 NotEnrolled]
+
+PS  --> CS   : 6: GET /api/v1/courses/{courseId}/quizzes/{quizId}
+CS  --> PS   : 7: QuizDefinition(questions, answerKey, points,\npassingScore, maxAttempts, isRequired)
+
+PS  --> PS   : 8: [idempotent] findBySubmissionId(submissionId)\nnếu đã có -> trả kết quả đã lưu, bỏ qua 9-12
+PS  --> PS   : 9: [attemptNo <= maxAttempts] [else 409]\ngrade() + saveAttempt()
+
+PS  --> CS   : 10: GET /api/v1/courses/{courseId}/curriculum/published
+CS  --> PS   : 11: Curriculum(totalPublishedLessons, requiredQuizzes)
+
+PS  --> PS   : 12: [UC-P07] recalculate\nupsertCourseProgress(percentComplete, courseCompleted)
+
+PS  --> US   : 13: GET /api/v1/users/{studentId}/profile\n[chỉ khi courseCompleted]
+US  --> PS   : 14: UserProfile(fullName, email, roles)
+
+PS  --> PS   : 15: [UC-P08] issueCertificate(studentId, courseId)\n[courseCompleted && requiredQuizzesPassed]
+
+PS  --> RS   : 16: notifyCourseCompleted(studentId, courseId)\n[async - mở quyền đánh giá]
+RS  --> PS   : 17: 200 OK (reviewPermissionGranted)
+
+PS  --> GW   : 18: QuizResult(score, passed, attemptNo, percentComplete)
+GW  --> ACT  : 19: 200 OK { score, passed, attemptNo, percentComplete }
+
+@enduml

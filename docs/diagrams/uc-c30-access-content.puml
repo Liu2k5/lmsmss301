@@ -1,0 +1,69 @@
+@startuml uc-c30-access-content
+' ============================================================================
+' LearnHub LMS - COMMUNICATION DIAGRAM
+' UC-C30: Access content (Xem noi dung bai hoc co kiem tra quyen truy cap)
+' Course Service | Key challenge: Access control theo enrollment status
+' ============================================================================
+title <size:18>Communication Diagram - UC-C30: Access content</size>\n<size:13>Course Service | Key challenge: Access control</size>
+
+left to right direction
+skinparam style strictuml
+skinparam shadowing false
+skinparam dpi 150
+skinparam defaultFontName "DejaVu Sans"
+skinparam object {
+  BackgroundColor #FFFFFF
+  BorderColor #1F3864
+  FontColor #1F3864
+  AttributeFontSize 12
+}
+
+object "a:Student / a:Instructor\n(Actor)" as ACT #E8F0FE
+object "gw:ApiGateway\n<<Spring Cloud Gateway>>" as GW #DEEBF7
+object "cs:CourseService\n:LessonContentController" as CS #DEEBF7
+object "ac:LessonAccessService" as AC #DEEBF7
+object "cr:CourseRepository" as CR #DEEBF7
+object "ec:EnrollmentClient" as EC #DEEBF7
+object "cl:CloudinaryClient" as CL #DEEBF7
+object "ca:EnrollmentCache\n<<Redis>>" as CA #E2EFDA
+object "enr:EnrollmentService\n:EnrollmentController" as ENR #D9E2F3
+object "er:EnrollmentRepository" as ER #D9E2F3
+object "cdb:course_db\n<<Database>>" as CDB #FFF2CC
+object "edb:enrollment_db\n<<Database>>" as EDB #FFF2CC
+object "cdn:Cloudinary\n<<External CDN>>" as CDN #FCE4D6
+
+ACT --> GW   : 1: GET /api/v1/courses/{courseId}/lessons/{lessonId}/content\n(Authorization: Bearer JWT)
+GW  --> GW   : 2: validateToken(jwt) -> X-User-Id, X-User-Role\n[else 401 Unauthorized]
+GW  --> CS   : 3: getLessonContent(courseId, lessonId, userId, role)
+
+CS  --> AC   : 4: authorizeAndLoadContent(courseId, lessonId, userId, role)
+AC  --> CR   : 5: findLesson(lessonId)
+CR  --> CDB  : 6: SELECT * FROM lessons WHERE id = ?
+CDB --> CR   : 7: LessonRow
+CR  --> AC   : 8: Lesson(courseId, status, isFreePreview, contentRef, sectionId)
+AC  --> AC   : 9: [lesson.courseId == courseId && status == PUBLISHED]\n[else 404 Not Found]
+
+AC  --> CA   : 10: getEnrollmentStatus(userId, courseId)\n[nhánh A: bỏ qua bước 10-19 nếu isFreePreview == true]
+AC  --> EC   : 11: checkEnrollmentStatus(userId, courseId)\n[chỉ gọi khi cache miss / stale]
+EC  --> ENR  : 12: GET /api/v1/enrollments/check?studentId={userId}&courseId={courseId}
+ENR --> ER   : 13: findByStudentIdAndCourseId(userId, courseId)
+ER  --> EDB  : 14: SELECT status FROM enrollments WHERE ...
+EDB --> ER   : 15: EnrollmentRow
+ER  --> ENR  : 16: Enrollment
+ENR --> EC   : 17: EnrollmentStatusDTO(ACTIVE | DROPPED | COMPLETED)\nhoặc 404 Not Found
+EC  --> AC   : 18: EnrollmentStatus
+AC  --> CA   : 19: putEnrollmentStatus(userId, courseId, status, ttl = 5m)
+
+AC  --> CR   : 20: findCourseOwner(courseId)\n[nhánh B: chỉ khi role == INSTRUCTOR]
+AC  --> AC   : 21: [status == ACTIVE || ownerId == userId || role == ADMIN]\n[else 403 AccessDenied]
+
+AC  --> CL   : 22: generateSignedUrl(lesson.contentRef, ttl = 300s)
+CL  --> CDN  : 23: sign_url(publicId, ttl)
+CDN --> CL   : 24: signedUrl, expiresAt
+CL  --> AC   : 25: signedUrl, expiresAt
+
+AC  --> CS   : 26: ContentResponse(lessonMeta, signedUrl, expiresAt)
+CS  --> GW   : 27: 200 OK
+GW  --> ACT  : 28: 200 OK contentUrl + expiresAt
+
+@enduml

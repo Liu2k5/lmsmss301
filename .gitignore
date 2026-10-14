@@ -1,0 +1,56 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+
+/backend/src/main/resources/application.properties
+/backend/src/main/resources/application.yml
+/backend/target
+
+/frontend/lmsfrontend/node_modules
+/frontend/lmsfrontend/dist
+/frontend/lmsfrontend/dist-ssr
+/frontend/lmsfrontend/.local
+/frontend/lmsfrontend/.DS_Store
+/frontend/lmsfrontend/*.suo
+/frontend/lmsfrontend/*.ntvs*
+/frontend/lmsfrontend/*.njsproj
+/frontend/lmsfrontend/*.sln
+/frontend/lmsfrontend/*.sw?
+/frontend/lmsfrontend/logs
+/frontend/lmsfrontend/*.log
+/frontend/lmsfrontend/npm-debug.log*
+/frontend/lmsfrontend/yarn-debug.log*
+/frontend/lmsfrontend/yarn-error.log*
+/frontend/lmsfrontend/pnpm-debug.log*
+/frontend/lmsfrontend/lerna-debug.log*
