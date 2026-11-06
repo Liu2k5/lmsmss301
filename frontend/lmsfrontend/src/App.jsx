@@ -4,14 +4,29 @@ import './courses.css'
 import CoursePage from './pages/CoursePage.jsx'
 import QuizPage from './pages/QuizPage.jsx'
 
-/** Điều hướng đơn giản bằng hash: #/courses, #/courses/:id, #/quizzes. */
+/**
+ * Điều hướng đơn giản bằng hash:
+ * #/courses, #/courses/:id, #/quizzes, #/quizzes?quizId=5, #/quizzes?lessonId=7
+ */
 function parseHash(hash) {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
-  if (parts[0] === 'quizzes') {
-    return { page: 'quizzes' }
+  const raw = hash.replace(/^#\/?/, '')
+  const [pathPart, queryPart = ''] = raw.split('?')
+  const parts = pathPart.split('/').filter(Boolean)
+  const params = new URLSearchParams(queryPart)
+  const positive = (value) => {
+    const parsed = Number(value)
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
   }
-  const id = Number(parts[1])
-  return { page: 'courses', courseId: parts[0] === 'courses' && Number.isInteger(id) && id > 0 ? id : null }
+
+  if (parts[0] === 'quizzes') {
+    return {
+      page: 'quizzes',
+      lessonId: positive(params.get('lessonId')),
+      quizId: positive(params.get('quizId')),
+    }
+  }
+  const id = positive(parts[1])
+  return { page: 'courses', courseId: parts[0] === 'courses' ? id : null }
 }
 
 function navigate(path) {
@@ -47,7 +62,7 @@ export default function App() {
       </nav>
 
       {route.page === 'quizzes' ? (
-        <QuizPage />
+        <QuizPage initialLessonId={route.lessonId} initialQuizId={route.quizId} />
       ) : (
         <CoursePage
           courseId={route.courseId}

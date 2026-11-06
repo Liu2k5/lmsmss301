@@ -1,6 +1,12 @@
-import { ApiError } from './quizApi.js'
-
-export { ApiError }
+export class ApiError extends Error {
+  constructor(message, status, body) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.body = body
+    this.details = body?.details ?? []
+  }
+}
 
 /** Gọi REST API của course-service, ném ApiError (kèm details theo field) khi lỗi. */
 export async function request(url, options = {}) {

@@ -403,7 +403,8 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
       {editable && missingQuiz.length > 0 && (
         <div className="alert alert--warning" role="note">
           {missingQuiz.length} bài học loại Quiz chưa có quiz:{' '}
-          {missingQuiz.map((lesson) => lesson.title).join(', ')}. <a href="#/quizzes">Tạo quiz ở trang Quiz →</a>
+          {missingQuiz.map((lesson) => lesson.title).join(', ')}.{' '}
+          <a href={`#/quizzes?lessonId=${missingQuiz[0].id}`}>Tạo quiz cho “{missingQuiz[0].title}” →</a>
         </div>
       )}
 
@@ -472,9 +473,21 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                             {lesson.preview && <span className="tag tag--info">Xem thử</span>}
                             {lesson.type === 'QUIZ' &&
                               (lesson.quizId ? (
-                                <span className="tag tag--success">Đã có quiz</span>
+                                <a
+                                  className="tag tag--success tag--link"
+                                  href={`#/quizzes?quizId=${lesson.quizId}`}
+                                  title="Sửa quiz của bài học này"
+                                >
+                                  Đã có quiz · Sửa →
+                                </a>
                               ) : (
-                                <span className="tag tag--warning">Chưa có quiz</span>
+                                <a
+                                  className="tag tag--warning tag--link"
+                                  href={`#/quizzes?lessonId=${lesson.id}`}
+                                  title="Tạo quiz cho bài học này"
+                                >
+                                  Chưa có quiz · Tạo →
+                                </a>
                               ))}
                             <button type="button" className="tag tag--button" onClick={() => toggle(lesson.id)}
                               aria-expanded={isOpen}>

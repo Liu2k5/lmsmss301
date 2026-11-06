@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import QuizForm from '../components/QuizForm.jsx'
+import QuizPreview from '../components/QuizPreview.jsx'
 import { quizApi } from '../api/quizApi.js'
 
 function formatDate(value) {
@@ -19,43 +20,67 @@ function formatDate(value) {
   })
 }
 
-export default function QuizPage() {
+/**
+ * Trang quản lý quiz của giảng viên.
+ *
+ * Hỗ trợ deep-link từ trang khoá học:
+ * - `#/quizzes?quizId=5`  → mở ngay form sửa quiz 5
+ * - `#/quizzes?lessonId=7` → mở form tạo quiz cho bài học 7
+ */
+export default function QuizPage({ initialLessonId, initialQuizId }) {
   const [quizzes, setQuizzes] = useState([])
   const [lessonOptions, setLessonOptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState(null)
+
+  const [filters, setFilters] = useState({ keyword: '', courseId: '' })
+  const [activeKeyword, setActiveKeyword] = useState('')
+
   const [editor, setEditor] = useState(null)
   const [openingEditor, setOpeningEditor] = useState(false)
+  const [previewId, setPreviewId] = useState(null)
+  const [duplicateTarget, setDuplicateTarget] = useState(null)
+  const [duplicateLessonId, setDuplicateLessonId] = useState('')
+  const [duplicating, setDuplicating] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState(null)
+  const handledLink = useRef(null)
 
-  const fetchAll = useCallback(
-    () => Promise.all([quizApi.list(), quizApi.lessonOptions()]),
-    [],
-  )
+  useEffect(() => {
+    const timer = setTimeout(() => setActiveKeyword(filters.keyword.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [filters.keyword])
 
-  const loadData = useCallback(async () => {
+  const loadQuizzes = useCallback(async () => {
     setLoading(true)
     setListError(null)
     try {
-      const [quizList, lessons] = await fetchAll()
-      setQuizzes(quizList)
-      setLessonOptions(lessons)
+      setQuizzes(await quizApi.list({ keyword: activeKeyword, courseId: filters.courseId }))
     } catch (error) {
       setListError(error)
     } finally {
       setLoading(false)
     }
-  }, [fetchAll])
+  }, [activeKeyword, filters.courseId])
 
+  const loadLessonOptions = useCallback(async () => {
+    try {
+      setLessonOptions(await quizApi.lessonOptions())
+    } catch (error) {
+      setToast({ type: 'error', message: error.message })
+    }
+  }, [])
+
+  // Tải danh sách khi bộ lọc thay đổi (state chỉ set trong callback bất đồng bộ).
   useEffect(() => {
     let active = true
-    fetchAll()
-      .then(([quizList, lessons]) => {
+    quizApi
+      .list({ keyword: activeKeyword, courseId: filters.courseId })
+      .then((data) => {
         if (active) {
-          setQuizzes(quizList)
-          setLessonOptions(lessons)
+          setQuizzes(data)
+          setListError(null)
         }
       })
       .catch((error) => {
@@ -71,7 +96,75 @@ export default function QuizPage() {
     return () => {
       active = false
     }
-  }, [fetchAll])
+  }, [activeKeyword, filters.courseId])
+
+  // Tải danh sách bài học loại QUIZ (dùng cho dropdown + thống kê).
+  useEffect(() => {
+    let active = true
+    quizApi
+      .lessonOptions()
+      .then((lessons) => active && setLessonOptions(lessons))
+      .catch((error) => active && setToast({ type: 'error', message: error.message }))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // Deep-link: #/quizzes?quizId=… hoặc #/quizzes?lessonId=… (hash đổi cũng kích hoạt lại).
+  useEffect(() => {
+    const link = initialQuizId ? `q:${initialQuizId}` : initialLessonId ? `l:${initialLessonId}` : null
+    if (!link || handledLink.current === link) {
+      return undefined
+    }
+
+    let active = true
+    const done = () => {
+      handledLink.current = link
+    }
+
+    const task = initialQuizId
+      ? quizApi.get(initialQuizId).then((quiz) => {
+          if (active) {
+            done()
+            setEditor({ mode: 'edit', quiz })
+          }
+        })
+      : quizApi.lessonOptions().then((lessons) => {
+          if (!active) {
+            return
+          }
+          setLessonOptions(lessons)
+          const lesson = lessons.find((item) => item.id === Number(initialLessonId))
+          if (!lesson) {
+            done()
+            return
+          }
+          if (lesson.quizId) {
+            quizApi
+              .get(lesson.quizId)
+              .then((quiz) => {
+                if (active) {
+                  done()
+                  setEditor({ mode: 'edit', quiz })
+                }
+              })
+              .catch((error) => active && setToast({ type: 'error', message: error.message }))
+          } else {
+            done()
+            setEditor({ mode: 'create', lessonId: lesson.id })
+          }
+        })
+
+    task.catch((error) => active && setToast({ type: 'error', message: error.message }))
+    return () => {
+      active = false
+    }
+  }, [initialLessonId, initialQuizId])
+
+  function applyFilters(patch) {
+    setLoading(true)
+    setFilters((current) => ({ ...current, ...patch }))
+  }
 
   useEffect(() => {
     if (!toast) {
@@ -81,11 +174,14 @@ export default function QuizPage() {
     return () => clearTimeout(timer)
   }, [toast])
 
+  async function refresh() {
+    await Promise.all([loadQuizzes(), loadLessonOptions()])
+  }
+
   async function openEdit(quiz) {
     setOpeningEditor(true)
     try {
-      const detail = await quizApi.get(quiz.id)
-      setEditor({ mode: 'edit', quiz: detail })
+      setEditor({ mode: 'edit', quiz: await quizApi.get(quiz.id) })
     } catch (error) {
       setToast({ type: 'error', message: error.message })
     } finally {
@@ -102,7 +198,25 @@ export default function QuizPage() {
       setToast({ type: 'success', message: 'Đã tạo quiz mới.' })
     }
     setEditor(null)
-    await loadData()
+    await refresh()
+  }
+
+  async function duplicateQuiz() {
+    if (!duplicateLessonId) {
+      return
+    }
+    setDuplicating(true)
+    try {
+      const copy = await quizApi.duplicate(duplicateTarget.id, Number(duplicateLessonId))
+      setToast({ type: 'success', message: `Đã nhân bản sang "${copy.lessonTitle}".` })
+      setDuplicateTarget(null)
+      setDuplicateLessonId('')
+      await refresh()
+    } catch (error) {
+      setToast({ type: 'error', message: error.message })
+    } finally {
+      setDuplicating(false)
+    }
   }
 
   async function deleteQuiz() {
@@ -111,7 +225,7 @@ export default function QuizPage() {
       await quizApi.remove(confirmTarget.id)
       setToast({ type: 'success', message: `Đã xoá quiz "${confirmTarget.title}".` })
       setConfirmTarget(null)
-      await loadData()
+      await refresh()
     } catch (error) {
       setToast({ type: 'error', message: error.message })
     } finally {
@@ -119,7 +233,13 @@ export default function QuizPage() {
     }
   }
 
+  const courses = Array.from(
+    new Map(lessonOptions.map((lesson) => [lesson.courseId, lesson.courseTitle])).entries(),
+  ).map(([id, title]) => ({ id, title }))
+
+  const emptyLessons = lessonOptions.filter((lesson) => lesson.quizId == null)
   const totalQuestions = quizzes.reduce((sum, quiz) => sum + quiz.questionCount, 0)
+  const filtering = Boolean(activeKeyword || filters.courseId)
 
   return (
     <div className="app">
@@ -134,7 +254,7 @@ export default function QuizPage() {
           </div>
         </div>
         <div className="app-header__actions">
-          <button type="button" className="button button--ghost" onClick={loadData} disabled={loading}>
+          <button type="button" className="button button--ghost" onClick={refresh} disabled={loading}>
             ⟳ Làm mới
           </button>
           <button
@@ -151,22 +271,57 @@ export default function QuizPage() {
       <section className="stats" aria-label="Thống kê">
         <div className="stat">
           <span className="stat__value">{quizzes.length}</span>
-          <span className="stat__label">Bài quiz</span>
+          <span className="stat__label">{filtering ? 'Quiz khớp bộ lọc' : 'Bài quiz'}</span>
         </div>
         <div className="stat">
           <span className="stat__value">{totalQuestions}</span>
           <span className="stat__label">Câu hỏi</span>
         </div>
         <div className="stat">
-          <span className="stat__value">{lessonOptions.filter((lesson) => lesson.quizId == null).length}</span>
+          <span className="stat__value">{emptyLessons.length}</span>
           <span className="stat__label">Bài học còn trống</span>
         </div>
+      </section>
+
+      <section className="toolbar" aria-label="Bộ lọc">
+        <label className="toolbar__search">
+          <span className="sr-only">Tìm kiếm quiz</span>
+          <input
+            type="search"
+            placeholder="Tìm theo tên quiz, bài học hoặc khoá học…"
+            value={filters.keyword}
+            onChange={(event) => applyFilters({ keyword: event.target.value })}
+          />
+        </label>
+        <label className="toolbar__select">
+          <span className="sr-only">Lọc theo khoá học</span>
+          <select
+            value={filters.courseId}
+            onChange={(event) => applyFilters({ courseId: event.target.value })}
+          >
+            <option value="">Tất cả khoá học</option>
+            {courses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        {filtering && (
+          <button
+            type="button"
+            className="button button--ghost button--small"
+            onClick={() => setFilters({ keyword: '', courseId: '' })}
+          >
+            Xoá bộ lọc
+          </button>
+        )}
       </section>
 
       {listError && (
         <div className="alert alert--error" role="alert">
           <strong>{listError.message}</strong>
-          <button type="button" className="button button--ghost button--small" onClick={loadData}>
+          <button type="button" className="button button--ghost button--small" onClick={loadQuizzes}>
             Thử lại
           </button>
         </div>
@@ -182,11 +337,25 @@ export default function QuizPage() {
           <div className="state-card__icon" aria-hidden="true">
             🗒️
           </div>
-          <h2>Chưa có bài quiz nào</h2>
-          <p>Tạo quiz đầu tiên cho một bài học loại QUIZ để bắt đầu.</p>
-          <button type="button" className="button button--primary" onClick={() => setEditor({ mode: 'create' })}>
-            + Tạo quiz đầu tiên
-          </button>
+          <h2>{filtering ? 'Không có quiz nào khớp bộ lọc' : 'Chưa có bài quiz nào'}</h2>
+          <p>
+            {filtering
+              ? 'Thử từ khoá khác hoặc bỏ bộ lọc.'
+              : 'Tạo quiz đầu tiên cho một bài học loại QUIZ để bắt đầu.'}
+          </p>
+          {filtering ? (
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => setFilters({ keyword: '', courseId: '' })}
+            >
+              Xoá bộ lọc
+            </button>
+          ) : (
+            <button type="button" className="button button--primary" onClick={() => setEditor({ mode: 'create' })}>
+              + Tạo quiz đầu tiên
+            </button>
+          )}
         </div>
       ) : (
         <div className="quiz-grid">
@@ -198,7 +367,10 @@ export default function QuizPage() {
               </header>
               <h2 className="quiz-card__title">{quiz.title}</h2>
               <p className="quiz-card__lesson">{quiz.lessonTitle}</p>
-              <p className="quiz-card__course">{quiz.courseTitle}</p>
+              <p className="quiz-card__course">
+                {quiz.courseTitle}
+                {quiz.sectionTitle ? ` · ${quiz.sectionTitle}` : ''}
+              </p>
 
               <dl className="quiz-card__meta">
                 <div>
@@ -220,6 +392,19 @@ export default function QuizPage() {
                 >
                   Sửa
                 </button>
+                <button type="button" className="button button--ghost" onClick={() => setPreviewId(quiz.id)}>
+                  Xem trước
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => {
+                    setDuplicateTarget(quiz)
+                    setDuplicateLessonId('')
+                  }}
+                >
+                  Nhân bản
+                </button>
                 <button type="button" className="button button--danger-ghost" onClick={() => setConfirmTarget(quiz)}>
                   Xoá
                 </button>
@@ -231,12 +416,73 @@ export default function QuizPage() {
 
       {editor && (
         <QuizForm
-          key={editor.mode === 'edit' ? `edit-${editor.quiz.id}` : 'create'}
+          key={editor.mode === 'edit' ? `edit-${editor.quiz.id}` : `create-${editor.lessonId ?? 'any'}`}
           quiz={editor.mode === 'edit' ? editor.quiz : null}
+          initialLessonId={editor.mode === 'create' ? editor.lessonId : null}
           lessonOptions={lessonOptions}
           onSubmit={saveQuiz}
           onCancel={() => setEditor(null)}
         />
+      )}
+
+      {previewId && <QuizPreview quizId={previewId} onClose={() => setPreviewId(null)} />}
+
+      {duplicateTarget && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="duplicate-title">
+            <header className="modal__header">
+              <div>
+                <h2 id="duplicate-title">Nhân bản quiz</h2>
+                <p className="modal__subtitle">
+                  Sao chép toàn bộ câu hỏi và đáp án của “{duplicateTarget.title}”.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setDuplicateTarget(null)}
+                aria-label="Đóng"
+                disabled={duplicating}
+              >
+                ✕
+              </button>
+            </header>
+            <div className="modal__body">
+              <label className="field">
+                <span className="field__label">Bài học đích (chưa có quiz)</span>
+                <select value={duplicateLessonId} onChange={(event) => setDuplicateLessonId(event.target.value)}>
+                  <option value="">— Chọn bài học —</option>
+                  {emptyLessons.map((lesson) => (
+                    <option key={lesson.id} value={lesson.id}>
+                      {lesson.courseTitle} › {lesson.sectionTitle} › {lesson.title}
+                    </option>
+                  ))}
+                </select>
+                {emptyLessons.length === 0 && (
+                  <span className="field__hint">Không còn bài học QUIZ nào trống để nhân bản tới.</span>
+                )}
+              </label>
+            </div>
+            <footer className="modal__footer">
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setDuplicateTarget(null)}
+                disabled={duplicating}
+              >
+                Huỷ
+              </button>
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={duplicateQuiz}
+                disabled={!duplicateLessonId || duplicating}
+              >
+                {duplicating ? 'Đang nhân bản…' : 'Nhân bản'}
+              </button>
+            </footer>
+          </div>
+        </div>
       )}
 
       {confirmTarget && (
