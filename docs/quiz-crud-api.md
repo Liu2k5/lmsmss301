@@ -1,9 +1,9 @@
-# Quiz CRUD — Course Service
+# Quiz — Course Service
 
-Tài liệu cho chức năng quản lý bài quiz (UC-C14 → UC-C19) và giao diện đi kèm.
+Chức năng soạn quiz cho giảng viên (UC-C14 → UC-C19): quản lý quiz, câu hỏi và đáp án.
 
 - Backend: `backend/services/course-service` (port **8081**)
-- Frontend: `frontend/lmsfrontend` (Vite, port 5173, proxy `/api` → `localhost:8081`)
+- Frontend: `frontend/lmsfrontend` (Vite 5173, proxy `/api` → `localhost:8081`)
 
 ---
 
@@ -17,41 +17,84 @@ cd backend/services/course-service
 # Frontend (terminal khác)
 cd frontend/lmsfrontend
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173/#/quizzes
 ```
 
-Backend cần PostgreSQL ở `localhost:5432/course_db`. Có thể override bằng biến môi trường:
+Biến môi trường của course-service:
 
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/course_db` | JDBC URL |
-| `DB_USER` | `postgres` | Tài khoản DB |
-| `DB_PASSWORD` | `postgres` | Mật khẩu DB |
-| `DDL_AUTO` | `update` | Chiến lược schema của Hibernate |
+| `DB_USER` / `DB_PASSWORD` | `postgres` / `postgres` | Tài khoản DB |
+| `DDL_AUTO` | `update` | Chiến lược schema Hibernate |
 | `SERVER_PORT` | `8081` | Cổng service |
-| `SEED_DEMO_DATA` | `true` | Tạo dữ liệu mẫu khi DB trống (tắt bằng `false`) |
+| `SEED_DEMO_DATA` | `true` | Seed dữ liệu mẫu (gồm 1 quiz demo + 1 bài QUIZ chưa có quiz) |
+| `EUREKA_ENABLED` | `true` | Đăng ký Eureka (đặt `false` khi chạy một mình) |
 
-Dữ liệu mẫu gồm 1 khoá học, 3 bài học (1 VIDEO, 2 QUIZ), trong đó 1 bài học QUIZ đã có quiz và 1 bài để trống
-cho việc tạo mới.
+Nếu chưa có PostgreSQL, có thể chạy tạm bằng H2 trên classpath test:
+
+```bash
+SPRING_APPLICATION_JSON='{"spring":{"datasource":{"url":"jdbc:h2:mem:devdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL","driver-class-name":"org.h2.Driver","username":"sa","password":""},"jpa":{"hibernate":{"ddl-auto":"create-drop"}}},"eureka":{"client":{"enabled":false}}}' \
+  ./mvnw spring-boot:run -Dspring-boot.run.useTestClasspath=true
+```
 
 ---
 
-## 2. API
+## 2. Mô hình dữ liệu
+
+```
+Course 1─n Section 1─n Lesson 1─1 Quiz 1─n Question 1─n Option
+```
+
+- `Lesson.type` phải là `QUIZ` mới gắn được quiz.
+- Mỗi `Lesson` có **tối đa một** `Quiz` (ràng buộc unique `quizzes.lesson_id`).
+- `position` do server sinh theo thứ tự gửi lên / thứ tự sắp xếp, client không gửi.
+
+---
+
+## 3. API
 
 Base path: `/api/v1/quizzes`
 
-| Method | Endpoint | Mô tả | Mã thành công |
+### 3.1. Quiz
+
+| Method | Endpoint | Mô tả | Mã |
 |---|---|---|---|
-| GET | `/api/v1/quizzes?lessonId=` | Danh sách quiz (lọc theo bài học nếu có) | 200 |
-| GET | `/api/v1/quizzes/{id}` | Chi tiết quiz kèm câu hỏi và đáp án | 200 |
-| GET | `/api/v1/quizzes/lesson-options` | Bài học loại QUIZ + quiz hiện có (cho dropdown) | 200 |
-| POST | `/api/v1/quizzes` | Tạo quiz | 201 |
-| PUT | `/api/v1/quizzes/{id}` | Cập nhật quiz | 200 |
-| DELETE | `/api/v1/quizzes/{id}` | Xoá quiz (cascade câu hỏi + đáp án) | 204 |
+| GET | `/quizzes?lessonId=&courseId=&keyword=` | Danh sách quiz (các filter kết hợp AND) | 200 |
+| GET | `/quizzes/{id}` | Chi tiết đầy đủ (kèm đáp án đúng) | 200 |
+| GET | `/quizzes/{id}/preview` | Bản xem trước như học viên — **không** có `correct` | 200 |
+| GET | `/quizzes/lesson-options` | Bài học loại QUIZ + quiz hiện có | 200 |
+| POST | `/quizzes` | Tạo quiz (kèm cây câu hỏi) | 201 |
+| PUT | `/quizzes/{id}` | Cập nhật toàn bộ quiz | 200 |
+| DELETE | `/quizzes/{id}` | Xoá quiz + câu hỏi + đáp án | 204 |
+| POST | `/quizzes/{id}/duplicate` | Nhân bản sang bài học khác | 201 |
 
-### 2.1. Request body
+`keyword` tìm trong tên quiz, tên bài học và tên khoá học (không phân biệt hoa thường).
 
-`position` **không** gửi lên — server tự sinh theo thứ tự trong mảng.
+`POST /quizzes/{id}/duplicate` body:
+
+```json
+{ "lessonId": 8 }
+```
+
+### 3.2. Câu hỏi
+
+| Method | Endpoint | Mô tả | Mã |
+|---|---|---|---|
+| POST | `/quizzes/{quizId}/questions` | Thêm câu hỏi vào cuối quiz | 201 |
+| PUT | `/quizzes/{quizId}/questions/{questionId}` | Sửa một câu hỏi | 200 |
+| DELETE | `/quizzes/{quizId}/questions/{questionId}` | Xoá câu hỏi, dồn lại `position` | 204 |
+| PUT | `/quizzes/{quizId}/questions/order` | Sắp xếp lại toàn bộ câu hỏi | 200 |
+
+Body sắp xếp — phải chứa **đúng và đủ** id câu hỏi hiện có:
+
+```json
+{ "orderedIds": [12, 9, 11] }
+```
+
+### 3.3. Request body
+
+`position` không gửi lên (server tự sinh theo thứ tự trong mảng).
 
 ```json
 {
@@ -72,33 +115,37 @@ Base path: `/api/v1/quizzes`
 }
 ```
 
-Khi cập nhật, gửi kèm `id` của câu hỏi/đáp án đã tồn tại để giữ nguyên bản ghi; phần tử không có `id` sẽ được
-tạo mới, phần tử không còn trong mảng sẽ bị xoá.
+Khi cập nhật, gửi kèm `id` câu hỏi/đáp án đã tồn tại để giữ nguyên bản ghi; phần tử không có `id` được tạo mới;
+phần tử không còn trong mảng bị xoá (orphan removal).
 
-### 2.2. Enum
+### 3.4. Enum
 
 | Enum | Giá trị |
 |---|---|
 | `QuestionType` | `SINGLE_CHOICE`, `MULTIPLE_CHOICE`, `TRUE_FALSE` |
 | `LessonType` | `VIDEO`, `ARTICLE`, `QUIZ` |
 
-### 2.3. Quy tắc nghiệp vụ (400/409)
+### 3.5. Quy tắc nghiệp vụ
 
-| Quy tắc | Mã lỗi |
+| Quy tắc | HTTP |
 |---|---|
-| Bài học phải tồn tại | 404 |
-| Chỉ bài học loại `QUIZ` mới gắn được quiz | 400 |
-| Mỗi bài học chỉ có **một** quiz (ràng buộc unique `quizzes.lesson_id`) | 409 |
-| Quiz phải có ≥ 1 câu hỏi, mỗi câu ≥ 1 đáp án, nội dung không rỗng | 400 |
+| Quiz / câu hỏi / bài học không tồn tại | 404 |
+| Bài học không phải loại `QUIZ` | 400 |
+| Bài học đã có quiz (khi tạo/nhân bản) | 409 |
+| Quiz phải có ≥ 1 câu hỏi; không xoá câu hỏi cuối cùng | 400 |
+| Mỗi câu phải có **2–10** đáp án | 400 |
+| `TRUE_FALSE` phải có đúng 2 đáp án | 400 |
 | Mỗi câu phải có ≥ 1 đáp án đúng | 400 |
-| `SINGLE_CHOICE` / `TRUE_FALSE` phải có **đúng** 1 đáp án đúng | 400 |
-| `passingScore` trong khoảng 0–100, tối đa 2 chữ số thập phân | 400 |
+| `SINGLE_CHOICE` / `TRUE_FALSE` phải có **đúng 1** đáp án đúng | 400 |
+| Hai đáp án trong cùng câu không được trùng nội dung | 400 |
+| `passingScore` trong 0–100, tối đa 2 chữ số thập phân | 400 |
+| `orderedIds` không khớp danh sách câu hỏi hiện có | 400 |
 
-### 2.4. Định dạng lỗi
+### 3.6. Định dạng lỗi
 
 ```json
 {
-  "timestamp": "2026-10-26T15:26:55Z",
+  "timestamp": "2026-11-06T15:26:55Z",
   "status": 400,
   "error": "Bad Request",
   "message": "Dữ liệu không hợp lệ",
@@ -111,29 +158,46 @@ tạo mới, phần tử không còn trong mảng sẽ bị xoá.
 
 ---
 
-## 3. Giao diện
+## 4. Giao diện
 
-`frontend/lmsfrontend/src`
+Route: `#/quizzes`. Deep-link từ trang khoá học:
+
+| URL | Hành vi |
+|---|---|
+| `#/quizzes?quizId=5` | Mở form **sửa** quiz 5 |
+| `#/quizzes?lessonId=8` | Mở form **tạo** quiz cho bài học 8 |
+
+Trong `CourseDetail`, tag “Đã có quiz” / “Chưa có quiz” là link mở đúng quiz/bài học tương ứng.
 
 | File | Nhiệm vụ |
 |---|---|
-| `App.jsx` | Trang quản lý: thống kê, danh sách quiz, xoá có xác nhận, toast |
-| `components/QuizForm.jsx` | Modal tạo/sửa: chọn bài học, thông tin quiz, danh sách câu hỏi và đáp án |
-| `api/quizApi.js` | Lớp gọi API, chuẩn hoá lỗi thành `ApiError` |
-| `App.css`, `index.css` | Giao diện |
+| `pages/QuizPage.jsx` | Danh sách + thống kê, tìm kiếm/lọc theo khoá học, nhân bản, xem trước, xoá, deep-link |
+| `components/QuizForm.jsx` | Form tạo/sửa: chọn bài học, câu hỏi (lên/xuống/nhân bản/xoá), đáp án, đổi loại câu hỏi |
+| `components/QuizPreview.jsx` | Xem trước như học viên, nút “Hiện đáp án” cho giảng viên |
+| `api/quizApi.js` | Lớp gọi API quiz |
 
-Chức năng trên UI: xem danh sách, tạo, sửa (giữ id câu hỏi/đáp án), xoá, đổi loại câu hỏi, thêm/xoá câu hỏi và
-đáp án, đánh dấu đáp án đúng, validate phía client trước khi gửi và hiển thị lỗi validate từ server theo từng field.
+Chi tiết UI:
+
+- **Danh sách**: tìm kiếm (debounce 300 ms), lọc theo khoá học, đếm quiz/câu hỏi/bài học còn trống.
+- **Form**: thêm/xoá/đổi loại câu hỏi, đổi thứ tự bằng ↑ ↓, nhân bản câu hỏi, đánh dấu đáp án đúng
+  (radio cho một đáp án, checkbox cho nhiều đáp án), validate phía client trước khi gửi.
+- **Xem trước**: hiển thị đúng như học viên, không lộ đáp án; bấm “Hiện đáp án” mới tô xanh đáp án đúng.
+- **Nhân bản**: chọn bài học đích trong danh sách bài QUIZ chưa có quiz.
 
 ---
 
-## 4. Kiểm thử
+## 5. Kiểm thử
 
 ```bash
 cd backend/services/course-service
-./mvnw test          # 17 test: mapping entity + CRUD integration (MockMvc, H2)
+./mvnw test             # 57 test
+cd ../../../frontend/lmsfrontend
+npm run lint && npm run build
 ```
 
-`QuizControllerIntegrationTest` phủ: tạo, danh sách, chi tiết, cập nhật (thay đổi và xoá câu hỏi, giữ id),
-xoá + cascade, trùng bài học (409), sai loại bài học (400), không có đáp án đúng (400), nhiều đáp án đúng cho
-câu hỏi một đáp án (400), validate field, danh sách lesson-options, 404.
+| Test class | Nội dung |
+|---|---|
+| `QuizControllerIntegrationTest` (14) | CRUD quiz qua MockMvc, cascade, trùng bài học, validate, 404 |
+| `QuizQuestionApiIntegrationTest` (15) | Thêm/sửa/xoá/sắp xếp câu hỏi, nhân bản, preview, filter, validate đáp án |
+| `CourseCurriculumMappingTests` (2) | Mapping entity |
+| `CourseControllerIntegrationTest` (11), `MaterialUploadIntegrationTest` (14) | Khoá học, học liệu |

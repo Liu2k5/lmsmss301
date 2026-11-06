@@ -1,0 +1,105 @@
+package com.example.course_service.controller;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.course_service.dto.CourseDetailResponse;
+import com.example.course_service.dto.CourseRequest;
+import com.example.course_service.dto.CourseStatusRequest;
+import com.example.course_service.dto.CourseSummaryResponse;
+import com.example.course_service.dto.PublishedCurriculumResponse;
+import com.example.course_service.dto.ReorderRequest;
+import com.example.course_service.dto.SectionRequest;
+import com.example.course_service.entity.CourseStatus;
+import com.example.course_service.service.CourseService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/v1/courses")
+@RequiredArgsConstructor
+public class CourseController {
+
+	private final CourseService courseService;
+
+	@GetMapping
+	public List<CourseSummaryResponse> search(
+			@RequestParam(required = false) String keyword,
+			@RequestParam(required = false) CourseStatus status,
+			@RequestParam(required = false) Integer instructorId) {
+		return courseService.search(keyword, status, instructorId);
+	}
+
+	@GetMapping("/{id}")
+	public CourseDetailResponse findById(@PathVariable Integer id) {
+		return courseService.getDetail(id);
+	}
+
+	@GetMapping("/{id}/curriculum/published")
+	public PublishedCurriculumResponse publishedCurriculum(@PathVariable Integer id) {
+		return courseService.getPublishedCurriculum(id);
+	}
+
+	@PostMapping
+	@ResponseStatus(HttpStatus.CREATED)
+	public CourseDetailResponse create(@Valid @RequestBody CourseRequest request) {
+		return courseService.create(request);
+	}
+
+	@PutMapping("/{id}")
+	public CourseDetailResponse update(@PathVariable Integer id, @Valid @RequestBody CourseRequest request) {
+		return courseService.update(id, request);
+	}
+
+	/** Upload ảnh bìa từ máy lên MinIO (multipart/form-data: file). */
+	@PostMapping(value = "/{id}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public CourseDetailResponse uploadThumbnail(@PathVariable Integer id, @RequestPart("file") MultipartFile file) {
+		return courseService.uploadThumbnail(id, file);
+	}
+
+	@DeleteMapping("/{id}/thumbnail")
+	public CourseDetailResponse removeThumbnail(@PathVariable Integer id) {
+		return courseService.removeThumbnail(id);
+	}
+
+	@PatchMapping("/{id}/status")
+	public CourseDetailResponse changeStatus(@PathVariable Integer id,
+			@Valid @RequestBody CourseStatusRequest request) {
+		return courseService.changeStatus(id, request.status());
+	}
+
+	@DeleteMapping("/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(@PathVariable Integer id) {
+		courseService.delete(id);
+	}
+
+
+	@PostMapping("/{id}/sections")
+	@ResponseStatus(HttpStatus.CREATED)
+	public CourseDetailResponse addSection(@PathVariable Integer id, @Valid @RequestBody SectionRequest request) {
+		return courseService.addSection(id, request);
+	}
+
+	@PutMapping("/{id}/sections/order")
+	public CourseDetailResponse reorderSections(@PathVariable Integer id,
+			@Valid @RequestBody ReorderRequest request) {
+		return courseService.reorderSections(id, request.orderedIds());
+	}
+}
