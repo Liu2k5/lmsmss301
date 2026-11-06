@@ -1,4 +1,4 @@
-package com.example.course_service.service;
+package com.example.course_service.service.impl;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,17 +31,19 @@ import com.example.course_service.exception.ConflictException;
 import com.example.course_service.exception.ResourceNotFoundException;
 import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.QuizRepository;
+import com.example.course_service.service.QuizService;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class QuizService {
+public class QuizServiceImpl implements QuizService {
 
 	private final QuizRepository quizRepository;
 	private final LessonRepository lessonRepository;
 
+	@Override
 	public List<QuizSummaryResponse> findAll(Integer lessonId) {
 		List<Quiz> quizzes = quizRepository.findAllWithContext();
 		return quizzes.stream()
@@ -50,11 +52,13 @@ public class QuizService {
 				.toList();
 	}
 
+	@Override
 	public QuizResponse findById(Integer id) {
 		return toResponse(requireQuiz(id));
 	}
 
 	/** Danh sách bài học loại QUIZ kèm quiz hiện có (nếu đã có) để client chọn khi tạo mới. */
+	@Override
 	public List<LessonOptionResponse> findLessonOptions() {
 		Map<Integer, Quiz> quizByLessonId = quizRepository.findAllWithContext().stream()
 				.collect(Collectors.toMap(quiz -> quiz.getLesson().getId(), Function.identity()));
@@ -74,6 +78,7 @@ public class QuizService {
 				.toList();
 	}
 
+	@Override
 	@Transactional
 	public QuizResponse create(QuizRequest request) {
 		Lesson lesson = requireQuizLesson(request.lessonId());
@@ -94,6 +99,7 @@ public class QuizService {
 		return toResponse(quizRepository.save(quiz));
 	}
 
+	@Override
 	@Transactional
 	public QuizResponse update(Integer id, QuizRequest request) {
 		Quiz quiz = requireQuiz(id);
@@ -115,6 +121,7 @@ public class QuizService {
 		return toResponse(quizRepository.save(quiz));
 	}
 
+	@Override
 	@Transactional
 	public void delete(Integer id) {
 		Quiz quiz = requireQuiz(id);

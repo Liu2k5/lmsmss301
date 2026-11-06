@@ -1,0 +1,32 @@
+import { ApiError } from './quizApi.js'
+
+export { ApiError }
+
+/** Gọi REST API của course-service, ném ApiError (kèm details theo field) khi lỗi. */
+export async function request(url, options = {}) {
+  let response
+  try {
+    // FormData (upload file) phải để trình duyệt tự đặt Content-Type kèm boundary.
+    const isForm = options.body instanceof FormData
+    response = await fetch(url, {
+      headers: isForm ? {} : { 'Content-Type': 'application/json' },
+      ...options,
+    })
+  } catch {
+    throw new ApiError('Không kết nối được tới course-service. Kiểm tra backend đã chạy ở cổng 8081 chưa.', 0)
+  }
+
+  if (response.status === 204) {
+    return null
+  }
+
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new ApiError(body?.message ?? `Yêu cầu thất bại (HTTP ${response.status})`, response.status, body)
+  }
+  return body
+}
+
+export function json(method, payload) {
+  return { method, body: JSON.stringify(payload) }
+}

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import './App.css'
-import QuizForm from './components/QuizForm.jsx'
-import { quizApi } from './api/quizApi.js'
+import QuizForm from '../components/QuizForm.jsx'
+import { quizApi } from '../api/quizApi.js'
 
 function formatDate(value) {
   if (!value) {
@@ -20,7 +19,7 @@ function formatDate(value) {
   })
 }
 
-export default function App() {
+export default function QuizPage() {
   const [quizzes, setQuizzes] = useState([])
   const [lessonOptions, setLessonOptions] = useState([])
   const [loading, setLoading] = useState(true)

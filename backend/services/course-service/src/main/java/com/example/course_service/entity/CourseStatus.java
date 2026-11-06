@@ -1,14 +1,12 @@
 package com.example.course_service.entity;
 
 /**
- * Trạng thái vòng đời của khoá học: DRAFT -> PENDING_REVIEW -> PUBLISHED,
- * có thể bị REJECTED khi duyệt, UNPUBLISHED khi ẩn, hoặc ARCHIVED khi lưu trữ.
+ * Trạng thái vòng đời của khoá học: DRAFT -> PUBLISHED, có thể UNPUBLISHED khi ẩn
+ * hoặc ARCHIVED khi lưu trữ. Giảng viên tự xuất bản, không có bước duyệt.
  */
 public enum CourseStatus {
 	DRAFT,
-	PENDING_REVIEW,
 	PUBLISHED,
-	REJECTED,
 	UNPUBLISHED,
 	ARCHIVED
 }
