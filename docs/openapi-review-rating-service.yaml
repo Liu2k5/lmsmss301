@@ -1,0 +1,556 @@
+openapi: 3.0.3
+info:
+  title: LearnHub LMS - Review & Rating Service API
+  description: Microservice quản lý đánh giá, xếp hạng sao, phản hồi của giảng viên và kiểm duyệt nhận xét khóa học (Port 8085).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8085
+    description: Local Service Port
+  - url: http://localhost:8080
+    description: API Gateway Entry Point
+
+paths:
+  /api/v1/courses/{courseId}/reviews:
+    post:
+      summary: UC-R01 - Tạo đánh giá & xếp hạng khóa học
+      description: Học viên đã ghi danh viết đánh giá từ 1 đến 5 sao. Hệ thống tự động cập nhật thống kê điểm khóa học.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: Đánh giá được tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '400':
+          description: Dữ liệu không hợp lệ (ví dụ rating ngoài khoảng 1-5)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Chưa xác thực (thiếu header X-User-Id hoặc Bearer Token)
+        '403':
+          description: Chưa đăng ký hoặc chưa hoàn thành khóa học
+        '409':
+          description: Học viên đã đánh giá khóa học này trước đó
+
+    get:
+      summary: UC-R04 - Xem danh sách đánh giá của khóa học
+      description: Công khai. Hỗ trợ phân trang, sắp xếp và lọc theo số sao.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: rating
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [newest, highest_rating, lowest_rating, most_helpful]
+            default: newest
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Danh sách đánh giá (phân trang)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageReviewResponse'
+
+  /api/v1/reviews/{reviewId}:
+    put:
+      summary: UC-R02 - Chỉnh sửa đánh giá
+      description: Học viên chỉnh sửa sao hoặc bình luận của chính mình.
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewRequest'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '403':
+          description: Không có quyền sửa đánh giá của người khác
+        '404':
+          description: Không tìm thấy đánh giá
+
+    delete:
+      summary: UC-R03 - Xóa đánh giá (Soft delete)
+      description: Học viên xóa đánh giá của mình hoặc Admin xóa.
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Xóa thành công
+        '403':
+          description: Không có quyền xóa
+        '404':
+          description: Không tìm thấy đánh giá
+
+  /api/v1/courses/{courseId}/ratings/summary:
+    get:
+      summary: UC-R05 - Xem tổng hợp điểm & phân bố sao
+      description: Trả về averageRating, totalReviews và phân bổ phần trăm cho từng mức 1-5 sao.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Thống kê điểm thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseRatingSummaryResponse'
+
+  /api/v1/reviews/{reviewId}/replies:
+    post:
+      summary: UC-R06 - Giảng viên phản hồi đánh giá
+      description: Giảng viên hoặc Admin phản hồi công khai nhận xét của học viên.
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReplyRequest'
+      responses:
+        '201':
+          description: Phản hồi thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewReplyResponse'
+        '403':
+          description: Yêu cầu quyền INSTRUCTOR hoặc ADMIN
+
+  /api/v1/reviews/{reviewId}/helpful:
+    post:
+      summary: UC-R07 - Đánh dấu nhận xét hữu ích (Helpful vote)
+      description: Bấm lần 1 tăng 1 lượt hữu ích, bấm lần 2 hủy vote.
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Kết quả trạng thái vote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpfulVoteResponse'
+
+  /api/v1/reviews/{reviewId}/reports:
+    post:
+      summary: UC-R08 - Báo cáo đánh giá vi phạm
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportReviewRequest'
+      responses:
+        '201':
+          description: Gửi báo cáo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewReportResponse'
+        '409':
+          description: Người dùng đã báo cáo đánh giá này rồi
+
+  /api/v1/admin/reviews/{reviewId}/status:
+    patch:
+      summary: UC-R09 - Ẩn hoặc duyệt lại đánh giá (Admin)
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewStatusRequest'
+      responses:
+        '200':
+          description: Cập nhật trạng thái thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '403':
+          description: Yêu cầu quyền ADMIN
+
+  /api/v1/admin/reports:
+    get:
+      summary: Xem danh sách báo cáo vi phạm (Admin)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, RESOLVED, DISMISSED]
+            default: PENDING
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Danh sách báo cáo vi phạm
+
+  /api/v1/my-reviews:
+    get:
+      summary: UC-R10 - Xem lịch sử đánh giá của tôi
+      responses:
+        '200':
+          description: Danh sách đánh giá của học viên hiện tại
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewResponse'
+
+  /api/v1/courses/{courseId}/reviews/eligibility:
+    get:
+      summary: UC-R11 - Kiểm tra quyền viết đánh giá
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Trả về trạng thái được phép đánh giá hay không
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewEligibilityResponse'
+
+  /api/v1/reviews/permissions:
+    post:
+      summary: Cấp quyền đánh giá khóa học cho học viên (Internal)
+      description: Endpoint nội bộ do Progress Service gọi khi học viên hoàn thành khóa học.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantPermissionRequest'
+      responses:
+        '200':
+          description: Cấp quyền thành công
+
+components:
+  securitySchemes:
+    UserIdHeader:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: "UUID của người dùng đã được API Gateway xác thực (vd: 11111111-1111-1111-1111-000000000101)"
+    UserRoleHeader:
+      type: apiKey
+      in: header
+      name: X-User-Role
+
+  schemas:
+    CreateReviewRequest:
+      type: object
+      required:
+        - rating
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        comment:
+          type: string
+          maxLength: 2000
+          example: "Khóa học rất bổ ích!"
+
+    UpdateReviewRequest:
+      type: object
+      required:
+        - rating
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 2000
+
+    CreateReplyRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          maxLength: 2000
+          example: "Cảm ơn bạn đã đóng góp ý kiến!"
+
+    ReportReviewRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          example: "Chứa ngôn từ xúc phạm"
+
+    UpdateReviewStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [APPROVED, HIDDEN, REPORTED]
+
+    GrantPermissionRequest:
+      type: object
+      required:
+        - studentId
+        - courseId
+      properties:
+        studentId:
+          type: string
+          format: uuid
+          example: "11111111-1111-1111-1111-000000000101"
+        courseId:
+          type: integer
+
+    ReviewReplyResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        instructorId:
+          type: string
+          format: uuid
+          example: "22222222-2222-2222-2222-000000000007"
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReviewResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        courseId:
+          type: integer
+        studentId:
+          type: string
+          format: uuid
+          example: "11111111-1111-1111-1111-000000000101"
+        rating:
+          type: integer
+        comment:
+          type: string
+        status:
+          type: string
+          enum: [APPROVED, HIDDEN, REPORTED]
+        helpfulCount:
+          type: integer
+        isHelpfulByMe:
+          type: boolean
+        reply:
+          $ref: '#/components/schemas/ReviewReplyResponse'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CourseRatingSummaryResponse:
+      type: object
+      properties:
+        courseId:
+          type: integer
+        averageRating:
+          type: number
+          format: double
+          example: 4.67
+        totalReviews:
+          type: integer
+          example: 120
+        star5Count:
+          type: integer
+        star4Count:
+          type: integer
+        star3Count:
+          type: integer
+        star2Count:
+          type: integer
+        star1Count:
+          type: integer
+        starPercentages:
+          type: object
+          additionalProperties:
+            type: number
+
+    ReviewEligibilityResponse:
+      type: object
+      properties:
+        canReview:
+          type: boolean
+        reason:
+          type: string
+        existingReviewId:
+          type: integer
+          format: int64
+
+    HelpfulVoteResponse:
+      type: object
+      properties:
+        voted:
+          type: boolean
+        helpfulCount:
+          type: integer
+
+    ReviewReportResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        reviewId:
+          type: integer
+          format: int64
+        reporterId:
+          type: string
+          format: uuid
+          example: "11111111-1111-1111-1111-000000000101"
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, RESOLVED, DISMISSED]
+        createdAt:
+          type: string
+          format: date-time
+
+    PageReviewResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewResponse'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: string
+        timestamp:
+          type: string
