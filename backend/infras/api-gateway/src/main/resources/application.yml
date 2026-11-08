@@ -1,0 +1,47 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER:http://localhost:8180/realms/lms}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8180/realms/lms/protocol/openid-connect/certs}
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: course-service
+              uri: lb://course-service
+              predicates:
+                - Path=/api/v1/courses/**
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - Path=/api/v1/users/**
+            - id: enrollment-service
+              uri: lb://enrollment-service
+              predicates:
+                - Path=/api/v1/enrollments/**
+            - id: progress-service
+              uri: lb://progress-service
+              predicates:
+                - Path=/api/v1/progress/**
+            - id: review-service
+              uri: lb://review-service
+              predicates:
+                - Path=/api/v1/reviews/**
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
