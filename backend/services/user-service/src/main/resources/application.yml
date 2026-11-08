@@ -1,0 +1,33 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: user-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/user_db}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:sa}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8181/realms/lms}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8181/realms/lms/protocol/openid-connect/certs}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+
+keycloak:
+  url: ${KEYCLOAK_URL:http://localhost:8181}
+  realm: ${KEYCLOAK_REALM:lms}
+  client-id: user-service
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:qjdF1uPMYV9BPDoqs8NexL7ne2KT11xG3QdXCcswK9qMgpl1YMGXFmWrqImxEuEKhSOmuFQdAQ9lWcZ7MltanF}
