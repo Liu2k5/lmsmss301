@@ -155,6 +155,9 @@ services:
 
   user-service:
     build: ./services/user-service
+    # Dev: UI gọi trực tiếp service (song song với route qua Gateway).
+    ports:
+      - "8082:8082"
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/user_db
       DB_USER: ${POSTGRES_USER}
@@ -186,6 +189,9 @@ services:
 
   enrollment-service:
     build: ./services/enrollment-service
+    # Dev: UI gọi trực tiếp service (song song với route qua Gateway).
+    ports:
+      - "8083:8083"
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/enrollment_db
       DB_USER: ${POSTGRES_USER}
@@ -210,6 +216,9 @@ services:
 
   progress-service:
     build: ./services/progress-service
+    # Dev: UI gọi trực tiếp service (song song với route qua Gateway).
+    ports:
+      - "8084:8084"
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/progress_db
       DB_USER: ${POSTGRES_USER}
@@ -241,6 +250,9 @@ services:
 
   review-rating-service:
     build: ./services/review-rating-service
+    # Dev: UI gọi trực tiếp service (song song với route qua Gateway).
+    ports:
+      - "8085:8085"
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/review_db
       DB_USER: ${POSTGRES_USER}

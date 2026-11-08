@@ -3,7 +3,7 @@ import Keycloak from 'keycloak-js'
 import { AuthContext } from './AuthContext.js'
 
 const keycloak = new Keycloak({
-  url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8181',
+  url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
   realm: import.meta.env.VITE_KEYCLOAK_REALM || 'lms',
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'lms-web',
 })
