@@ -1,13 +1,21 @@
-FROM maven:3.9-eclipse-temurin-21 AS build
-WORKDIR /src
-COPY pom.xml .
-RUN mvn -q -B dependency:go-offline
-COPY src ./src
-RUN mvn -q -B -DskipTests package
+# ============================================================================
+# Dockerfile for Review & Rating Service (Port 8085)
+# LearnHub LMS - MSS301 Microservices Project
+# ============================================================================
 
-FROM eclipse-temurin:21-jre
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Stage 1: Runtime base image
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=build /src/target/*.jar app.jar
+
+VOLUME /tmp
+
+# Argument for jar file
+ARG JAR_FILE=target/review-rating-service-*.jar
+COPY ${JAR_FILE} app.jar
+
+ENV PORT=8085
+ENV SPRING_PROFILES_ACTIVE=prod
+
 EXPOSE 8085
-ENTRYPOINT ["java","-jar","/app/app.jar"]
+
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
