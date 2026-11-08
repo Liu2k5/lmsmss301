@@ -10,7 +10,9 @@ import com.example.progress_service.repository.*;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -105,10 +107,9 @@ public class ProgressService {
                                 studentId,
                                 courseId
                         )
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Course progress not found"
-                                ));
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Course progress not found"));
 
         var lessons = lessonRepository
                 .findByCourseProgressId(progress.getId());
@@ -146,7 +147,8 @@ public class ProgressService {
         CourseProgress progress = progressRepository
                 .findByStudentIdAndCourseId(studentId, courseId)
                 .orElseThrow(() ->
-                        new RuntimeException("Course progress not found"));
+                        new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Course progress not found"));
 
         // 2. Tìm bài học gần nhất đã được lưu
         LessonProgress lastLesson = null;
@@ -225,7 +227,8 @@ public class ProgressService {
 
         CourseProgress progress = progressRepository.findById(progressId)
                 .orElseThrow(() ->
-                        new RuntimeException("Course progress not found"));
+                        new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Course progress not found"));
 
         // Chỉ đếm bài học còn nằm trong curriculum
         long totalLessons =

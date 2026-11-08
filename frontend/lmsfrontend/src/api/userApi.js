@@ -1,8 +1,8 @@
 import { json, request } from './http.js'
 
-const API_URL = import.meta.env.VITE_USER_API_URL || 'http://localhost:8083'
+const API_URL = import.meta.env.VITE_USER_API_URL || 'http://localhost:8082'
 const V1 = `${API_URL}/api/v1`
-const NETWORK_ERROR = 'Không kết nối được tới user-service. Kiểm tra backend đã chạy ở cổng 8083 chưa.'
+const NETWORK_ERROR = 'Không kết nối được tới user-service. Kiểm tra backend đã chạy ở cổng 8082 chưa.'
 
 function userRequest(path, token, options = {}) {
   return request(`${V1}${path}`, {
