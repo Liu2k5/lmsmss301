@@ -1,0 +1,30 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: progress-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lms_progress_db
+    username: postgres
+    password: ${DB_PASSWORD:sa}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  jackson:
+    serialization:
+#      write-dates-as-timestamps: false

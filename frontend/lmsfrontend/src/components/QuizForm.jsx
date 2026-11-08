@@ -18,10 +18,10 @@ function newQuestion() {
   }
 }
 
-function toFormState(quiz) {
+function toFormState(quiz, initialLessonId) {
   if (!quiz) {
     return {
-      lessonId: '',
+      lessonId: initialLessonId ? String(initialLessonId) : '',
       title: '',
       description: '',
       passingScore: '70',
@@ -67,11 +67,21 @@ function validate(form) {
     if (!question.content.trim()) {
       messages.push(`Câu hỏi ${order}: nội dung không được để trống.`)
     }
-    if (question.options.length === 0) {
-      messages.push(`Câu hỏi ${order}: phải có ít nhất 1 đáp án.`)
+    if (question.options.length < 2) {
+      messages.push(`Câu hỏi ${order}: phải có ít nhất 2 đáp án.`)
+    }
+    if (question.options.length > 10) {
+      messages.push(`Câu hỏi ${order}: tối đa 10 đáp án.`)
     }
     if (question.options.some((option) => !option.content.trim())) {
       messages.push(`Câu hỏi ${order}: nội dung đáp án không được để trống.`)
+    }
+    const trimmed = question.options.map((option) => option.content.trim().toLowerCase()).filter(Boolean)
+    if (new Set(trimmed).size !== trimmed.length) {
+      messages.push(`Câu hỏi ${order}: các đáp án không được trùng nội dung.`)
+    }
+    if (question.type === 'TRUE_FALSE' && question.options.length !== 2) {
+      messages.push(`Câu hỏi ${order}: loại Đúng / Sai phải có đúng 2 đáp án.`)
     }
     const correctCount = question.options.filter((option) => option.correct).length
     if (correctCount === 0) {
@@ -104,9 +114,9 @@ function toPayload(form) {
   }
 }
 
-export default function QuizForm({ quiz, lessonOptions, onSubmit, onCancel }) {
+export default function QuizForm({ quiz, initialLessonId, lessonOptions, onSubmit, onCancel }) {
   const isEditing = Boolean(quiz)
-  const [form, setForm] = useState(() => toFormState(quiz))
+  const [form, setForm] = useState(() => toFormState(quiz, initialLessonId))
   const [errors, setErrors] = useState([])
   const [serverError, setServerError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -209,6 +219,33 @@ export default function QuizForm({ quiz, lessonOptions, onSubmit, onCancel }) {
     }))
   }
 
+  function moveQuestion(index, direction) {
+    setForm((current) => {
+      const target = index + direction
+      if (target < 0 || target >= current.questions.length) {
+        return current
+      }
+      const questions = [...current.questions]
+      const [moved] = questions.splice(index, 1)
+      questions.splice(target, 0, moved)
+      return { ...current, questions }
+    })
+  }
+
+  function duplicateQuestion(index) {
+    setForm((current) => {
+      const source = current.questions[index]
+      const copy = {
+        content: source.content,
+        type: source.type,
+        options: source.options.map((option) => ({ content: option.content, correct: option.correct })),
+      }
+      const questions = [...current.questions]
+      questions.splice(index + 1, 0, copy)
+      return { ...current, questions }
+    })
+  }
+
   function addOption(questionIndex) {
     setForm((current) => ({
       ...current,
@@ -222,7 +259,7 @@ export default function QuizForm({ quiz, lessonOptions, onSubmit, onCancel }) {
     setForm((current) => ({
       ...current,
       questions: current.questions.map((question, i) => {
-        if (i !== questionIndex || question.options.length <= 1) {
+        if (i !== questionIndex || question.options.length <= 2) {
           return question
         }
         return { ...question, options: question.options.filter((_, oi) => oi !== optionIndex) }
@@ -332,7 +369,10 @@ export default function QuizForm({ quiz, lessonOptions, onSubmit, onCancel }) {
           </div>
 
           <div className="questions-header">
-            <h3>Câu hỏi ({form.questions.length})</h3>
+            <div>
+              <h3>Câu hỏi ({form.questions.length})</h3>
+              <p className="field__hint">Mỗi câu cần 2–10 đáp án và ít nhất 1 đáp án đúng.</p>
+            </div>
             <button type="button" className="button button--ghost" onClick={addQuestion} disabled={saving}>
               + Thêm câu hỏi
             </button>
@@ -355,15 +395,47 @@ export default function QuizForm({ quiz, lessonOptions, onSubmit, onCancel }) {
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    className="button button--danger-ghost"
-                    onClick={() => removeQuestion(questionIndex)}
-                    disabled={saving || form.questions.length === 1}
-                    title={form.questions.length === 1 ? 'Quiz phải có ít nhất 1 câu hỏi' : 'Xoá câu hỏi'}
-                  >
-                    Xoá câu
-                  </button>
+                  <div className="question-card__tools">
+                    <button
+                      type="button"
+                      className="icon-button icon-button--small"
+                      onClick={() => moveQuestion(questionIndex, -1)}
+                      disabled={saving || questionIndex === 0}
+                      title="Đưa câu hỏi lên"
+                      aria-label={`Đưa câu hỏi ${questionIndex + 1} lên`}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button icon-button--small"
+                      onClick={() => moveQuestion(questionIndex, 1)}
+                      disabled={saving || questionIndex === form.questions.length - 1}
+                      title="Đưa câu hỏi xuống"
+                      aria-label={`Đưa câu hỏi ${questionIndex + 1} xuống`}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button icon-button--small"
+                      onClick={() => duplicateQuestion(questionIndex)}
+                      disabled={saving}
+                      title="Nhân bản câu hỏi"
+                      aria-label={`Nhân bản câu hỏi ${questionIndex + 1}`}
+                    >
+                      ⧉
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--danger-ghost button--small"
+                      onClick={() => removeQuestion(questionIndex)}
+                      disabled={saving || form.questions.length === 1}
+                      title={form.questions.length === 1 ? 'Quiz phải có ít nhất 1 câu hỏi' : 'Xoá câu hỏi'}
+                    >
+                      Xoá câu
+                    </button>
+                  </div>
                 </header>
 
                 <textarea
@@ -400,7 +472,7 @@ export default function QuizForm({ quiz, lessonOptions, onSubmit, onCancel }) {
                         type="button"
                         className="icon-button icon-button--small"
                         onClick={() => removeOption(questionIndex, optionIndex)}
-                        disabled={saving || question.options.length <= 1}
+                        disabled={saving || question.options.length <= 2}
                         aria-label={`Xoá đáp án ${optionIndex + 1}`}
                       >
                         ✕
@@ -413,7 +485,7 @@ export default function QuizForm({ quiz, lessonOptions, onSubmit, onCancel }) {
                   type="button"
                   className="button button--ghost button--small"
                   onClick={() => addOption(questionIndex)}
-                  disabled={saving || question.type === 'TRUE_FALSE'}
+                  disabled={saving || question.type === 'TRUE_FALSE' || question.options.length >= 10}
                 >
                   + Thêm đáp án
                 </button>

@@ -1,8 +1,24 @@
 package com.example.course_service.repository;
 
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.example.course_service.entity.Section;
 
 public interface SectionRepository extends JpaRepository<Section, Integer> {
+
+	List<Section> findByCourseIdOrderByPositionAscIdAsc(Integer courseId);
+
+	@Query("select s from Section s join fetch s.course where s.id = :id")
+	Optional<Section> findByIdWithCourse(@Param("id") Integer id);
+
+	@Query("select coalesce(max(s.position), 0) from Section s where s.course.id = :courseId")
+	int findMaxPosition(@Param("courseId") Integer courseId);
+
+	@Query("select s.course.id as courseId, count(s) as total from Section s group by s.course.id")
+	List<CourseCount> countByCourse();
 }

@@ -40,5 +40,8 @@ public interface QuizRepository extends JpaRepository<Quiz, Integer> {
 
 	boolean existsByLessonId(Integer lessonId);
 
+	/** Dùng cho phần quản lý khoá học: biết bài học nào đã có quiz, và xoá quiz khi xoá bài học. */
+	List<Quiz> findByLessonIdIn(java.util.Collection<Integer> lessonIds);
+
 	boolean existsByLessonIdAndIdNot(Integer lessonId, Integer id);
 }

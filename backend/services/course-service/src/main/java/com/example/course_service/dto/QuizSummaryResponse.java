@@ -7,6 +7,8 @@ public record QuizSummaryResponse(
 		Integer id,
 		Integer lessonId,
 		String lessonTitle,
+		Integer sectionId,
+		String sectionTitle,
 		Integer courseId,
 		String courseTitle,
 		String title,

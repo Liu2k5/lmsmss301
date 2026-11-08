@@ -14,10 +14,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.course_service.dto.DuplicateQuizRequest;
 import com.example.course_service.dto.LessonOptionResponse;
+import com.example.course_service.dto.QuestionRequest;
+import com.example.course_service.dto.QuestionResponse;
+import com.example.course_service.dto.QuizPreviewResponse;
 import com.example.course_service.dto.QuizRequest;
 import com.example.course_service.dto.QuizResponse;
 import com.example.course_service.dto.QuizSummaryResponse;
+import com.example.course_service.dto.ReorderRequest;
 import com.example.course_service.service.QuizService;
 
 import jakarta.validation.Valid;
@@ -30,9 +35,15 @@ public class QuizController {
 
 	private final QuizService quizService;
 
+	// ============================================================ toàn bộ quiz
+
+	/** Danh sách quiz; có thể lọc theo bài học, khoá học và từ khoá. */
 	@GetMapping
-	public List<QuizSummaryResponse> findAll(@RequestParam(required = false) Integer lessonId) {
-		return quizService.findAll(lessonId);
+	public List<QuizSummaryResponse> findAll(
+			@RequestParam(required = false) Integer lessonId,
+			@RequestParam(required = false) Integer courseId,
+			@RequestParam(required = false) String keyword) {
+		return quizService.findAll(lessonId, courseId, keyword);
 	}
 
 	/** Bài học loại QUIZ còn trống (hoặc đã có quiz) để client chọn khi tạo mới. */
@@ -44,6 +55,12 @@ public class QuizController {
 	@GetMapping("/{id}")
 	public QuizResponse findById(@PathVariable Integer id) {
 		return quizService.findById(id);
+	}
+
+	/** Bản xem trước như học viên thấy — không chứa đáp án đúng. */
+	@GetMapping("/{id}/preview")
+	public QuizPreviewResponse preview(@PathVariable Integer id) {
+		return quizService.preview(id);
 	}
 
 	@PostMapping
@@ -61,5 +78,40 @@ public class QuizController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable Integer id) {
 		quizService.delete(id);
+	}
+
+	/** Nhân bản quiz sang bài học khác chưa có quiz. */
+	@PostMapping("/{id}/duplicate")
+	@ResponseStatus(HttpStatus.CREATED)
+	public QuizResponse duplicate(@PathVariable Integer id, @Valid @RequestBody DuplicateQuizRequest request) {
+		return quizService.duplicate(id, request.lessonId());
+	}
+
+	// ================================================================ câu hỏi
+
+	@PostMapping("/{quizId}/questions")
+	@ResponseStatus(HttpStatus.CREATED)
+	public QuestionResponse addQuestion(@PathVariable Integer quizId,
+			@Valid @RequestBody QuestionRequest request) {
+		return quizService.addQuestion(quizId, request);
+	}
+
+	@PutMapping("/{quizId}/questions/{questionId}")
+	public QuestionResponse updateQuestion(@PathVariable Integer quizId, @PathVariable Integer questionId,
+			@Valid @RequestBody QuestionRequest request) {
+		return quizService.updateQuestion(quizId, questionId, request);
+	}
+
+	@DeleteMapping("/{quizId}/questions/{questionId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteQuestion(@PathVariable Integer quizId, @PathVariable Integer questionId) {
+		quizService.deleteQuestion(quizId, questionId);
+	}
+
+	/** Sắp xếp lại câu hỏi: danh sách id đầy đủ theo thứ tự mong muốn. */
+	@PutMapping("/{quizId}/questions/order")
+	public List<QuestionResponse> reorderQuestions(@PathVariable Integer quizId,
+			@Valid @RequestBody ReorderRequest request) {
+		return quizService.reorderQuestions(quizId, request.orderedIds());
 	}
 }
