@@ -7,7 +7,6 @@ const initialForm = {
   email: '',
   password: '',
   phone: '',
-  role: 'STUDENT',
   universityId: '',
 }
 
@@ -35,6 +34,7 @@ export default function RegisterPage() {
     try {
       await userApi.register({
         ...form,
+        role: 'STUDENT',
         universityId: form.universityId ? Number(form.universityId) : null,
       })
       setSuccess(true)
@@ -81,13 +81,6 @@ export default function RegisterPage() {
               <label className="user-field">
                 <span>Số điện thoại</span>
                 <input name="phone" value={form.phone} onChange={change} maxLength="15" autoComplete="tel" />
-              </label>
-              <label className="user-field">
-                <span>Vai trò *</span>
-                <select name="role" value={form.role} onChange={change}>
-                  <option value="STUDENT">Học viên</option>
-                  <option value="INSTRUCTOR">Giảng viên</option>
-                </select>
               </label>
               <label className="user-field user-field--wide">
                 <span>Trường đại học</span>

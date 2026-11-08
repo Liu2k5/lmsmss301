@@ -24,7 +24,6 @@ public record RegisterRequest(
     @Size(max = 15)
     String phone,
 
-    @NotNull
     Role role,
 
     Long universityId

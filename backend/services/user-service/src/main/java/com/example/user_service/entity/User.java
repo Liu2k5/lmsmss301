@@ -27,6 +27,9 @@ public class User {
 
     private boolean enabled = true;
 
+    @Column(nullable = false, columnDefinition = "boolean not null default false")
+    private boolean deleted;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;

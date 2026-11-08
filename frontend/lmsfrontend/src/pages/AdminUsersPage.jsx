@@ -204,7 +204,9 @@ export default function AdminUsersPage() {
                       <td><strong>{user.fullname}</strong><small>{user.username} · {user.email}</small></td>
                       <td><span className="role-pill">{user.role}</span></td>
                       <td>{user.universityName || '—'}</td>
-                      <td><span className={`status-pill${user.enabled ? ' status-pill--enabled' : ' status-pill--disabled'}`}>{user.enabled ? 'Hoạt động' : 'Đã khoá'}</span></td>
+                      <td><span className={`status-pill${user.deleted ? ' status-pill--deleted' : user.enabled ? ' status-pill--enabled' : ' status-pill--disabled'}`}>
+                        {user.deleted ? 'Đã xoá mềm' : user.enabled ? 'Hoạt động' : 'Đã khoá'}
+                      </span></td>
                       <td>
                         <div className="admin-row-actions">
                           <button className="button button--ghost button--small" type="button" onClick={() => showDetails(user)}>Chi tiết</button>

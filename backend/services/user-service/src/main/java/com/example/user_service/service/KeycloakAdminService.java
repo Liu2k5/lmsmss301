@@ -173,6 +173,53 @@ public class KeycloakAdminService {
                 .toBodilessEntity();
     }
 
+    public void resetPassword(String username, String newPassword) {
+        String token = adminToken();
+        String userId = findUserId(username, token);
+        rest.put()
+                .uri(url + "/admin/realms/" + realm + "/users/" + userId + "/reset-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("type", "password", "value", newPassword, "temporary", false))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    public void changePassword(String currentPassword, String newPassword, String accessToken) {
+        rest.put()
+                .uri(url + "/realms/" + realm + "/account/credentials/password")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "currentPassword", currentPassword,
+                        "newPassword", newPassword,
+                        "confirmation", newPassword))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    public void replaceRealmRole(String username, Role previousRole, Role newRole) {
+        String token = adminToken();
+        String userId = findUserId(username, token);
+        Map<String, Object> oldRole = getRealmRole(previousRole, token);
+        rest.method(org.springframework.http.HttpMethod.DELETE)
+                .uri(url + "/admin/realms/" + realm + "/users/" + userId + "/role-mappings/realm")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(List.of(oldRole))
+                .retrieve()
+                .toBodilessEntity();
+
+        Map<String, Object> role = getRealmRole(newRole, token);
+        rest.post()
+                .uri(url + "/admin/realms/" + realm + "/users/" + userId + "/role-mappings/realm")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(List.of(role))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     private String findUserId(String username, String token) {
         List<Map<String, Object>> found = rest.get()
                 .uri(url + "/admin/realms/" + realm

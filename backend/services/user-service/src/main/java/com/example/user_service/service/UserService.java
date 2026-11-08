@@ -26,7 +26,10 @@ public class UserService {
     // 1. Register
     @Transactional
     public UserResponse register(RegisterRequest r) {
-        return createUser(r, false);
+        RegisterRequest studentRegistration = new RegisterRequest(
+                r.username(), r.fullname(), r.email(), r.password(), r.phone(),
+                Role.STUDENT, r.universityId());
+        return createUser(studentRegistration, false);
     }
 
     @Transactional
@@ -41,6 +44,9 @@ public class UserService {
     private User createUserEntity(RegisterRequest r, boolean administratorAllowed) {
         if (!administratorAllowed && r.role() == Role.ADMINISTRATOR) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot self-register as admin");
+        }
+        if (administratorAllowed && r.role() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admin must select a role");
         }
         if (users.existsById(r.username())
                 || users.existsByEmail(r.email())) {
@@ -73,10 +79,10 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponse getMe(String username) {
 
-        return toResponse(
-            users.findById(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"))
-        );
+        User user = users.findById(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        ensureActive(user);
+        return toResponse(user);
     }
 
     // 3. Update profile
@@ -87,6 +93,7 @@ public class UserService {
 
         User u = users.findById(username)
             .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        ensureActive(u);
 
         u.setFullname(r.fullname());
         u.setPhone(r.phone());
@@ -144,6 +151,9 @@ public class UserService {
         user.setPhone(request.phone());
         user.setRole(request.role());
         user.setEnabled(request.enabled());
+        if (request.enabled()) {
+            user.setDeleted(false);
+        }
         return toAdminResponse(users.save(user));
     }
 
@@ -154,6 +164,9 @@ public class UserService {
 
         keycloak.setUserEnabled(username, enabled);
         user.setEnabled(enabled);
+        if (enabled) {
+            user.setDeleted(false);
+        }
         return toAdminResponse(users.save(user));
     }
 
@@ -167,6 +180,13 @@ public class UserService {
                 u.getRole(),
                 uni == null ? null : uni.getId(),
                 uni == null ? null : uni.getName(),
-                u.isEnabled());
+                u.isEnabled(),
+                u.isDeleted());
+    }
+
+    private void ensureActive(User user) {
+        if (!user.isEnabled() || user.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
+        }
     }
 }

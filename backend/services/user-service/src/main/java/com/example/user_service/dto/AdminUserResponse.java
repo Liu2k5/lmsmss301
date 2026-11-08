@@ -10,5 +10,6 @@ public record AdminUserResponse(
         Role role,
         Long universityId,
         String universityName,
-        boolean enabled) {
+        boolean enabled,
+        boolean deleted) {
 }

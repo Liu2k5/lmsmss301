@@ -55,6 +55,11 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-lms}
       KEYCLOAK_CLIENT_SECRET: ${USER_SERVICE_KC_SECRET}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
       JWT_ISSUER_URI: http://localhost:8181/realms/lms
       JWT_JWK_SET_URI: http://keycloak:8080/realms/lms/protocol/openid-connect/certs
       EUREKA_CLIENT_ENABLED: "false"            # bỏ dòng này khi đã có Eureka (bước 7.9)

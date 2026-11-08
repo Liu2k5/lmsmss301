@@ -9,6 +9,8 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import AdminUsersPage from './pages/AdminUsersPage.jsx'
+import AdminRequestsPage from './pages/AdminRequestsPage.jsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import { useAuth } from './auth/AuthContext.js'
 
 /**
@@ -32,11 +34,14 @@ function parseHash(hash) {
       quizId: positive(params.get('quizId')),
     }
   }
-  if (['login', 'register', 'profile'].includes(parts[0])) {
+  if (['login', 'register', 'profile', 'forgot-password'].includes(parts[0])) {
     return { page: parts[0] }
   }
   if (parts[0] === 'admin' && parts[1] === 'users') {
     return { page: 'admin-users' }
+  }
+  if (parts[0] === 'admin' && parts[1] === 'requests') {
+    return { page: 'admin-requests' }
   }
   if (!parts.length) return { page: 'home' }
   const id = positive(parts[1])
@@ -84,10 +89,16 @@ export default function App() {
                 Hồ sơ
               </a>
               {isAdmin && (
-                <a href="#/admin/users" className={`top-nav__link${route.page === 'admin-users' ? ' is-active' : ''}`}
-                  aria-current={route.page === 'admin-users' ? 'page' : undefined}>
-                  Quản lý người dùng
-                </a>
+                <>
+                  <a href="#/admin/users" className={`top-nav__link${route.page === 'admin-users' ? ' is-active' : ''}`}
+                    aria-current={route.page === 'admin-users' ? 'page' : undefined}>
+                    Người dùng
+                  </a>
+                  <a href="#/admin/requests" className={`top-nav__link${route.page === 'admin-requests' ? ' is-active' : ''}`}
+                    aria-current={route.page === 'admin-requests' ? 'page' : undefined}>
+                    Yêu cầu
+                  </a>
+                </>
               )}
               <button className="top-nav__auth" type="button" onClick={logout}>Đăng xuất</button>
             </>
@@ -103,8 +114,10 @@ export default function App() {
       {route.page === 'home' ? <HomePage /> :
         route.page === 'login' ? <LoginPage /> :
           route.page === 'register' ? <RegisterPage /> :
-            route.page === 'profile' ? <ProfilePage /> :
-              route.page === 'admin-users' ? <AdminUsersPage /> :
+          route.page === 'forgot-password' ? <ForgotPasswordPage /> :
+          route.page === 'profile' ? <ProfilePage /> :
+            route.page === 'admin-users' ? <AdminUsersPage /> :
+              route.page === 'admin-requests' ? <AdminRequestsPage /> :
       route.page === 'quizzes' ? (
         <QuizPage initialLessonId={route.lessonId} initialQuizId={route.quizId} />
       ) : (

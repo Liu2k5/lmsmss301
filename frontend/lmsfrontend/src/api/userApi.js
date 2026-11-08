@@ -14,9 +14,19 @@ function userRequest(path, token, options = {}) {
 
 export const userApi = {
   register: (payload) => userRequest('/users/register', null, json('POST', payload)),
+  requestPasswordReset: (email) =>
+    userRequest('/users/password/forgot', null, json('POST', { email })),
+  resetPassword: (payload) =>
+    userRequest('/users/password/reset', null, json('POST', payload)),
   universities: () => userRequest('/universities'),
   me: (token) => userRequest('/users/me', token),
   updateMe: (token, payload) => userRequest('/users/me', token, json('PUT', payload)),
+  changePassword: (token, payload) =>
+    userRequest('/users/me/password', token, json('PUT', payload)),
+  myRequests: (token) => userRequest('/users/me/requests', token),
+  requestDeletion: (token) => userRequest('/users/me/requests/deletion', token, json('POST', {})),
+  requestInstructorRole: (token) =>
+    userRequest('/users/me/requests/instructor-role', token, json('POST', {})),
   listUsers: (token, page = 0, size = 20) =>
     userRequest(`/users/admin?page=${page}&size=${size}&sort=username,asc`, token),
   getAdminUser: (token, username) =>
@@ -28,4 +38,8 @@ export const userApi = {
   setUserEnabled: (token, username, enabled) =>
     userRequest(`/users/admin/${encodeURIComponent(username)}/enabled`, token,
       json('PATCH', { enabled })),
+  listAccountRequests: (token, page = 0, size = 20) =>
+    userRequest(`/users/admin/requests?page=${page}&size=${size}&sort=createdAt,desc`, token),
+  reviewAccountRequest: (token, id, approved, note) =>
+    userRequest(`/users/admin/requests/${id}`, token, json('PATCH', { approved, note })),
 }

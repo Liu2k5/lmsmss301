@@ -17,6 +17,7 @@ export default function LoginPage() {
             Tiếp tục với Keycloak
           </button>
         )}
+        {!authenticated && <p className="auth-card__foot"><a href="#/forgot-password">Quên mật khẩu?</a></p>}
         <p className="auth-card__foot">Chưa có tài khoản? <a href="#/register">Đăng ký miễn phí</a></p>
       </section>
     </main>
