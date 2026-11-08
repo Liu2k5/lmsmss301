@@ -6,25 +6,37 @@ spring:
     name: progress-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/lms_progress_db
-    username: postgres
-    password: ${DB_PASSWORD:sa}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/progress_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${DDL_AUTO:update}
     show-sql: true
     properties:
       hibernate:
         format_sql: true
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:lms}
+    password: ${RABBITMQ_PASSWORD:lms}
 
   jackson:
     serialization:
 #      write-dates-as-timestamps: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true

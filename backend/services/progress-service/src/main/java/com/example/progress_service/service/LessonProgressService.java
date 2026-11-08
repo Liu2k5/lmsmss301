@@ -7,7 +7,9 @@ import com.example.progress_service.repository.LessonProgressRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -40,7 +42,8 @@ public class LessonProgressService {
         // Tìm tiến độ khóa học của học viên
         CourseProgress progress = progressRepository
                 .findByStudentIdAndCourseId(studentId, courseId)
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
                         "Course progress not found"));
 
         // Tìm lesson trong tiến độ khóa học
@@ -101,7 +104,8 @@ public class LessonProgressService {
         CourseProgress progress = progressRepository
                 .findByStudentIdAndCourseId(studentId, courseId)
                 .orElseThrow(() ->
-                        new RuntimeException("Course progress not found"));
+                        new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Course progress not found"));
 
         // 3. Tìm tiến độ bài học
         LessonProgress lesson = lessonRepository

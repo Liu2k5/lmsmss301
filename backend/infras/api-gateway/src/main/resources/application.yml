@@ -14,14 +14,31 @@ spring:
       server:
         webmvc:
           routes:
+            # Review phải đứng trước course-service vì dùng chung tiền tố /api/v1/courses/*
+            - id: review-service
+              uri: lb://review-rating-service
+              predicates:
+                - Path=/api/v1/courses/*/reviews/**,/api/v1/courses/*/ratings/**,/api/v1/my-reviews,/api/v1/reviews/**,/api/v1/admin/**
             - id: course-service
               uri: lb://course-service
               predicates:
                 - Path=/api/v1/courses/**
+            - id: course-quizzes
+              uri: lb://course-service
+              predicates:
+                - Path=/api/v1/quizzes/**
+            - id: course-sections
+              uri: lb://course-service
+              predicates:
+                - Path=/api/v1/sections/**
+            - id: course-lessons
+              uri: lb://course-service
+              predicates:
+                - Path=/api/v1/lessons/**,/api/v1/materials/**
             - id: user-service
               uri: lb://user-service
               predicates:
-                - Path=/api/v1/users/**
+                - Path=/api/v1/users/**,/api/v1/universities/**
             - id: enrollment-service
               uri: lb://enrollment-service
               predicates:
@@ -29,11 +46,7 @@ spring:
             - id: progress-service
               uri: lb://progress-service
               predicates:
-                - Path=/api/v1/progress/**
-            - id: review-service
-              uri: lb://review-service
-              predicates:
-                - Path=/api/v1/reviews/**
+                - Path=/api/v1/progress/**,/api/v1/analytics/**,/api/v1/certificates/**
 eureka:
   client:
     service-url:

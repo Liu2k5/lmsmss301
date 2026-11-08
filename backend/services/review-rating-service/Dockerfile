@@ -1,21 +1,13 @@
-# ============================================================================
-# Dockerfile for Review & Rating Service (Port 8085)
-# LearnHub LMS - MSS301 Microservices Project
-# ============================================================================
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -q -B dependency:go-offline
+COPY src ./src
+RUN mvn -q -B -DskipTests package
 
-# Stage 1: Runtime base image
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-
-VOLUME /tmp
-
-# Argument for jar file
-ARG JAR_FILE=target/review-rating-service-*.jar
-COPY ${JAR_FILE} app.jar
-
-ENV PORT=8085
-ENV SPRING_PROFILES_ACTIVE=prod
-
+COPY --from=build /src/target/*.jar app.jar
 EXPOSE 8085
-
-ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]
