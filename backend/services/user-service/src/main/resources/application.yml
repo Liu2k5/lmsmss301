@@ -1,0 +1,49 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: user-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/user_db}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:sa}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8181/realms/lms}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8181/realms/lms/protocol/openid-connect/certs}
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+
+keycloak:
+  url: ${KEYCLOAK_URL:http://localhost:8181}
+  realm: ${KEYCLOAK_REALM:lms}
+  client-id: user-service
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:change-me}
+
+app:
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}

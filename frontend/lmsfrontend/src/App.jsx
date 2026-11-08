@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import './courses.css'
+import './user.css'
 import CoursePage from './pages/CoursePage.jsx'
 import QuizPage from './pages/QuizPage.jsx'
+import HomePage from './pages/HomePage.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import RegisterPage from './pages/RegisterPage.jsx'
+import ProfilePage from './pages/ProfilePage.jsx'
+import AdminUsersPage from './pages/AdminUsersPage.jsx'
+import AdminRequestsPage from './pages/AdminRequestsPage.jsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
+import { useAuth } from './auth/AuthContext.js'
 
 /**
  * Điều hướng đơn giản bằng hash:
@@ -25,6 +34,16 @@ function parseHash(hash) {
       quizId: positive(params.get('quizId')),
     }
   }
+  if (['login', 'register', 'profile', 'forgot-password'].includes(parts[0])) {
+    return { page: parts[0] }
+  }
+  if (parts[0] === 'admin' && parts[1] === 'users') {
+    return { page: 'admin-users' }
+  }
+  if (parts[0] === 'admin' && parts[1] === 'requests') {
+    return { page: 'admin-requests' }
+  }
+  if (!parts.length) return { page: 'home' }
   const id = positive(parts[1])
   return { page: 'courses', courseId: parts[0] === 'courses' ? id : null }
 }
@@ -34,6 +53,7 @@ function navigate(path) {
 }
 
 export default function App() {
+  const { authenticated, isAdmin, logout } = useAuth()
   const [route, setRoute] = useState(() => parseHash(window.location.hash))
 
   useEffect(() => {
@@ -49,7 +69,11 @@ export default function App() {
     <>
       <nav className="top-nav" aria-label="Điều hướng chính">
         <div className="top-nav__inner">
-          <span className="top-nav__brand">LearnHub</span>
+          <a href="#/" className="top-nav__brand">LearnHub</a>
+          <a href="#/" className={`top-nav__link${route.page === 'home' ? ' is-active' : ''}`}
+            aria-current={route.page === 'home' ? 'page' : undefined}>
+            Trang chủ
+          </a>
           <a href="#/courses" className={`top-nav__link${route.page === 'courses' ? ' is-active' : ''}`}
             aria-current={route.page === 'courses' ? 'page' : undefined}>
             Khoá học
@@ -58,10 +82,43 @@ export default function App() {
             aria-current={route.page === 'quizzes' ? 'page' : undefined}>
             Quiz
           </a>
+          {authenticated ? (
+            <>
+              <a href="#/profile" className={`top-nav__link${route.page === 'profile' ? ' is-active' : ''}`}
+                aria-current={route.page === 'profile' ? 'page' : undefined}>
+                Hồ sơ
+              </a>
+              {isAdmin && (
+                <>
+                  <a href="#/admin/users" className={`top-nav__link${route.page === 'admin-users' ? ' is-active' : ''}`}
+                    aria-current={route.page === 'admin-users' ? 'page' : undefined}>
+                    Người dùng
+                  </a>
+                  <a href="#/admin/requests" className={`top-nav__link${route.page === 'admin-requests' ? ' is-active' : ''}`}
+                    aria-current={route.page === 'admin-requests' ? 'page' : undefined}>
+                    Yêu cầu
+                  </a>
+                </>
+              )}
+              <button className="top-nav__auth" type="button" onClick={logout}>Đăng xuất</button>
+            </>
+          ) : (
+            <>
+              <a href="#/login" className={`top-nav__link${route.page === 'login' ? ' is-active' : ''}`}>Đăng nhập</a>
+              <a href="#/register" className="button button--primary button--small">Đăng ký</a>
+            </>
+          )}
         </div>
       </nav>
 
-      {route.page === 'quizzes' ? (
+      {route.page === 'home' ? <HomePage /> :
+        route.page === 'login' ? <LoginPage /> :
+          route.page === 'register' ? <RegisterPage /> :
+          route.page === 'forgot-password' ? <ForgotPasswordPage /> :
+          route.page === 'profile' ? <ProfilePage /> :
+            route.page === 'admin-users' ? <AdminUsersPage /> :
+              route.page === 'admin-requests' ? <AdminRequestsPage /> :
+      route.page === 'quizzes' ? (
         <QuizPage initialLessonId={route.lessonId} initialQuizId={route.quizId} />
       ) : (
         <CoursePage
