@@ -58,7 +58,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
       title: 'Tạo khoá học mới',
       subtitle: 'Khoá học mới luôn ở trạng thái Bản nháp cho tới khi bạn xuất bản.',
       fields: COURSE_FIELDS,
-      initialValues: { instructorId: 1 },
+      initialValues: { instructorId: '22222222-2222-2222-2222-222222222222' },
       submitLabel: 'Tạo khoá học',
       onSubmit: async ({ thumbnail, ...info }) => {
         const created = await courseApi.create(info)
@@ -210,7 +210,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                   <div className="course-card__body">
                     <div className="course-card__top">
                       <StatusBadge status={course.status} />
-                      <span className="course-card__id">#{course.id}</span>
+                      <span className="course-card__id">#{course.id.slice(0, 8)}</span>
                     </div>
                     <h2 className="course-card__title">{course.title}</h2>
                     {course.description && <p className="course-card__desc">{course.description}</p>}

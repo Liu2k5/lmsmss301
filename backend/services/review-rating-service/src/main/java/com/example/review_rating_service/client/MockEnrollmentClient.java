@@ -14,7 +14,7 @@ import java.util.UUID;
 public class MockEnrollmentClient implements EnrollmentClient {
 
     @Override
-    public Optional<EnrollmentStatusDto> checkEnrollment(UUID studentId, Integer courseId) {
+    public Optional<EnrollmentStatusDto> checkEnrollment(UUID studentId, UUID courseId) {
         log.info("[MOCK] Check enrollment for studentId={} and courseId={}", studentId, courseId);
         // By default in mock mode, assume student is enrolled
         return Optional.of(EnrollmentStatusDto.builder()

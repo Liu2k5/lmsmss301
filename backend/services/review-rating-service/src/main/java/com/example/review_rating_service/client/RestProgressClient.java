@@ -24,7 +24,7 @@ public class RestProgressClient implements ProgressClient {
     }
 
     @Override
-    public Optional<ProgressStatusDto> getProgress(UUID studentId, Integer courseId) {
+    public Optional<ProgressStatusDto> getProgress(UUID studentId, UUID courseId) {
         try {
             return Optional.ofNullable(
                     restClient.get()

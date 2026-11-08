@@ -1,12 +1,13 @@
 package com.example.course_service.dto;
 
+import java.util.UUID;
 import java.time.LocalDateTime;
 
 import com.example.course_service.entity.CourseStatus;
 
 public record CourseSummaryResponse(
-		Integer id,
-		Integer instructorId,
+		UUID id,
+		UUID instructorId,
 		String title,
 		String description,
 		String thumbnailUrl,

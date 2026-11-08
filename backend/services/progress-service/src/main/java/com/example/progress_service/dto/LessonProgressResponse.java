@@ -1,5 +1,6 @@
 package com.example.progress_service.dto;
 
+import java.util.UUID;
 import lombok.*;
 
 @Getter
@@ -9,7 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 public class LessonProgressResponse {
 
-    private Integer lessonId;
+    private UUID lessonId;
 
     private Boolean completed;
 

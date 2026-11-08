@@ -4,24 +4,25 @@ import com.example.progress_service.entity.QuizAttempt;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface QuizAttemptRepository
-        extends JpaRepository<QuizAttempt, Integer> {
+        extends JpaRepository<QuizAttempt, UUID> {
 
-    List<QuizAttempt> findByCourseProgressId(Integer progressId);
+    List<QuizAttempt> findByCourseProgressId(UUID progressId);
 
     List<QuizAttempt> findByCourseProgressIdAndQuizId(
-            Integer progressId,
-            Integer quizId
+            UUID progressId,
+            UUID quizId
     );
 
     List<QuizAttempt> findByCourseProgressIdAndPassed(
-            Integer progressId,
+            UUID progressId,
             Boolean passed
     );
 
     int countByCourseProgressIdAndQuizId(
-            Integer progressId,
-            Integer quizId
+            UUID progressId,
+            UUID quizId
     );
 }

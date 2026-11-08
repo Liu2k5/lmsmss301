@@ -3,6 +3,7 @@ package com.example.progress_service.event;
 import lombok.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -12,9 +13,9 @@ public class StudentEnrolledEvent {
 
     private String eventId;
 
-    private Integer studentId;
+    private UUID studentId;
 
-    private Integer courseId;
+    private UUID courseId;
 
-    private List<Integer> lessonIds;
+    private List<UUID> lessonIds;
 }

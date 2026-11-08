@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +43,7 @@ public class CurriculumProgressService {
             // Thêm lesson mới
             if (event.getAddedLessonIds() != null) {
 
-                for (Integer lessonId :
+                for (UUID lessonId :
                         event.getAddedLessonIds()) {
 
                     boolean exists =
@@ -71,7 +72,7 @@ public class CurriculumProgressService {
             // Xóa lesson khỏi curriculum
             if (event.getRemovedLessonIds() != null) {
 
-                for (Integer lessonId :
+                for (UUID lessonId :
                         event.getRemovedLessonIds()) {
 
                     lessonRepository

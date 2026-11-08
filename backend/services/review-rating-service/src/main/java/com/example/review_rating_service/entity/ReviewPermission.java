@@ -26,7 +26,7 @@ public class ReviewPermission {
     private Long id;
 
     @Column(name = "course_id", nullable = false)
-    private Integer courseId;
+    private UUID courseId;
 
     @Column(name = "student_id", nullable = false)
     private UUID studentId;

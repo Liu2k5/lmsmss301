@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -17,7 +18,7 @@ public class CourseRatingSummaryController {
 
     /** UC-R05: Xem tổng hợp điểm đánh giá & phân bố sao của khóa học */
     @GetMapping("/api/v1/courses/{courseId}/ratings/summary")
-    public ResponseEntity<CourseRatingSummaryResponse> getCourseRatingSummary(@PathVariable Integer courseId) {
+    public ResponseEntity<CourseRatingSummaryResponse> getCourseRatingSummary(@PathVariable UUID courseId) {
         CourseRatingSummary summary = aggregationService.getSummaryByCourseId(courseId);
         return ResponseEntity.ok(CourseRatingSummaryResponse.fromEntity(summary));
     }

@@ -30,10 +30,10 @@ public class CertificateService {
      * Cấp chứng chỉ khi học viên hoàn thành khóa học.
      */
     @Transactional
-    public CourseCertificate issueCertificate(Integer progressId) {
+    public CourseCertificate issueCertificate(UUID progressId) {
 
         // 1. Kiểm tra progressId
-        if (progressId == null || progressId <= 0) {
+        if (progressId == null) {
             throw new IllegalArgumentException(
                     "Progress ID must be greater than 0");
         }
@@ -91,7 +91,7 @@ public class CertificateService {
         }
 
         // 8. Lấy danh sách quiz bắt buộc từ Course Service
-        List<Integer> requiredQuizIds =
+        List<UUID> requiredQuizIds =
                 courseServiceClient.getRequiredQuizIds(
                         progress.getCourseId());
 
@@ -102,7 +102,7 @@ public class CertificateService {
         }
 
         // 10. Kiểm tra học viên đã pass tất cả quiz bắt buộc
-        for (Integer quizId : requiredQuizIds) {
+        for (UUID quizId : requiredQuizIds) {
 
             if (quizId == null) {
                 throw new IllegalStateException(

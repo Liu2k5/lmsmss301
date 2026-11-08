@@ -1,5 +1,6 @@
 package com.example.progress_service.controller;
 
+import java.util.UUID;
 import com.example.progress_service.entity.CourseCertificate;
 import com.example.progress_service.service.CertificateService;
 
@@ -16,7 +17,7 @@ public class CertificateController {
 
     @PostMapping("/{progressId}/issue")
     public CourseCertificate issueCertificate(
-            @PathVariable Integer progressId) {
+            @PathVariable UUID progressId) {
 
         return certificateService.issueCertificate(progressId);
     }

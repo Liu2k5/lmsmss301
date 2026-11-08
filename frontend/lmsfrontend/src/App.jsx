@@ -15,23 +15,21 @@ import { useAuth } from './auth/AuthContext.js'
 
 /**
  * Điều hướng đơn giản bằng hash:
- * #/courses, #/courses/:id, #/quizzes, #/quizzes?quizId=5, #/quizzes?lessonId=7
+ * #/courses, #/courses/:id, #/quizzes, #/quizzes?quizId=<uuid>, #/quizzes?lessonId=<uuid>
  */
 function parseHash(hash) {
   const raw = hash.replace(/^#\/?/, '')
   const [pathPart, queryPart = ''] = raw.split('?')
   const parts = pathPart.split('/').filter(Boolean)
   const params = new URLSearchParams(queryPart)
-  const positive = (value) => {
-    const parsed = Number(value)
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-  }
+  const uuid = (value) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value ?? '') ? value : null
 
   if (parts[0] === 'quizzes') {
     return {
       page: 'quizzes',
-      lessonId: positive(params.get('lessonId')),
-      quizId: positive(params.get('quizId')),
+      lessonId: uuid(params.get('lessonId')),
+      quizId: uuid(params.get('quizId')),
     }
   }
   if (['login', 'register', 'profile', 'forgot-password'].includes(parts[0])) {
@@ -44,7 +42,7 @@ function parseHash(hash) {
     return { page: 'admin-requests' }
   }
   if (!parts.length) return { page: 'home' }
-  const id = positive(parts[1])
+  const id = uuid(parts[1])
   return { page: 'courses', courseId: parts[0] === 'courses' ? id : null }
 }
 

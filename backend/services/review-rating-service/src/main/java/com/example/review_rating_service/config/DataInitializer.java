@@ -26,6 +26,12 @@ public class DataInitializer implements CommandLineRunner {
     public static final UUID STUDENT_2_UUID = UUID.fromString("11111111-1111-1111-1111-000000000102");
     public static final UUID STUDENT_3_UUID = UUID.fromString("11111111-1111-1111-1111-000000000103");
     public static final UUID STUDENT_4_UUID = UUID.fromString("11111111-1111-1111-1111-000000000104");
+    /**
+     * UUID khoá học mẫu dùng cho dữ liệu demo. Course Service sinh id ngẫu nhiên khi seed khoá học
+     * nên các review này chỉ mang tính minh hoạ, không gắn với khoá học thật.
+     */
+    public static final UUID SPRING_COURSE_UUID = UUID.fromString("33333333-3333-3333-3333-333333333303");
+    public static final UUID DOCKER_COURSE_UUID = UUID.fromString("33333333-3333-3333-3333-333333333302");
     public static final UUID INSTRUCTOR_UUID = UUID.fromString("22222222-2222-2222-2222-000000000007");
 
     @Override
@@ -38,7 +44,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Review 1 for Course 1
         Review r1 = Review.builder()
-                .courseId(1)
+                .courseId(SPRING_COURSE_UUID)
                 .studentId(STUDENT_1_UUID)
                 .rating(5)
                 .comment("Khóa học rất bài bản và chi tiết, dễ hiểu cho người mới bắt đầu microservices!")
@@ -56,7 +62,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Review 2 for Course 1
         Review r2 = Review.builder()
-                .courseId(1)
+                .courseId(SPRING_COURSE_UUID)
                 .studentId(STUDENT_2_UUID)
                 .rating(4)
                 .comment("Nội dung hay, bài giảng xúc tích. Mong giảng viên bổ sung thêm phần CI/CD.")
@@ -67,7 +73,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Review 3 for Course 1
         Review r3 = Review.builder()
-                .courseId(1)
+                .courseId(SPRING_COURSE_UUID)
                 .studentId(STUDENT_3_UUID)
                 .rating(5)
                 .comment("Tuyệt vời! Kiến thức Spring Boot và Eureka Gateway rất sát với thực tế doanh nghiệp.")
@@ -77,11 +83,11 @@ public class DataInitializer implements CommandLineRunner {
         reviewRepository.save(r3);
 
         // Recalculate summary for Course 1
-        aggregationService.recalculateSummary(1);
+        aggregationService.recalculateSummary(SPRING_COURSE_UUID);
 
         // Review 4 for Course 2
         Review r4 = Review.builder()
-                .courseId(2)
+                .courseId(DOCKER_COURSE_UUID)
                 .studentId(STUDENT_4_UUID)
                 .rating(5)
                 .comment("Khóa học giải thích cặn kẽ về event-driven architecture và PostgreSQL database design.")
@@ -90,7 +96,7 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
         reviewRepository.save(r4);
 
-        aggregationService.recalculateSummary(2);
+        aggregationService.recalculateSummary(DOCKER_COURSE_UUID);
 
         log.info("Sample review & rating data initialized successfully with UUID user identifiers.");
     }

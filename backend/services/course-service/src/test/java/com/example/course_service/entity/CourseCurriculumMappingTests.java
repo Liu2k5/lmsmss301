@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +21,9 @@ class CourseCurriculumMappingTests {
 
 	@Test
 	void luuVaDocLaiDuocToanBoCayCurriculm() {
+		UUID instructorId = UUID.randomUUID();
 		Course course = em.persist(Course.builder()
-				.instructorId(7)
+				.instructorId(instructorId)
 				.title("Spring Boot co ban")
 				.description("Khoa hoc nhap mon")
 				.thumbnailUrl("https://cdn.local/thumb.png")
@@ -93,7 +95,7 @@ class CourseCurriculumMappingTests {
 		Course reloadedCourse = em.find(Course.class, course.getId());
 		assertThat(reloadedCourse).isNotNull();
 		assertThat(reloadedCourse.getStatus()).isEqualTo(CourseStatus.DRAFT);
-		assertThat(reloadedCourse.getInstructorId()).isEqualTo(7);
+		assertThat(reloadedCourse.getInstructorId()).isEqualTo(instructorId);
 		assertThat(reloadedCourse.getCreatedAt()).isNotNull();
 		assertThat(reloadedCourse.getUpdatedAt()).isNotNull();
 
@@ -121,8 +123,9 @@ class CourseCurriculumMappingTests {
 
 	@Test
 	void khongChoPhepHaiQuizTrenCungMotLesson() {
+		UUID instructorId = UUID.randomUUID();
 		Course course = em.persist(Course.builder()
-				.instructorId(1).title("Course").status(CourseStatus.PUBLISHED).build());
+				.instructorId(instructorId).title("Course").status(CourseStatus.PUBLISHED).build());
 		Section section = em.persist(Section.builder().course(course).title("S").position(1).build());
 		Lesson lesson = em.persist(Lesson.builder()
 				.section(section).title("L").type(LessonType.QUIZ).position(1).isPreview(false).build());

@@ -1,5 +1,6 @@
 package com.example.course_service.dto;
 
+import java.util.UUID;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -10,7 +11,7 @@ import jakarta.validation.constraints.Size;
 public record OptionRequest(
 
 		/** Chỉ dùng khi cập nhật; null nghĩa là tạo mới. */
-		Integer id,
+		UUID id,
 
 		@NotBlank(message = "Nội dung đáp án không được để trống")
 		@Size(max = 2000, message = "Nội dung đáp án tối đa 2000 ký tự")

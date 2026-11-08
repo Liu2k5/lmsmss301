@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.UUID;
 import java.util.Objects;
 
 @Service
@@ -25,10 +26,10 @@ public class ProgressAnalyticsService {
      */
     @Transactional(readOnly = true)
     public CourseAnalyticsResponse getCourseAnalytics(
-            Integer courseId) {
+            UUID courseId) {
 
         // 1. Kiểm tra courseId
-        if (courseId == null || courseId <= 0) {
+        if (courseId == null) {
             throw new IllegalArgumentException(
                     "Course ID must be greater than 0");
         }

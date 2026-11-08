@@ -134,7 +134,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
             return
           }
           setLessonOptions(lessons)
-          const lesson = lessons.find((item) => item.id === Number(initialLessonId))
+          const lesson = lessons.find((item) => item.id === initialLessonId)
           if (!lesson) {
             done()
             return
@@ -207,7 +207,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     }
     setDuplicating(true)
     try {
-      const copy = await quizApi.duplicate(duplicateTarget.id, Number(duplicateLessonId))
+      const copy = await quizApi.duplicate(duplicateTarget.id, duplicateLessonId)
       setToast({ type: 'success', message: `Đã nhân bản sang "${copy.lessonTitle}".` })
       setDuplicateTarget(null)
       setDuplicateLessonId('')

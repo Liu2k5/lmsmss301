@@ -1,5 +1,6 @@
 package com.example.progress_service.entity;
 
+import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,8 +16,8 @@ import java.time.LocalDateTime;
 public class ProgressEvent {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "event_id", nullable = false, unique = true)
     private String eventId;

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -40,8 +41,7 @@ public class CurriculumUpdateService {
             throw new IllegalArgumentException("Event ID is required");
         }
 
-        if (event.getCourseId() == null
-                || event.getCourseId() <= 0) {
+        if (event.getCourseId() == null) {
             throw new IllegalArgumentException("Invalid course ID");
         }
 
@@ -99,15 +99,15 @@ public class CurriculumUpdateService {
 
     private void addLessons(
             CourseProgress progress,
-            List<Integer> addedLessonIds) {
+            List<UUID> addedLessonIds) {
 
         if (addedLessonIds == null) {
             return;
         }
 
-        for (Integer lessonId : addedLessonIds) {
+        for (UUID lessonId : addedLessonIds) {
 
-            if (lessonId == null || lessonId <= 0) {
+            if (lessonId == null) {
                 throw new IllegalArgumentException(
                         "Invalid lesson ID in addedLessonIds");
             }
@@ -144,15 +144,15 @@ public class CurriculumUpdateService {
 
     private void removeLessons(
             CourseProgress progress,
-            List<Integer> removedLessonIds) {
+            List<UUID> removedLessonIds) {
 
         if (removedLessonIds == null) {
             return;
         }
 
-        for (Integer lessonId : removedLessonIds) {
+        for (UUID lessonId : removedLessonIds) {
 
-            if (lessonId == null || lessonId <= 0) {
+            if (lessonId == null) {
                 throw new IllegalArgumentException(
                         "Invalid lesson ID in removedLessonIds");
             }

@@ -1,6 +1,7 @@
 package com.example.course_service.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -42,17 +43,17 @@ public class CourseController {
 	public List<CourseSummaryResponse> search(
 			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false) CourseStatus status,
-			@RequestParam(required = false) Integer instructorId) {
+			@RequestParam(required = false) UUID instructorId) {
 		return courseService.search(keyword, status, instructorId);
 	}
 
 	@GetMapping("/{id}")
-	public CourseDetailResponse findById(@PathVariable Integer id) {
+	public CourseDetailResponse findById(@PathVariable UUID id) {
 		return courseService.getDetail(id);
 	}
 
 	@GetMapping("/{id}/curriculum/published")
-	public PublishedCurriculumResponse publishedCurriculum(@PathVariable Integer id) {
+	public PublishedCurriculumResponse publishedCurriculum(@PathVariable UUID id) {
 		return courseService.getPublishedCurriculum(id);
 	}
 
@@ -63,42 +64,42 @@ public class CourseController {
 	}
 
 	@PutMapping("/{id}")
-	public CourseDetailResponse update(@PathVariable Integer id, @Valid @RequestBody CourseRequest request) {
+	public CourseDetailResponse update(@PathVariable UUID id, @Valid @RequestBody CourseRequest request) {
 		return courseService.update(id, request);
 	}
 
 	/** Upload ảnh bìa từ máy lên MinIO (multipart/form-data: file). */
 	@PostMapping(value = "/{id}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public CourseDetailResponse uploadThumbnail(@PathVariable Integer id, @RequestPart("file") MultipartFile file) {
+	public CourseDetailResponse uploadThumbnail(@PathVariable UUID id, @RequestPart("file") MultipartFile file) {
 		return courseService.uploadThumbnail(id, file);
 	}
 
 	@DeleteMapping("/{id}/thumbnail")
-	public CourseDetailResponse removeThumbnail(@PathVariable Integer id) {
+	public CourseDetailResponse removeThumbnail(@PathVariable UUID id) {
 		return courseService.removeThumbnail(id);
 	}
 
 	@PatchMapping("/{id}/status")
-	public CourseDetailResponse changeStatus(@PathVariable Integer id,
+	public CourseDetailResponse changeStatus(@PathVariable UUID id,
 			@Valid @RequestBody CourseStatusRequest request) {
 		return courseService.changeStatus(id, request.status());
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void delete(@PathVariable Integer id) {
+	public void delete(@PathVariable UUID id) {
 		courseService.delete(id);
 	}
 
 
 	@PostMapping("/{id}/sections")
 	@ResponseStatus(HttpStatus.CREATED)
-	public CourseDetailResponse addSection(@PathVariable Integer id, @Valid @RequestBody SectionRequest request) {
+	public CourseDetailResponse addSection(@PathVariable UUID id, @Valid @RequestBody SectionRequest request) {
 		return courseService.addSection(id, request);
 	}
 
 	@PutMapping("/{id}/sections/order")
-	public CourseDetailResponse reorderSections(@PathVariable Integer id,
+	public CourseDetailResponse reorderSections(@PathVariable UUID id,
 			@Valid @RequestBody ReorderRequest request) {
 		return courseService.reorderSections(id, request.orderedIds());
 	}

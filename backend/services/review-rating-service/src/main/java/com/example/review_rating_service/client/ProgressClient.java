@@ -4,5 +4,5 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ProgressClient {
-    Optional<ProgressStatusDto> getProgress(UUID studentId, Integer courseId);
+    Optional<ProgressStatusDto> getProgress(UUID studentId, UUID courseId);
 }

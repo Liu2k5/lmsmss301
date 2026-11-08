@@ -2,13 +2,14 @@ package com.example.course_service.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Bản xem trước dành cho giảng viên: giống những gì học viên sẽ thấy,
  * <b>không</b> chứa thông tin đáp án đúng.
  */
 public record QuizPreviewResponse(
-		Integer id,
+		UUID id,
 		String title,
 		String description,
 		BigDecimal passingScore,

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -57,7 +58,7 @@ public class QuizServiceImpl implements QuizService {
 	// ================================================================ truy vấn
 
 	@Override
-	public List<QuizSummaryResponse> findAll(Integer lessonId, Integer courseId, String keyword) {
+	public List<QuizSummaryResponse> findAll(UUID lessonId, UUID courseId, String keyword) {
 		String needle = normalize(keyword);
 
 		return quizRepository.findAllWithContext().stream()
@@ -70,12 +71,12 @@ public class QuizServiceImpl implements QuizService {
 	}
 
 	@Override
-	public QuizResponse findById(Integer id) {
+	public QuizResponse findById(UUID id) {
 		return toResponse(requireQuiz(id));
 	}
 
 	@Override
-	public QuizPreviewResponse preview(Integer id) {
+	public QuizPreviewResponse preview(UUID id) {
 		Quiz quiz = requireQuiz(id);
 		Lesson lesson = quiz.getLesson();
 		Section section = lesson.getSection();
@@ -97,7 +98,7 @@ public class QuizServiceImpl implements QuizService {
 	/** Danh sách bài học loại QUIZ kèm quiz hiện có (nếu đã có) để client chọn khi tạo mới. */
 	@Override
 	public List<LessonOptionResponse> findLessonOptions() {
-		Map<Integer, Quiz> quizByLessonId = quizRepository.findAllWithContext().stream()
+		Map<UUID, Quiz> quizByLessonId = quizRepository.findAllWithContext().stream()
 				.collect(Collectors.toMap(quiz -> quiz.getLesson().getId(), Function.identity()));
 
 		return lessonRepository.findAllWithContextByType(LessonType.QUIZ).stream()
@@ -140,7 +141,7 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public QuizResponse update(Integer id, QuizRequest request) {
+	public QuizResponse update(UUID id, QuizRequest request) {
 		Quiz quiz = requireQuiz(id);
 		Lesson lesson = requireQuizLesson(request.lessonId());
 
@@ -162,13 +163,13 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public void delete(Integer id) {
+	public void delete(UUID id) {
 		quizRepository.delete(requireQuiz(id));
 	}
 
 	@Override
 	@Transactional
-	public QuizResponse duplicate(Integer id, Integer targetLessonId) {
+	public QuizResponse duplicate(UUID id, UUID targetLessonId) {
 		Quiz source = requireQuiz(id);
 		Lesson targetLesson = requireQuizLesson(targetLessonId);
 		if (quizRepository.existsByLessonId(targetLesson.getId())) {
@@ -207,7 +208,7 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public QuestionResponse addQuestion(Integer quizId, QuestionRequest request) {
+	public QuestionResponse addQuestion(UUID quizId, QuestionRequest request) {
 		Quiz quiz = requireQuiz(quizId);
 		validateQuestion(request, quiz.getQuestions().size() + 1);
 
@@ -224,7 +225,7 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public QuestionResponse updateQuestion(Integer quizId, Integer questionId, QuestionRequest request) {
+	public QuestionResponse updateQuestion(UUID quizId, UUID questionId, QuestionRequest request) {
 		Quiz quiz = requireQuiz(quizId);
 		Question question = requireQuestion(quiz, questionId);
 		validateQuestion(request, question.getPosition() == null ? 1 : question.getPosition());
@@ -238,7 +239,7 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public void deleteQuestion(Integer quizId, Integer questionId) {
+	public void deleteQuestion(UUID quizId, UUID questionId) {
 		Quiz quiz = requireQuiz(quizId);
 		Question question = requireQuestion(quiz, questionId);
 		if (quiz.getQuestions().size() <= 1) {
@@ -252,18 +253,18 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public List<QuestionResponse> reorderQuestions(Integer quizId, List<Integer> orderedIds) {
+	public List<QuestionResponse> reorderQuestions(UUID quizId, List<UUID> orderedIds) {
 		Quiz quiz = requireQuiz(quizId);
 		List<Question> questions = new ArrayList<>(quiz.getQuestions());
 
-		Set<Integer> expected = questions.stream().map(Question::getId).collect(Collectors.toSet());
-		Set<Integer> actual = new HashSet<>(orderedIds);
+		Set<UUID> expected = questions.stream().map(Question::getId).collect(Collectors.toSet());
+		Set<UUID> actual = new HashSet<>(orderedIds);
 		if (orderedIds.size() != questions.size() || !expected.equals(actual)) {
 			throw new BusinessRuleException(
 					"Danh sách thứ tự phải chứa đúng toàn bộ id câu hỏi hiện có của quiz");
 		}
 
-		Map<Integer, Question> byId = questions.stream()
+		Map<UUID, Question> byId = questions.stream()
 				.collect(Collectors.toMap(Question::getId, Function.identity()));
 		for (int i = 0; i < orderedIds.size(); i++) {
 			byId.get(orderedIds.get(i)).setPosition(i + 1);
@@ -277,12 +278,12 @@ public class QuizServiceImpl implements QuizService {
 
 	// ================================================================ nội bộ
 
-	private Quiz requireQuiz(Integer id) {
+	private Quiz requireQuiz(UUID id) {
 		return quizRepository.findByIdWithContext(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy quiz id=" + id));
 	}
 
-	private Question requireQuestion(Quiz quiz, Integer questionId) {
+	private Question requireQuestion(Quiz quiz, UUID questionId) {
 		return quiz.getQuestions().stream()
 				.filter(question -> question.getId().equals(questionId))
 				.findFirst()
@@ -290,7 +291,7 @@ public class QuizServiceImpl implements QuizService {
 						"Không tìm thấy câu hỏi id=" + questionId + " trong quiz id=" + quiz.getId()));
 	}
 
-	private Lesson requireQuizLesson(Integer lessonId) {
+	private Lesson requireQuizLesson(UUID lessonId) {
 		Lesson lesson = lessonRepository.findById(lessonId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài học id=" + lessonId));
 		if (lesson.getType() != LessonType.QUIZ) {
@@ -363,7 +364,7 @@ public class QuizServiceImpl implements QuizService {
 	 * không có id thì tạo mới, phần không còn trong request thì bị xoá (orphanRemoval).
 	 */
 	private void applyQuestions(Quiz quiz, List<QuestionRequest> requests) {
-		Map<Integer, Question> staleQuestions = quiz.getQuestions().stream()
+		Map<UUID, Question> staleQuestions = quiz.getQuestions().stream()
 				.collect(Collectors.toMap(Question::getId, Function.identity(), (a, b) -> a, LinkedHashMap::new));
 
 		int questionPosition = 1;
@@ -390,7 +391,7 @@ public class QuizServiceImpl implements QuizService {
 	}
 
 	private void applyOptions(Question question, List<OptionRequest> requests) {
-		Map<Integer, Option> staleOptions = question.getOptions().stream()
+		Map<UUID, Option> staleOptions = question.getOptions().stream()
 				.collect(Collectors.toMap(Option::getId, Function.identity(), (a, b) -> a, LinkedHashMap::new));
 
 		int optionPosition = 1;

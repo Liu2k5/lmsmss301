@@ -1,5 +1,6 @@
 package com.example.progress_service.entity;
 
+import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,18 +16,18 @@ import java.time.LocalDateTime;
 public class CourseCertificate {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_progress_id", nullable = false)
     private CourseProgress courseProgress;
 
     @Column(name = "student_id", nullable = false)
-    private Integer studentId;
+    private UUID studentId;
 
     @Column(name = "course_id", nullable = false)
-    private Integer courseId;
+    private UUID courseId;
 
     @Column(name = "certificate_code",
             nullable = false, unique = true)

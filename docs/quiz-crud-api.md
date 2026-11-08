@@ -4,6 +4,7 @@ Chức năng soạn quiz cho giảng viên (UC-C14 → UC-C19): quản lý quiz,
 
 - Backend: `backend/services/course-service` (port **8081**)
 - Frontend: `frontend/lmsfrontend` (Vite 5173, proxy `/api` → `localhost:8081`)
+- **Mọi id (quiz, câu hỏi, đáp án, bài học, khoá học) là `UUID`**, không còn là số nguyên.
 
 ---
 
@@ -74,7 +75,7 @@ Base path: `/api/v1/quizzes`
 `POST /quizzes/{id}/duplicate` body:
 
 ```json
-{ "lessonId": 8 }
+{ "lessonId": "3f1c9b6e-5d42-4a8f-9c11-8f0f5f2d7a01" }
 ```
 
 ### 3.2. Câu hỏi
@@ -98,7 +99,7 @@ Body sắp xếp — phải chứa **đúng và đủ** id câu hỏi hiện có
 
 ```json
 {
-  "lessonId": 3,
+  "lessonId": "3f1c9b6e-5d42-4a8f-9c11-8f0f5f2d7a01",
   "title": "Kiểm tra cuối chương 1",
   "description": "Chọn đáp án đúng nhất.",
   "passingScore": 70,

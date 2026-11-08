@@ -3,14 +3,15 @@ package com.example.course_service.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 public record QuizResponse(
-		Integer id,
-		Integer lessonId,
+		UUID id,
+		UUID lessonId,
 		String lessonTitle,
-		Integer sectionId,
+		UUID sectionId,
 		String sectionTitle,
-		Integer courseId,
+		UUID courseId,
 		String courseTitle,
 		String title,
 		String description,

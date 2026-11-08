@@ -18,18 +18,18 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     Optional<Review> findByIdAndDeletedAtIsNull(Long id);
 
-    Optional<Review> findByCourseIdAndStudentIdAndDeletedAtIsNull(Integer courseId, UUID studentId);
+    Optional<Review> findByCourseIdAndStudentIdAndDeletedAtIsNull(UUID courseId, UUID studentId);
 
-    Page<Review> findByCourseIdAndStatusAndDeletedAtIsNull(Integer courseId, ReviewStatus status, Pageable pageable);
+    Page<Review> findByCourseIdAndStatusAndDeletedAtIsNull(UUID courseId, ReviewStatus status, Pageable pageable);
 
-    Page<Review> findByCourseIdAndStatusAndRatingAndDeletedAtIsNull(Integer courseId, ReviewStatus status, Integer rating, Pageable pageable);
+    Page<Review> findByCourseIdAndStatusAndRatingAndDeletedAtIsNull(UUID courseId, ReviewStatus status, Integer rating, Pageable pageable);
 
-    List<Review> findByCourseIdAndStatusAndDeletedAtIsNull(Integer courseId, ReviewStatus status);
+    List<Review> findByCourseIdAndStatusAndDeletedAtIsNull(UUID courseId, ReviewStatus status);
 
     List<Review> findByStudentIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID studentId);
 
     Page<Review> findByStatusAndDeletedAtIsNull(ReviewStatus status, Pageable pageable);
 
     @Query("SELECT r.rating, COUNT(r) FROM Review r WHERE r.courseId = :courseId AND r.status = :status AND r.deletedAt IS NULL GROUP BY r.rating")
-    List<Object[]> countRatingsByCourseIdAndStatus(@Param("courseId") Integer courseId, @Param("status") ReviewStatus status);
+    List<Object[]> countRatingsByCourseIdAndStatus(@Param("courseId") UUID courseId, @Param("status") ReviewStatus status);
 }

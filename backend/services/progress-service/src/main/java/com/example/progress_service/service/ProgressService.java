@@ -1,5 +1,6 @@
 package com.example.progress_service.service;
 
+import java.util.UUID;
 import com.example.progress_service.dto.CourseProgressResponse;
 import com.example.progress_service.dto.LessonProgressResponse;
 import com.example.progress_service.dto.ResumeLearningResponse;
@@ -70,7 +71,7 @@ public class ProgressService {
         progress = progressRepository.save(progress);
 
         // Tạo progress cho từng lesson
-        for (Integer lessonId : event.getLessonIds()) {
+        for (UUID lessonId : event.getLessonIds()) {
 
             LessonProgress lesson = LessonProgress.builder()
                     .courseProgress(progress)
@@ -98,8 +99,8 @@ public class ProgressService {
 
     @Transactional(readOnly = true)
     public CourseProgressResponse getCourseProgress(
-            Integer studentId,
-            Integer courseId) {
+            UUID studentId,
+            UUID courseId) {
 
         CourseProgress progress =
                 progressRepository
@@ -140,8 +141,8 @@ public class ProgressService {
 
     @Transactional(readOnly = true)
     public ResumeLearningResponse resumeLearning(
-            Integer studentId,
-            Integer courseId) {
+            UUID studentId,
+            UUID courseId) {
 
         // 1. Tìm tiến độ khóa học
         CourseProgress progress = progressRepository
@@ -223,7 +224,7 @@ public class ProgressService {
     }
 
     @Transactional
-    public void recalculateProgress(Integer progressId) {
+    public void recalculateProgress(UUID progressId) {
 
         CourseProgress progress = progressRepository.findById(progressId)
                 .orElseThrow(() ->

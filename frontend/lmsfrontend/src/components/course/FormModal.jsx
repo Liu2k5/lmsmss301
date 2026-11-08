@@ -6,7 +6,7 @@ import { initialImageValue, validateImage } from './imageValue.js'
  * Modal form dùng chung cho khoá học / chương / bài học / học liệu.
  *
  * fields: [{ name, label, type: 'text'|'url'|'number'|'textarea'|'select'|'checkbox'|'image',
- *            required, maxLength, maxBytes, options, hint, wide, placeholder }]
+ *            required, maxLength, maxBytes, options, pattern, patternMessage, hint, wide, placeholder }]
  * Field 'image' nhận initialValues[name] là URL ảnh hiện tại và trả về payload[name] = { file, removed }.
  * onSubmit(values) trả về Promise; lỗi ApiError sẽ được hiển thị (kèm lỗi theo field).
  */
@@ -60,6 +60,8 @@ export default function FormModal({ title, subtitle, fields, initialValues, subm
         errors[field.name] = 'URL phải bắt đầu bằng http:// hoặc https://'
       } else if (field.type === 'number' && value !== '' && (Number.isNaN(Number(value)) || Number(value) < 0)) {
         errors[field.name] = `${field.label} phải là số không âm.`
+      } else if (field.pattern && String(value).trim() && !field.pattern.test(String(value).trim())) {
+        errors[field.name] = field.patternMessage ?? `${field.label} không đúng định dạng.`
       }
     })
     return errors

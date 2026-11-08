@@ -14,7 +14,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ProgressStatusDto {
     private UUID studentId;
-    private Integer courseId;
+    private UUID courseId;
     private BigDecimal percentComplete;
     private Boolean courseCompleted;
 

@@ -1,5 +1,6 @@
 package com.example.course_service.controller;
 
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,44 +36,44 @@ public class CurriculumController {
 
 
 	@PutMapping("/sections/{sectionId}")
-	public CourseDetailResponse updateSection(@PathVariable Integer sectionId,
+	public CourseDetailResponse updateSection(@PathVariable UUID sectionId,
 			@Valid @RequestBody SectionRequest request) {
 		return courseService.updateSection(sectionId, request);
 	}
 
 	@DeleteMapping("/sections/{sectionId}")
-	public CourseDetailResponse deleteSection(@PathVariable Integer sectionId) {
+	public CourseDetailResponse deleteSection(@PathVariable UUID sectionId) {
 		return courseService.deleteSection(sectionId);
 	}
 
 	@PostMapping("/sections/{sectionId}/lessons")
 	@ResponseStatus(HttpStatus.CREATED)
-	public CourseDetailResponse addLesson(@PathVariable Integer sectionId,
+	public CourseDetailResponse addLesson(@PathVariable UUID sectionId,
 			@Valid @RequestBody LessonRequest request) {
 		return courseService.addLesson(sectionId, request);
 	}
 
 	@PutMapping("/sections/{sectionId}/lessons/order")
-	public CourseDetailResponse reorderLessons(@PathVariable Integer sectionId,
+	public CourseDetailResponse reorderLessons(@PathVariable UUID sectionId,
 			@Valid @RequestBody ReorderRequest request) {
 		return courseService.reorderLessons(sectionId, request.orderedIds());
 	}
 
 
 	@PutMapping("/lessons/{lessonId}")
-	public CourseDetailResponse updateLesson(@PathVariable Integer lessonId,
+	public CourseDetailResponse updateLesson(@PathVariable UUID lessonId,
 			@Valid @RequestBody LessonRequest request) {
 		return courseService.updateLesson(lessonId, request);
 	}
 
 	@DeleteMapping("/lessons/{lessonId}")
-	public CourseDetailResponse deleteLesson(@PathVariable Integer lessonId) {
+	public CourseDetailResponse deleteLesson(@PathVariable UUID lessonId) {
 		return courseService.deleteLesson(lessonId);
 	}
 
 	@PostMapping("/lessons/{lessonId}/materials")
 	@ResponseStatus(HttpStatus.CREATED)
-	public CourseDetailResponse addMaterial(@PathVariable Integer lessonId,
+	public CourseDetailResponse addMaterial(@PathVariable UUID lessonId,
 			@Valid @RequestBody MaterialRequest request) {
 		return courseService.addMaterial(lessonId, request);
 	}
@@ -80,7 +81,7 @@ public class CurriculumController {
 	/** Upload video / tài liệu lên MinIO (multipart/form-data: file, name?, type?). */
 	@PostMapping(value = "/lessons/{lessonId}/materials/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
-	public CourseDetailResponse uploadMaterial(@PathVariable Integer lessonId,
+	public CourseDetailResponse uploadMaterial(@PathVariable UUID lessonId,
 			@RequestPart("file") MultipartFile file,
 			@RequestParam(required = false) String name,
 			@RequestParam(required = false) MaterialType type) {
@@ -89,13 +90,13 @@ public class CurriculumController {
 
 
 	@PutMapping("/materials/{materialId}")
-	public CourseDetailResponse updateMaterial(@PathVariable Integer materialId,
+	public CourseDetailResponse updateMaterial(@PathVariable UUID materialId,
 			@Valid @RequestBody MaterialRequest request) {
 		return courseService.updateMaterial(materialId, request);
 	}
 
 	@DeleteMapping("/materials/{materialId}")
-	public CourseDetailResponse deleteMaterial(@PathVariable Integer materialId) {
+	public CourseDetailResponse deleteMaterial(@PathVariable UUID materialId) {
 		return courseService.deleteMaterial(materialId);
 	}
 }

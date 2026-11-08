@@ -27,10 +27,16 @@ class RatingAggregationServiceTests {
     @Autowired
     private RatingAggregationService aggregationService;
 
+
+    /** Id khoá học giả lập: 00000000-0000-0000-0000-%012d. */
+    private static UUID course(int n) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(n));
+    }
+
     @Test
     @DisplayName("Tính toán rating summary khi có 3 reviews: 5⭐, 4⭐, 3⭐ -> Trung bình 4.00")
     void testRecalculateSummaryWithThreeReviews() {
-        Integer courseId = 999;
+        UUID courseId = course(999);
         reviewRepository.save(Review.builder().courseId(courseId).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build());
         reviewRepository.save(Review.builder().courseId(courseId).studentId(UUID.randomUUID()).rating(4).status(ReviewStatus.APPROVED).build());
         reviewRepository.save(Review.builder().courseId(courseId).studentId(UUID.randomUUID()).rating(3).status(ReviewStatus.APPROVED).build());
@@ -50,7 +56,7 @@ class RatingAggregationServiceTests {
     @Test
     @DisplayName("Tính toán rating summary khi chưa có review nào -> Điểm 0.00, tổng 0")
     void testRecalculateSummaryWithZeroReviews() {
-        Integer courseId = 888;
+        UUID courseId = course(888);
         CourseRatingSummary summary = aggregationService.recalculateSummary(courseId);
 
         assertThat(summary.getTotalReviews()).isEqualTo(0);

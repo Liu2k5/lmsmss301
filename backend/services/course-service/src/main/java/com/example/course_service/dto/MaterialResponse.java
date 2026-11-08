@@ -1,10 +1,11 @@
 package com.example.course_service.dto;
 
+import java.util.UUID;
 import com.example.course_service.entity.MaterialType;
 
 public record MaterialResponse(
-		Integer id,
-		Integer lessonId,
+		UUID id,
+		UUID lessonId,
 		String name,
 		MaterialType type,
 		/** Link xem file. Với file trên MinIO đây là link tạm (presigned), hết hạn sau vài giờ. */

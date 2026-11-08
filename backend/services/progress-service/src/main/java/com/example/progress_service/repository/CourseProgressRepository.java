@@ -4,34 +4,35 @@ import com.example.progress_service.entity.CourseProgress;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
 
 public interface CourseProgressRepository
-        extends JpaRepository<CourseProgress, Integer> {
+        extends JpaRepository<CourseProgress, UUID> {
 
     Optional<CourseProgress> findByStudentIdAndCourseId(
-            Integer studentId,
-            Integer courseId
+            UUID studentId,
+            UUID courseId
     );
 
-    List<CourseProgress> findByStudentId(Integer studentId);
+    List<CourseProgress> findByStudentId(UUID studentId);
 
-    List<CourseProgress> findByCourseId(Integer courseId);
+    List<CourseProgress> findByCourseId(UUID courseId);
 
     List<CourseProgress> findByCourseIdAndStatus(
-            Integer courseId,
+            UUID courseId,
             String status
     );
 
     boolean existsByStudentIdAndCourseId(
-            Integer studentId,
-            Integer courseId
+            UUID studentId,
+            UUID courseId
     );
 
-    long countByCourseId(Integer courseId);
+    long countByCourseId(UUID courseId);
 
     long countByCourseIdAndStatus(
-            Integer courseId,
+            UUID courseId,
             String status
     );
 }

@@ -1,6 +1,7 @@
 package com.example.course_service.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.example.course_service.entity.QuestionType;
 
@@ -16,7 +17,7 @@ import jakarta.validation.constraints.Size;
 public record QuestionRequest(
 
 		/** Chỉ dùng khi cập nhật; null nghĩa là tạo mới. */
-		Integer id,
+		UUID id,
 
 		@NotBlank(message = "Nội dung câu hỏi không được để trống")
 		@Size(max = 2000, message = "Nội dung câu hỏi tối đa 2000 ký tự")

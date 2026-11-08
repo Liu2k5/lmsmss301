@@ -25,7 +25,7 @@ public class ReviewController {
     @PostMapping("/api/v1/courses/{courseId}/reviews")
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     public ResponseEntity<ReviewResponse> createReview(
-            @PathVariable Integer courseId,
+            @PathVariable UUID courseId,
             @Valid @RequestBody CreateReviewRequest request) {
 
         UUID studentId = SecurityUtils.getCurrentUserId();
@@ -36,7 +36,7 @@ public class ReviewController {
     /** UC-R04: Xem danh sách đánh giá của khóa học (Phân trang, lọc sao, sắp xếp) */
     @GetMapping("/api/v1/courses/{courseId}/reviews")
     public ResponseEntity<Page<ReviewResponse>> getCourseReviews(
-            @PathVariable Integer courseId,
+            @PathVariable UUID courseId,
             @RequestParam(required = false) Integer rating,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
@@ -70,7 +70,7 @@ public class ReviewController {
 
     /** UC-R11: Kiểm tra quyền viết đánh giá của học viên hiện tại */
     @GetMapping("/api/v1/courses/{courseId}/reviews/eligibility")
-    public ResponseEntity<ReviewEligibilityResponse> checkEligibility(@PathVariable Integer courseId) {
+    public ResponseEntity<ReviewEligibilityResponse> checkEligibility(@PathVariable UUID courseId) {
         UUID studentId = SecurityUtils.getCurrentUserId();
         ReviewEligibilityResponse response = reviewService.checkEligibility(courseId, studentId);
         return ResponseEntity.ok(response);

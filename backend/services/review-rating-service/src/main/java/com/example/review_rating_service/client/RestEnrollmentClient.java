@@ -24,7 +24,7 @@ public class RestEnrollmentClient implements EnrollmentClient {
     }
 
     @Override
-    public Optional<EnrollmentStatusDto> checkEnrollment(UUID studentId, Integer courseId) {
+    public Optional<EnrollmentStatusDto> checkEnrollment(UUID studentId, UUID courseId) {
         try {
             return Optional.ofNullable(
                     restClient.get()

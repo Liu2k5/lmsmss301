@@ -2,6 +2,7 @@ package com.example.course_service.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -15,7 +16,7 @@ import jakarta.validation.constraints.Size;
 public record QuizRequest(
 
 		@NotNull(message = "Bài học không được để trống")
-		Integer lessonId,
+		UUID lessonId,
 
 		@NotBlank(message = "Tên quiz không được để trống")
 		@Size(max = 255, message = "Tên quiz tối đa 255 ký tự")

@@ -10,13 +10,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CourseRatingSummaryResponse {
-    private Integer courseId;
+    private UUID courseId;
     private BigDecimal averageRating;
     private Integer totalReviews;
     private Integer star5Count;

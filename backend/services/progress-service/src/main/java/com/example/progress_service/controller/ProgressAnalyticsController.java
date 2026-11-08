@@ -1,5 +1,6 @@
 package com.example.progress_service.controller;
 
+import java.util.UUID;
 import com.example.progress_service.dto.CourseAnalyticsResponse;
 import com.example.progress_service.service.ProgressAnalyticsService;
 
@@ -19,7 +20,7 @@ public class ProgressAnalyticsController {
      */
     @GetMapping("/courses/{courseId}")
     public CourseAnalyticsResponse getCourseAnalytics(
-            @PathVariable Integer courseId) {
+            @PathVariable UUID courseId) {
 
         return analyticsService.getCourseAnalytics(courseId);
     }

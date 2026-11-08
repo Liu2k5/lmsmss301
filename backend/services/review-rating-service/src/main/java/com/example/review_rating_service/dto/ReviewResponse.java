@@ -16,7 +16,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ReviewResponse {
     private Long id;
-    private Integer courseId;
+    private UUID courseId;
     private UUID studentId;
     private Integer rating;
     private String comment;

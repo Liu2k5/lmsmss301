@@ -25,6 +25,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import com.example.course_service.entity.Course;
 import com.example.course_service.entity.CourseStatus;
 import com.example.course_service.entity.Lesson;
@@ -75,7 +77,7 @@ class MaterialUploadIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		Course course = courseRepository.save(Course.builder()
-				.instructorId(1).title("Khoá upload").status(CourseStatus.DRAFT).build());
+				.instructorId(java.util.UUID.randomUUID()).title("Khoá upload").status(CourseStatus.DRAFT).build());
 		Section section = sectionRepository.save(Section.builder()
 				.course(course).title("Chương 1").position(1).build());
 		lesson = lessonRepository.save(Lesson.builder()
@@ -174,7 +176,7 @@ class MaterialUploadIntegrationTest {
 
 	@Test
 	void suaHocLieuDaUploadKhongGuiUrlThiGiuNguyenFile() throws Exception {
-		int materialId = uploadAndGetMaterialId();
+		String materialId = uploadAndGetMaterialId();
 
 		mockMvc.perform(put("/api/v1/materials/{id}", materialId)
 						.contentType(MediaType.APPLICATION_JSON)
@@ -188,7 +190,7 @@ class MaterialUploadIntegrationTest {
 
 	@Test
 	void xoaHocLieuXoaLuonFileTrenMinio() throws Exception {
-		int materialId = uploadAndGetMaterialId();
+		String materialId = uploadAndGetMaterialId();
 
 		mockMvc.perform(delete("/api/v1/materials/{id}", materialId))
 				.andExpect(status().isOk())
@@ -217,7 +219,7 @@ class MaterialUploadIntegrationTest {
 
 	@Test
 	void uploadAnhBiaLuuMinioVaTraVeLinkXem() throws Exception {
-		Integer courseId = lesson.getSection().getCourse().getId();
+		UUID courseId = lesson.getSection().getCourse().getId();
 		when(storageService.upload(anyString(), any()))
 				.thenReturn(new StorageService.StoredFile("courses/1/thumbnail/a-bia.png", 4, "image/png"));
 
@@ -236,7 +238,7 @@ class MaterialUploadIntegrationTest {
 
 	@Test
 	void doiAnhBiaXoaAnhCuTrenMinio() throws Exception {
-		Integer courseId = lesson.getSection().getCourse().getId();
+		UUID courseId = lesson.getSection().getCourse().getId();
 		when(storageService.upload(anyString(), any()))
 				.thenReturn(new StorageService.StoredFile("cu.png", 4, "image/png"))
 				.thenReturn(new StorageService.StoredFile("moi.png", 4, "image/png"));
@@ -252,7 +254,7 @@ class MaterialUploadIntegrationTest {
 
 	@Test
 	void anhBiaKhongPhaiHinhAnhTraVe400() throws Exception {
-		Integer courseId = lesson.getSection().getCourse().getId();
+		UUID courseId = lesson.getSection().getCourse().getId();
 		mockMvc.perform(multipart("/api/v1/courses/{id}/thumbnail", courseId).file(videoFile()))
 				.andExpect(status().isBadRequest());
 		verify(storageService, never()).upload(anyString(), any());
@@ -260,7 +262,7 @@ class MaterialUploadIntegrationTest {
 
 	@Test
 	void suaKhoaHocKhongGuiAnhBiaThiGiuAnhCuVaBoAnhBiaXoaFile() throws Exception {
-		Integer courseId = lesson.getSection().getCourse().getId();
+		UUID courseId = lesson.getSection().getCourse().getId();
 		when(storageService.upload(anyString(), any()))
 				.thenReturn(new StorageService.StoredFile("bia.png", 4, "image/png"));
 		mockMvc.perform(multipart("/api/v1/courses/{id}/thumbnail", courseId).file(imageFile()))
@@ -268,7 +270,7 @@ class MaterialUploadIntegrationTest {
 
 		mockMvc.perform(put("/api/v1/courses/{id}", courseId)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"instructorId\": 1, \"title\": \"Tên mới\"}"))
+						.content("{\"instructorId\": \"22222222-2222-2222-2222-222222222222\", \"title\": \"Tên mới\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.thumbnailUrl").value("http://minio.local/presigned/bia.png"));
 
@@ -286,12 +288,12 @@ class MaterialUploadIntegrationTest {
 		return new MockMultipartFile("file", "bai-giang.mp4", "video/mp4", "fake-video!".getBytes());
 	}
 
-	private int uploadAndGetMaterialId() throws Exception {
+	private String uploadAndGetMaterialId() throws Exception {
 		String body = mockMvc.perform(multipart("/api/v1/lessons/{id}/materials/upload", lesson.getId())
 						.file(videoFile()))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
 		return objectMapper.readTree(body)
-				.get("sections").get(0).get("lessons").get(0).get("materials").get(0).get("id").asInt();
+				.get("sections").get(0).get("lessons").get(0).get("materials").get(0).get("id").asText();
 	}
 }

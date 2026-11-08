@@ -6,6 +6,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -92,13 +93,13 @@ public class CourseServiceImpl implements CourseService {
 	// ================================================================ khoá học
 
 	@Override
-	public List<CourseSummaryResponse> search(String keyword, CourseStatus status, Integer instructorId) {
+	public List<CourseSummaryResponse> search(String keyword, CourseStatus status, UUID instructorId) {
 		String pattern = keyword == null || keyword.isBlank()
 				? null
 				: "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
 
-		Map<Integer, Long> sectionCounts = toMap(sectionRepository.countByCourse());
-		Map<Integer, Long> lessonCounts = toMap(lessonRepository.countByCourse());
+		Map<UUID, Long> sectionCounts = toMap(sectionRepository.countByCourse());
+		Map<UUID, Long> lessonCounts = toMap(lessonRepository.countByCourse());
 
 		return courseRepository.search(pattern, status, instructorId).stream()
 				.map(course -> new CourseSummaryResponse(
@@ -111,19 +112,19 @@ public class CourseServiceImpl implements CourseService {
 	}
 
 	@Override
-	public CourseDetailResponse getDetail(Integer id) {
+	public CourseDetailResponse getDetail(UUID id) {
 		return toDetail(requireCourse(id));
 	}
 
 	@Override
-	public PublishedCurriculumResponse getPublishedCurriculum(Integer id) {
+	public PublishedCurriculumResponse getPublishedCurriculum(UUID id) {
 		Course course = requireCourse(id);
 		if (course.getStatus() != CourseStatus.PUBLISHED) {
 			throw new ResourceNotFoundException("Khoá học id=" + id + " chưa được phát hành");
 		}
 
 		List<Lesson> allLessons = lessonRepository.findByCourseIdOrdered(id);
-		Map<Integer, Integer> quizIdByLesson = quizIdsByLesson(allLessons);
+		Map<UUID, UUID> quizIdByLesson = quizIdsByLesson(allLessons);
 
 		// Giảng viên vẫn sửa được nội dung khi khoá đang xuất bản, nên có thể có bài Quiz chưa tạo quiz
 		// hoặc chương chưa có bài. Chỉ đưa ra những gì học viên học được: bỏ bài Quiz chưa có quiz và
@@ -131,7 +132,7 @@ public class CourseServiceImpl implements CourseService {
 		List<Lesson> readyLessons = allLessons.stream()
 				.filter(lesson -> lesson.getType() != LessonType.QUIZ || quizIdByLesson.containsKey(lesson.getId()))
 				.toList();
-		Map<Integer, List<Lesson>> lessonsBySection = readyLessons.stream()
+		Map<UUID, List<Lesson>> lessonsBySection = readyLessons.stream()
 				.collect(Collectors.groupingBy(lesson -> lesson.getSection().getId()));
 
 		List<PublishedCurriculumResponse.Section> sections = sectionRepository
@@ -165,7 +166,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse update(Integer id, CourseRequest request) {
+	public CourseDetailResponse update(UUID id, CourseRequest request) {
 		Course course = requireCourse(id);
 		ensureEditable(course);
 		course.setInstructorId(request.instructorId());
@@ -184,7 +185,7 @@ public class CourseServiceImpl implements CourseService {
 	/** Giống {@link #uploadMaterial}: upload ngoài transaction, lưu DB trong transaction ngắn. */
 	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
-	public CourseDetailResponse uploadThumbnail(Integer id, MultipartFile file) {
+	public CourseDetailResponse uploadThumbnail(UUID id, MultipartFile file) {
 		if (file == null || file.isEmpty()) {
 			throw new BusinessRuleException("File ảnh bìa đang trống");
 		}
@@ -229,7 +230,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse removeThumbnail(Integer id) {
+	public CourseDetailResponse removeThumbnail(UUID id) {
 		Course course = requireCourse(id);
 		ensureEditable(course);
 		replaceThumbnail(course, null);
@@ -247,7 +248,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse changeStatus(Integer id, CourseStatus target) {
+	public CourseDetailResponse changeStatus(UUID id, CourseStatus target) {
 		Course course = requireCourse(id);
 		CourseStatus current = course.getStatus();
 
@@ -267,7 +268,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public void delete(Integer id) {
+	public void delete(UUID id) {
 		Course course = requireCourse(id);
 		// Chỉ xoá hẳn khoá học chưa từng xuất bản (bản nháp) hoặc đã lưu trữ.
 		if (course.getStatus() != CourseStatus.DRAFT && course.getStatus() != CourseStatus.ARCHIVED) {
@@ -285,7 +286,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse addSection(Integer courseId, SectionRequest request) {
+	public CourseDetailResponse addSection(UUID courseId, SectionRequest request) {
 		Course course = requireCourse(courseId);
 		ensureEditable(course);
 
@@ -300,7 +301,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse updateSection(Integer sectionId, SectionRequest request) {
+	public CourseDetailResponse updateSection(UUID sectionId, SectionRequest request) {
 		Section section = requireEditableSection(sectionId);
 		section.setTitle(request.title().trim());
 		section.setDescription(trimToNull(request.description()));
@@ -309,9 +310,9 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse deleteSection(Integer sectionId) {
+	public CourseDetailResponse deleteSection(UUID sectionId) {
 		Section section = requireEditableSection(sectionId);
-		Integer courseId = section.getCourse().getId();
+		UUID courseId = section.getCourse().getId();
 
 		deleteLessons(lessonRepository.findBySectionIdOrderByPositionAscIdAsc(sectionId));
 		sectionRepository.delete(section);
@@ -323,7 +324,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse reorderSections(Integer courseId, List<Integer> orderedIds) {
+	public CourseDetailResponse reorderSections(UUID courseId, List<UUID> orderedIds) {
 		Course course = requireCourse(courseId);
 		ensureEditable(course);
 
@@ -336,7 +337,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse addLesson(Integer sectionId, LessonRequest request) {
+	public CourseDetailResponse addLesson(UUID sectionId, LessonRequest request) {
 		Section section = requireEditableSection(sectionId);
 
 		lessonRepository.save(Lesson.builder()
@@ -352,7 +353,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse updateLesson(Integer lessonId, LessonRequest request) {
+	public CourseDetailResponse updateLesson(UUID lessonId, LessonRequest request) {
 		Lesson lesson = requireEditableLesson(lessonId);
 
 		if (lesson.getType() == LessonType.QUIZ && request.type() != LessonType.QUIZ
@@ -369,10 +370,10 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse deleteLesson(Integer lessonId) {
+	public CourseDetailResponse deleteLesson(UUID lessonId) {
 		Lesson lesson = requireEditableLesson(lessonId);
-		Integer sectionId = lesson.getSection().getId();
-		Integer courseId = lesson.getSection().getCourse().getId();
+		UUID sectionId = lesson.getSection().getId();
+		UUID courseId = lesson.getSection().getCourse().getId();
 
 		deleteLessons(List.of(lesson));
 		renumber(lessonRepository.findBySectionIdOrderByPositionAscIdAsc(sectionId), Lesson::setPosition);
@@ -381,7 +382,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse reorderLessons(Integer sectionId, List<Integer> orderedIds) {
+	public CourseDetailResponse reorderLessons(UUID sectionId, List<UUID> orderedIds) {
 		Section section = requireEditableSection(sectionId);
 		List<Lesson> lessons = lessonRepository.findBySectionIdOrderByPositionAscIdAsc(sectionId);
 		applyOrder(lessons, Lesson::getId, Lesson::setPosition, orderedIds, "bài học");
@@ -392,7 +393,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse addMaterial(Integer lessonId, MaterialRequest request) {
+	public CourseDetailResponse addMaterial(UUID lessonId, MaterialRequest request) {
 		Lesson lesson = requireEditableLesson(lessonId);
 		if (trimToNull(request.url()) == null) {
 			throw new BusinessRuleException("URL học liệu không được để trống. Muốn đưa file lên hãy dùng Upload.");
@@ -414,11 +415,11 @@ public class CourseServiceImpl implements CourseService {
 	 */
 	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
-	public CourseDetailResponse uploadMaterial(Integer lessonId, MultipartFile file, String name, MaterialType type) {
+	public CourseDetailResponse uploadMaterial(UUID lessonId, MultipartFile file, String name, MaterialType type) {
 		if (file == null || file.isEmpty()) {
 			throw new BusinessRuleException("File upload đang trống");
 		}
-		Integer courseId = readTransaction().execute(
+		UUID courseId = readTransaction().execute(
 				status -> requireEditableLesson(lessonId).getSection().getCourse().getId());
 
 		StorageService.StoredFile stored = storageService.upload(
@@ -443,7 +444,7 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse updateMaterial(Integer materialId, MaterialRequest request) {
+	public CourseDetailResponse updateMaterial(UUID materialId, MaterialRequest request) {
 		Material material = requireEditableMaterial(materialId);
 		String oldStoredKey = storedKey(material);
 		String newUrl = trimToNull(request.url());
@@ -467,10 +468,10 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse deleteMaterial(Integer materialId) {
+	public CourseDetailResponse deleteMaterial(UUID materialId) {
 		Material material = requireEditableMaterial(materialId);
 		Lesson lesson = material.getLesson();
-		Integer courseId = lesson.getSection().getCourse().getId();
+		UUID courseId = lesson.getSection().getCourse().getId();
 
 		String storedKey = storedKey(material);
 		materialRepository.delete(material);
@@ -509,14 +510,14 @@ public class CourseServiceImpl implements CourseService {
 			throw new BusinessRuleException("Khoá học phải có ít nhất 1 chương trước khi xuất bản");
 		}
 		List<Lesson> lessons = lessonRepository.findByCourseIdOrdered(course.getId());
-		Map<Integer, Long> lessonsPerSection = lessons.stream()
+		Map<UUID, Long> lessonsPerSection = lessons.stream()
 				.collect(Collectors.groupingBy(lesson -> lesson.getSection().getId(), Collectors.counting()));
 		for (Section section : sections) {
 			if (lessonsPerSection.getOrDefault(section.getId(), 0L) == 0) {
 				throw new BusinessRuleException("Chương \"" + section.getTitle() + "\" chưa có bài học nào");
 			}
 		}
-		Map<Integer, Integer> quizIdByLesson = quizIdsByLesson(lessons);
+		Map<UUID, UUID> quizIdByLesson = quizIdsByLesson(lessons);
 		for (Lesson lesson : lessons) {
 			if (lesson.getType() == LessonType.QUIZ && !quizIdByLesson.containsKey(lesson.getId())) {
 				throw new BusinessRuleException("Bài học \"" + lesson.getTitle() + "\" loại QUIZ chưa được tạo quiz");
@@ -526,26 +527,26 @@ public class CourseServiceImpl implements CourseService {
 
 	// ============================================================ tìm & kiểm tra
 
-	private Course requireCourse(Integer id) {
+	private Course requireCourse(UUID id) {
 		return courseRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khoá học id=" + id));
 	}
 
-	private Section requireEditableSection(Integer sectionId) {
+	private Section requireEditableSection(UUID sectionId) {
 		Section section = sectionRepository.findByIdWithCourse(sectionId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chương id=" + sectionId));
 		ensureEditable(section.getCourse());
 		return section;
 	}
 
-	private Lesson requireEditableLesson(Integer lessonId) {
+	private Lesson requireEditableLesson(UUID lessonId) {
 		Lesson lesson = lessonRepository.findByIdWithContext(lessonId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài học id=" + lessonId));
 		ensureEditable(lesson.getSection().getCourse());
 		return lesson;
 	}
 
-	private Material requireEditableMaterial(Integer materialId) {
+	private Material requireEditableMaterial(UUID materialId) {
 		Material material = materialRepository.findByIdWithContext(materialId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy học liệu id=" + materialId));
 		ensureEditable(material.getLesson().getSection().getCourse());
@@ -562,7 +563,7 @@ public class CourseServiceImpl implements CourseService {
 		if (lessons.isEmpty()) {
 			return;
 		}
-		List<Integer> lessonIds = lessons.stream().map(Lesson::getId).toList();
+		List<UUID> lessonIds = lessons.stream().map(Lesson::getId).toList();
 		List<Material> materials = materialRepository.findByLessonIdIn(lessonIds);
 		List<String> storedKeys = materials.stream().map(CourseServiceImpl::storedKey)
 				.filter(java.util.Objects::nonNull).toList();
@@ -665,10 +666,10 @@ public class CourseServiceImpl implements CourseService {
 	// =============================================================== thứ tự
 
 	/** Danh sách id mới phải chứa đúng và đủ các phần tử hiện có, không trùng lặp. */
-	private <T> void applyOrder(List<T> items, Function<T, Integer> idOf, PositionSetter<T> setter,
-			List<Integer> orderedIds, String label) {
-		Set<Integer> requested = new HashSet<>(orderedIds);
-		Set<Integer> existing = items.stream().map(idOf).collect(Collectors.toSet());
+	private <T> void applyOrder(List<T> items, Function<T, UUID> idOf, PositionSetter<T> setter,
+			List<UUID> orderedIds, String label) {
+		Set<UUID> requested = new HashSet<>(orderedIds);
+		Set<UUID> existing = items.stream().map(idOf).collect(Collectors.toSet());
 		if (requested.size() != orderedIds.size()) {
 			throw new BusinessRuleException("Danh sách " + label + " có id bị lặp");
 		}
@@ -676,7 +677,7 @@ public class CourseServiceImpl implements CourseService {
 			throw new BusinessRuleException(
 					"Danh sách " + label + " phải gồm đúng và đủ các id hiện có: " + existing);
 		}
-		Map<Integer, T> byId = items.stream().collect(Collectors.toMap(idOf, Function.identity()));
+		Map<UUID, T> byId = items.stream().collect(Collectors.toMap(idOf, Function.identity()));
 		for (int i = 0; i < orderedIds.size(); i++) {
 			setter.set(byId.get(orderedIds.get(i)), i + 1);
 		}
@@ -696,23 +697,23 @@ public class CourseServiceImpl implements CourseService {
 	// =============================================================== mapping
 
 	/** Đẩy thay đổi xuống DB rồi đọc lại chi tiết khoá học sau thao tác ghi. */
-	private CourseDetailResponse refreshed(Integer courseId) {
+	private CourseDetailResponse refreshed(UUID courseId) {
 		sectionRepository.flush();
 		return getDetail(courseId);
 	}
 
 	private CourseDetailResponse toDetail(Course course) {
-		Integer courseId = course.getId();
+		UUID courseId = course.getId();
 		List<Section> sections = sectionRepository.findByCourseIdOrderByPositionAscIdAsc(courseId);
 		List<Lesson> lessons = lessonRepository.findByCourseIdOrdered(courseId);
-		Map<Integer, Integer> quizIdByLesson = quizIdsByLesson(lessons);
+		Map<UUID, UUID> quizIdByLesson = quizIdsByLesson(lessons);
 
-		Map<Integer, List<MaterialResponse>> materialsByLesson = materialRepository.findByCourseIdOrdered(courseId)
+		Map<UUID, List<MaterialResponse>> materialsByLesson = materialRepository.findByCourseIdOrdered(courseId)
 				.stream()
 				.collect(Collectors.groupingBy(material -> material.getLesson().getId(),
 						Collectors.mapping(this::toMaterialResponse, Collectors.toList())));
 
-		Map<Integer, List<LessonResponse>> lessonsBySection = new HashMap<>();
+		Map<UUID, List<LessonResponse>> lessonsBySection = new HashMap<>();
 		for (Lesson lesson : lessons) {
 			lessonsBySection.computeIfAbsent(lesson.getSection().getId(), key -> new ArrayList<>())
 					.add(new LessonResponse(
@@ -736,7 +737,7 @@ public class CourseServiceImpl implements CourseService {
 				course.getCreatedAt(), course.getUpdatedAt(), sectionResponses);
 	}
 
-	private Map<Integer, Integer> quizIdsByLesson(List<Lesson> lessons) {
+	private Map<UUID, UUID> quizIdsByLesson(List<Lesson> lessons) {
 		if (lessons.isEmpty()) {
 			return Map.of();
 		}
@@ -759,7 +760,7 @@ public class CourseServiceImpl implements CourseService {
 				material.getFileSize(), material.getMimeType(), material.getPosition());
 	}
 
-	private static Map<Integer, Long> toMap(List<CourseCount> counts) {
+	private static Map<UUID, Long> toMap(List<CourseCount> counts) {
 		return counts.stream().collect(Collectors.toMap(CourseCount::getCourseId, CourseCount::getTotal));
 	}
 

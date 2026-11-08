@@ -1,5 +1,6 @@
 package com.example.progress_service.entity;
 
+import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,15 +28,15 @@ import java.time.LocalDateTime;
 public class QuizAttempt {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_progress_id", nullable = false)
     private CourseProgress courseProgress;
 
     @Column(name = "quiz_id", nullable = false)
-    private Integer quizId;
+    private UUID quizId;
 
     @Column(name = "attempt_number", nullable = false)
     private Integer attemptNumber;

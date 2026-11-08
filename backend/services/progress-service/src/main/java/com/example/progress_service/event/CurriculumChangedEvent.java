@@ -3,6 +3,7 @@ package com.example.progress_service.event;
 import lombok.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -15,14 +16,14 @@ public class CurriculumChangedEvent {
     private String eventId;
 
     // ID khóa học
-    private Integer courseId;
+    private UUID courseId;
 
     // Phiên bản curriculum sau khi cập nhật
     private Long curriculumVersion;
 
     // Các bài học mới được thêm
-    private List<Integer> addedLessonIds;
+    private List<UUID> addedLessonIds;
 
     // Các bài học bị loại khỏi curriculum
-    private List<Integer> removedLessonIds;
+    private List<UUID> removedLessonIds;
 }

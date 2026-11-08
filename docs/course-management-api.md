@@ -6,6 +6,8 @@ sắp xếp thứ tự, quy trình xuất bản và curriculum cho Progress Serv
 - Backend: `backend/services/course-service` (port **8081**)
 - Frontend: `frontend/lmsfrontend` → tab **Khoá học** (`#/courses`, `#/courses/{id}`); tab **Quiz** giữ nguyên
 - Cách chạy: xem [quiz-crud-api.md](./quiz-crud-api.md#1-chạy-thử) — giống hệt
+- **Khoá học / chương / bài học / học liệu / quiz / câu hỏi / đáp án đều dùng khoá chính `UUID`**; `{id}`
+  trong các bảng API bên dưới là UUID (ví dụ `3f1c9b6e-5d42-4a8f-9c11-8f0f5f2d7a01`).
 
 ---
 
@@ -68,7 +70,7 @@ sai `Content-Type` trả `415` (không còn bị gộp thành `500`).
 
 ```json
 // CourseRequest
-{ "instructorId": 1, "title": "ReactJS", "description": "…", "thumbnailUrl": "https://…" }
+{ "instructorId": "22222222-2222-2222-2222-222222222222", "title": "ReactJS", "description": "…", "thumbnailUrl": "https://…" }
 ```
 
 ### Chương, bài học, học liệu
@@ -130,7 +132,7 @@ GA thì đổi `spring-cloud.version` trong `pom.xml`.
 
 ## 6. Việc còn lại / giới hạn
 
-- Chưa có auth: `instructorId` đang nhập tay, chưa kiểm tra giảng viên có sở hữu khoá học không. Khi Gateway
+- Chưa có auth: `instructorId` (UUID = `sub` trong JWT) đang nhập tay, chưa kiểm tra giảng viên có sở hữu khoá học không. Khi Gateway
   bơm `X-User-Id` / `X-User-Role`, cần lấy `instructorId` từ header và chỉ cho giảng viên sửa khoá của mình.
 - Chưa có category.
 - Chưa phát event `CurriculumUpdated` cho Progress (UC-P10).

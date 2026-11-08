@@ -1,5 +1,6 @@
 package com.example.progress_service.service;
 
+import java.util.UUID;
 import com.example.progress_service.entity.CourseProgress;
 import com.example.progress_service.entity.LessonProgress;
 import com.example.progress_service.repository.CourseProgressRepository;
@@ -29,9 +30,9 @@ public class LessonProgressService {
      */
     @Transactional
     public void markLessonCompleted(
-            Integer studentId,
-            Integer courseId,
-            Integer lessonId) {
+            UUID studentId,
+            UUID courseId,
+            UUID lessonId) {
 
         // Kiểm tra dữ liệu đầu vào
         if (studentId == null || courseId == null || lessonId == null) {
@@ -77,9 +78,9 @@ public class LessonProgressService {
 
     @Transactional
     public void saveWatchPosition(
-            Integer studentId,
-            Integer courseId,
-            Integer lessonId,
+            UUID studentId,
+            UUID courseId,
+            UUID lessonId,
             Integer watchPosition,
             Integer videoDuration) {
 

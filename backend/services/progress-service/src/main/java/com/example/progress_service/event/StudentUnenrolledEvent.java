@@ -1,5 +1,6 @@
 package com.example.progress_service.event;
 
+import java.util.UUID;
 import lombok.*;
 
 @Getter
@@ -10,7 +11,7 @@ public class StudentUnenrolledEvent {
 
     private String eventId;
 
-    private Integer studentId;
+    private UUID studentId;
 
-    private Integer courseId;
+    private UUID courseId;
 }

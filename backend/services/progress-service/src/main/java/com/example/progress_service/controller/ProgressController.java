@@ -1,5 +1,6 @@
 package com.example.progress_service.controller;
 
+import java.util.UUID;
 import com.example.progress_service.dto.*;
 import com.example.progress_service.service.*;
 
@@ -21,8 +22,8 @@ public class ProgressController {
     // UC-P02: Mark lesson completed
     @PutMapping("/courses/{courseId}/lessons/{lessonId}/complete")
     public String completeLesson(
-            @PathVariable Integer courseId,
-            @PathVariable Integer lessonId,
+            @PathVariable UUID courseId,
+            @PathVariable UUID lessonId,
             @RequestBody CompleteLessonRequest request) {
 
         lessonProgressService.markLessonCompleted(
@@ -37,8 +38,8 @@ public class ProgressController {
     // UC-P03: Save video watch position
 @PutMapping("/courses/{courseId}/lessons/{lessonId}/watch-position")
 public String saveWatchPosition(
-        @PathVariable Integer courseId,
-        @PathVariable Integer lessonId,
+        @PathVariable UUID courseId,
+        @PathVariable UUID lessonId,
         @RequestBody SaveWatchPositionRequest request) {
 
     lessonProgressService.saveWatchPosition(
@@ -54,8 +55,8 @@ public String saveWatchPosition(
     // UC-P05: View progress
     @GetMapping("/courses/{courseId}")
     public CourseProgressResponse getProgress(
-            @RequestParam Integer studentId,
-            @PathVariable Integer courseId) {
+            @RequestParam UUID studentId,
+            @PathVariable UUID courseId) {
 
         return progressService.getCourseProgress(
                 studentId,
@@ -66,8 +67,8 @@ public String saveWatchPosition(
     // UC-P06: Resume learning
     @GetMapping("/courses/{courseId}/resume")
     public ResumeLearningResponse resumeLearning(
-            @RequestParam Integer studentId,
-            @PathVariable Integer courseId) {
+            @RequestParam UUID studentId,
+            @PathVariable UUID courseId) {
 
         return progressService.resumeLearning(
                 studentId,
@@ -79,8 +80,8 @@ public String saveWatchPosition(
     // UC-P07: Completation Checking
     @GetMapping("/courses/{courseId}/completion")
     public CourseProgressResponse checkCourseCompletion(
-            @RequestParam Integer studentId,
-            @PathVariable Integer courseId) {
+            @RequestParam UUID studentId,
+            @PathVariable UUID courseId) {
 
         return progressService.getCourseProgress(studentId, courseId);
     }

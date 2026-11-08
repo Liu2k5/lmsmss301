@@ -1,5 +1,7 @@
 package com.example.course_service.config;
 
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -58,7 +60,7 @@ public class CourseDemoDataSeeder implements ApplicationRunner {
 
 	private void seedReactCourse() {
 		Course react = courseRepository.save(Course.builder()
-				.instructorId(1)
+				.instructorId(UUID.fromString("22222222-2222-2222-2222-222222222222"))
 				.title(REACT_TITLE)
 				.description("Xây dựng giao diện web hiện đại với React, Hooks và Vite.")
 				.thumbnailUrl("https://placehold.co/600x340?text=ReactJS")
@@ -82,7 +84,7 @@ public class CourseDemoDataSeeder implements ApplicationRunner {
 
 	private void seedDockerCourse() {
 		Course docker = courseRepository.save(Course.builder()
-				.instructorId(2)
+				.instructorId(UUID.fromString("44444444-4444-4444-4444-444444444444"))
 				.title(DOCKER_TITLE)
 				.description("Đóng gói và triển khai ứng dụng bằng Docker và Docker Compose.")
 				.thumbnailUrl("https://placehold.co/600x340?text=Docker")

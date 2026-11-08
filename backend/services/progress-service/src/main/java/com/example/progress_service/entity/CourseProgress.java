@@ -1,5 +1,6 @@
 package com.example.progress_service.entity;
 
+import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,14 +24,14 @@ import java.time.LocalDateTime;
 public class CourseProgress {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "student_id", nullable = false)
-    private Integer studentId;
+    private UUID studentId;
 
     @Column(name = "course_id", nullable = false)
-    private Integer courseId;
+    private UUID courseId;
 
     @Column(name = "completion_percentage",
             precision = 5, scale = 2)
@@ -47,7 +48,7 @@ public class CourseProgress {
     private BigDecimal averageQuizScore;
 
     @Column(name = "last_lesson_id")
-    private Integer lastLessonId;
+    private UUID lastLessonId;
 
     @Column(name = "last_watch_position")
     private Integer lastWatchPosition;

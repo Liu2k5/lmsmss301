@@ -260,6 +260,9 @@ services:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       EUREKA_URL: http://eureka-server:8761/eureka
+      # Review service gọi trực tiếp Enrollment/Progress để kiểm tra điều kiện đánh giá.
+      ENROLLMENT_SERVICE_URL: http://enrollment-service:8083
+      PROGRESS_SERVICE_URL: http://progress-service:8084
     depends_on:
       postgres:
         condition: service_healthy

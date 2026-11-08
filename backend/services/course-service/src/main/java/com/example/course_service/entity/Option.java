@@ -1,5 +1,7 @@
 package com.example.course_service.entity;
 
+
+import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -26,9 +28,9 @@ import lombok.Setter;
 public class Option {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "id", nullable = false)
-	private Integer id;
+	@GeneratedValue(strategy = GenerationType.UUID)
+	@Column(name = "id", nullable = false, updatable = false)
+	private UUID id;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "question_id", nullable = false)

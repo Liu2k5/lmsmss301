@@ -1,10 +1,11 @@
 package com.example.course_service.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 public record SectionResponse(
-		Integer id,
-		Integer courseId,
+		UUID id,
+		UUID courseId,
 		String title,
 		String description,
 		Integer position,

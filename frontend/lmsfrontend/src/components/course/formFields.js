@@ -3,8 +3,10 @@ import { LESSON_TYPES, MATERIAL_TYPES } from './courseMeta.js'
 export const COURSE_FIELDS = [
   { name: 'title', label: 'Tên khoá học', type: 'text', required: true, maxLength: 255, wide: true,
     placeholder: 'Ví dụ: Lập trình Java Spring Boot' },
-  { name: 'instructorId', label: 'Mã giảng viên', type: 'number', required: true,
-    hint: 'Tạm nhập tay; khi có đăng nhập sẽ lấy từ tài khoản.' },
+  { name: 'instructorId', label: 'Mã giảng viên (UUID)', type: 'text', required: true,
+    pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    patternMessage: 'Mã giảng viên phải là UUID, ví dụ 22222222-2222-2222-2222-222222222222.',
+    hint: 'Tạm nhập tay; khi có đăng nhập sẽ lấy từ tài khoản (UUID = sub trong JWT).' },
   { name: 'description', label: 'Mô tả', type: 'textarea', maxLength: 10000, wide: true },
   { name: 'thumbnail', label: 'Ảnh bìa', type: 'image', wide: true, maxBytes: 5 * 1024 * 1024,
     hint: 'JPG, PNG, WEBP… tối đa 5 MB. Ảnh được lưu trên MinIO.' },

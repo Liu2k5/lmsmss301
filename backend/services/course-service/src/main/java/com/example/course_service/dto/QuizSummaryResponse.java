@@ -1,15 +1,16 @@
 package com.example.course_service.dto;
 
+import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record QuizSummaryResponse(
-		Integer id,
-		Integer lessonId,
+		UUID id,
+		UUID lessonId,
 		String lessonTitle,
-		Integer sectionId,
+		UUID sectionId,
 		String sectionTitle,
-		Integer courseId,
+		UUID courseId,
 		String courseTitle,
 		String title,
 		BigDecimal passingScore,

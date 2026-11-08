@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -23,7 +24,7 @@ public class RatingAggregationService {
     private final CourseRatingSummaryRepository summaryRepository;
 
     @Transactional
-    public CourseRatingSummary recalculateSummary(Integer courseId) {
+    public CourseRatingSummary recalculateSummary(UUID courseId) {
         List<Review> approvedReviews = reviewRepository
                 .findByCourseIdAndStatusAndDeletedAtIsNull(courseId, ReviewStatus.APPROVED);
 
@@ -66,7 +67,7 @@ public class RatingAggregationService {
     }
 
     @Transactional(readOnly = true)
-    public CourseRatingSummary getSummaryByCourseId(Integer courseId) {
+    public CourseRatingSummary getSummaryByCourseId(UUID courseId) {
         return summaryRepository.findByCourseId(courseId)
                 .orElseGet(() -> CourseRatingSummary.builder()
                         .courseId(courseId)

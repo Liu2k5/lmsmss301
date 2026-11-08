@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,7 +60,7 @@ class QuizControllerIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		Course course = courseRepository.save(Course.builder()
-				.instructorId(1)
+				.instructorId(UUID.randomUUID())
 				.title("Khoá học test")
 				.status(CourseStatus.PUBLISHED)
 				.build());
@@ -84,8 +86,8 @@ class QuizControllerIntegrationTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(validPayload(quizLesson.getId(), "Quiz mới")))
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.id").isNumber())
-				.andExpect(jsonPath("$.lessonId").value(quizLesson.getId()))
+				.andExpect(jsonPath("$.id").isString())
+				.andExpect(jsonPath("$.lessonId").value(quizLesson.getId().toString()))
 				.andExpect(jsonPath("$.lessonTitle").value("Bài kiểm tra 1"))
 				.andExpect(jsonPath("$.courseTitle").value("Khoá học test"))
 				.andExpect(jsonPath("$.title").value("Quiz mới"))
@@ -112,27 +114,27 @@ class QuizControllerIntegrationTest {
 		mockMvc.perform(get("/api/v1/quizzes").param("lessonId", String.valueOf(quizLesson.getId())))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(1)))
-				.andExpect(jsonPath("$[0].lessonId").value(quizLesson.getId()));
+				.andExpect(jsonPath("$[0].lessonId").value(quizLesson.getId().toString()));
 	}
 
 	@Test
 	void layChiTietTheoId() throws Exception {
-		Integer id = createQuiz(quizLesson.getId(), "Quiz chi tiết");
+		UUID id = createQuiz(quizLesson.getId(), "Quiz chi tiết");
 
 		mockMvc.perform(get("/api/v1/quizzes/{id}", id))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.id").value(id.toString()))
 				.andExpect(jsonPath("$.description").value("Mô tả quiz"))
 				.andExpect(jsonPath("$.questions[0].type").value("SINGLE_CHOICE"));
 	}
 
 	@Test
 	void capNhatThayDoiCauHoiVaXoaCauHoiKhongConTrongPayload() throws Exception {
-		Integer id = createQuiz(quizLesson.getId(), "Quiz cũ");
+		UUID id = createQuiz(quizLesson.getId(), "Quiz cũ");
 
 		String updatePayload = """
 				{
-				  "lessonId": %d,
+				  "lessonId": "%s",
 				  "title": "Quiz đã sửa",
 				  "description": "Mô tả mới",
 				  "passingScore": 85.5,
@@ -168,26 +170,27 @@ class QuizControllerIntegrationTest {
 
 	@Test
 	void giuNguyenIdCuaCauHoiVaDapAnKhiCapNhat() throws Exception {
-		Integer id = createQuiz(quizLesson.getId(), "Quiz giữ id");
+		UUID id = createQuiz(quizLesson.getId(), "Quiz giữ id");
 		String current = mockMvc.perform(get("/api/v1/quizzes/{id}", id))
 				.andExpect(status().isOk())
 				.andReturn().getResponse().getContentAsString();
-		int questionId = objectMapper.readTree(current).path("questions").get(0).path("id").asInt();
-		int optionId = objectMapper.readTree(current).path("questions").get(0)
-				.path("options").get(0).path("id").asInt();
+		UUID questionId = UUID.fromString(
+				objectMapper.readTree(current).path("questions").get(0).path("id").asText());
+		UUID optionId = UUID.fromString(objectMapper.readTree(current).path("questions").get(0)
+				.path("options").get(0).path("id").asText());
 
 		String payload = """
 				{
-				  "lessonId": %d,
+				  "lessonId": "%s",
 				  "title": "Quiz giữ id",
 				  "passingScore": 50,
 				  "questions": [
 				    {
-				      "id": %d,
+				      "id": "%s",
 				      "content": "Nội dung đã sửa",
 				      "type": "SINGLE_CHOICE",
 				      "options": [
-				        {"id": %d, "content": "Đáp án đã sửa", "correct": true},
+				        {"id": "%s", "content": "Đáp án đã sửa", "correct": true},
 				        {"content": "Đáp án mới", "correct": false}
 				      ]
 				    }
@@ -199,15 +202,15 @@ class QuizControllerIntegrationTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(payload))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.questions[0].id").value(questionId))
+				.andExpect(jsonPath("$.questions[0].id").value(questionId.toString()))
 				.andExpect(jsonPath("$.questions[0].content").value("Nội dung đã sửa"))
-				.andExpect(jsonPath("$.questions[0].options[0].id").value(optionId))
+				.andExpect(jsonPath("$.questions[0].options[0].id").value(optionId.toString()))
 				.andExpect(jsonPath("$.questions[0].options[0].content").value("Đáp án đã sửa"));
 	}
 
 	@Test
 	void xoaQuizTraVe204VaKhongConTimThay() throws Exception {
-		Integer id = createQuiz(quizLesson.getId(), "Quiz sẽ xoá");
+		UUID id = createQuiz(quizLesson.getId(), "Quiz sẽ xoá");
 
 		mockMvc.perform(delete("/api/v1/quizzes/{id}", id))
 				.andExpect(status().isNoContent());
@@ -219,7 +222,7 @@ class QuizControllerIntegrationTest {
 
 	@Test
 	void xoaQuizXoaLuonCauHoiVaDapAn() throws Exception {
-		Integer id = createQuiz(quizLesson.getId(), "Quiz cascade");
+		UUID id = createQuiz(quizLesson.getId(), "Quiz cascade");
 		mockMvc.perform(delete("/api/v1/quizzes/{id}", id)).andExpect(status().isNoContent());
 		mockMvc.perform(get("/api/v1/quizzes")).andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(0)));
@@ -249,7 +252,7 @@ class QuizControllerIntegrationTest {
 	void tuChoiCauHoiKhongCoDapAnDung() throws Exception {
 		String payload = """
 				{
-				  "lessonId": %d,
+				  "lessonId": "%s",
 				  "title": "Quiz sai",
 				  "passingScore": 50,
 				  "questions": [
@@ -276,7 +279,7 @@ class QuizControllerIntegrationTest {
 	void tuChoiSingleChoiceCoNhieuHonMotDapAnDung() throws Exception {
 		String payload = """
 				{
-				  "lessonId": %d,
+				  "lessonId": "%s",
 				  "title": "Quiz sai",
 				  "passingScore": 50,
 				  "questions": [
@@ -304,7 +307,7 @@ class QuizControllerIntegrationTest {
 	void baoLoiValidateKemChiTietField() throws Exception {
 		String payload = """
 				{
-				  "lessonId": %d,
+				  "lessonId": "%s",
 				  "title": "  ",
 				  "passingScore": 150,
 				  "questions": []
@@ -326,31 +329,31 @@ class QuizControllerIntegrationTest {
 		mockMvc.perform(get("/api/v1/quizzes/lesson-options"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(2)))
-				.andExpect(jsonPath("$[?(@.id == %d)].quizId".formatted(quizLesson.getId()))
+				.andExpect(jsonPath("$[?(@.id == '%s')].quizId".formatted(quizLesson.getId()))
 						.value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.notNullValue())))
-				.andExpect(jsonPath("$[?(@.id == %d)].quizId".formatted(secondQuizLesson.getId()))
+				.andExpect(jsonPath("$[?(@.id == '%s')].quizId".formatted(secondQuizLesson.getId()))
 						.value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.nullValue())));
 	}
 
 	@Test
 	void traVe404KhiQuizKhongTonTai() throws Exception {
-		mockMvc.perform(get("/api/v1/quizzes/{id}", 999999))
+		mockMvc.perform(get("/api/v1/quizzes/{id}", java.util.UUID.randomUUID()))
 				.andExpect(status().isNotFound());
 	}
 
-	private Integer createQuiz(Integer lessonId, String title) throws Exception {
+	private UUID createQuiz(UUID lessonId, String title) throws Exception {
 		String response = mockMvc.perform(post("/api/v1/quizzes")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(validPayload(lessonId, title)))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
-		return objectMapper.readTree(response).path("id").asInt();
+		return UUID.fromString(objectMapper.readTree(response).path("id").asText());
 	}
 
-	private String validPayload(Integer lessonId, String title) {
+	private String validPayload(UUID lessonId, String title) {
 		return """
 				{
-				  "lessonId": %d,
+				  "lessonId": "%s",
 				  "title": "%s",
 				  "description": "Mô tả quiz",
 				  "passingScore": 70.00,

@@ -1,6 +1,7 @@
 package com.example.course_service.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.example.course_service.entity.LessonType;
 
@@ -9,14 +10,14 @@ import com.example.course_service.entity.LessonType;
  * Không trả URL học liệu.
  */
 public record PublishedCurriculumResponse(
-		Integer courseId,
+		UUID courseId,
 		String title,
 		int totalLessons,
 		List<Section> sections) {
 
-	public record Section(Integer id, String title, Integer position, List<Lesson> lessons) {
+	public record Section(UUID id, String title, Integer position, List<Lesson> lessons) {
 	}
 
-	public record Lesson(Integer id, String title, LessonType type, Integer position, boolean preview, Integer quizId) {
+	public record Lesson(UUID id, String title, LessonType type, Integer position, boolean preview, UUID quizId) {
 	}
 }

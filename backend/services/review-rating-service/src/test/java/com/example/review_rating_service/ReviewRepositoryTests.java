@@ -33,12 +33,18 @@ class ReviewRepositoryTests {
     @Autowired
     private ReviewHelpfulVoteRepository helpfulVoteRepository;
 
+
+    /** Id khoá học giả lập: 00000000-0000-0000-0000-%012d. */
+    private static UUID course(int n) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(n));
+    }
+
     @Test
     @DisplayName("Lưu và tìm kiếm review hoạt động (chưa bị soft delete)")
     void testSaveAndFindReview() {
         UUID studentId = UUID.randomUUID();
         Review review = Review.builder()
-                .courseId(10)
+                .courseId(course(10))
                 .studentId(studentId)
                 .rating(5)
                 .comment("Khóa học xuất sắc!")
@@ -61,7 +67,7 @@ class ReviewRepositoryTests {
     @DisplayName("Soft delete: review có deletedAt không được trả về bởi findByIdAndDeletedAtIsNull")
     void testSoftDeleteReview() {
         Review review = em.persistAndFlush(Review.builder()
-                .courseId(10)
+                .courseId(course(10))
                 .studentId(UUID.randomUUID())
                 .rating(4)
                 .comment("Nội dung hay")
@@ -78,10 +84,10 @@ class ReviewRepositoryTests {
     @Test
     @DisplayName("Tìm kiếm phân trang review theo courseId và status APPROVED")
     void testFindApprovedReviewsPaged() {
-        Review r1 = Review.builder().courseId(10).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build();
-        Review r2 = Review.builder().courseId(10).studentId(UUID.randomUUID()).rating(4).status(ReviewStatus.APPROVED).build();
-        Review r3 = Review.builder().courseId(10).studentId(UUID.randomUUID()).rating(1).status(ReviewStatus.HIDDEN).build();
-        Review r4 = Review.builder().courseId(11).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build();
+        Review r1 = Review.builder().courseId(course(10)).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build();
+        Review r2 = Review.builder().courseId(course(10)).studentId(UUID.randomUUID()).rating(4).status(ReviewStatus.APPROVED).build();
+        Review r3 = Review.builder().courseId(course(10)).studentId(UUID.randomUUID()).rating(1).status(ReviewStatus.HIDDEN).build();
+        Review r4 = Review.builder().courseId(course(11)).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build();
 
         em.persist(r1);
         em.persist(r2);
@@ -90,8 +96,7 @@ class ReviewRepositoryTests {
         em.flush();
         em.clear();
 
-        Page<Review> page = reviewRepository.findByCourseIdAndStatusAndDeletedAtIsNull(
-                10, ReviewStatus.APPROVED, PageRequest.of(0, 10));
+        Page<Review> page = reviewRepository.findByCourseIdAndStatusAndDeletedAtIsNull(course(10), ReviewStatus.APPROVED, PageRequest.of(0, 10));
 
         assertThat(page.getTotalElements()).isEqualTo(2);
     }
@@ -99,13 +104,13 @@ class ReviewRepositoryTests {
     @Test
     @DisplayName("Thống kê rating counts theo khóa học và status")
     void testCountRatingsByCourseIdAndStatus() {
-        em.persist(Review.builder().courseId(20).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build());
-        em.persist(Review.builder().courseId(20).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build());
-        em.persist(Review.builder().courseId(20).studentId(UUID.randomUUID()).rating(4).status(ReviewStatus.APPROVED).build());
+        em.persist(Review.builder().courseId(course(20)).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build());
+        em.persist(Review.builder().courseId(course(20)).studentId(UUID.randomUUID()).rating(5).status(ReviewStatus.APPROVED).build());
+        em.persist(Review.builder().courseId(course(20)).studentId(UUID.randomUUID()).rating(4).status(ReviewStatus.APPROVED).build());
         em.flush();
         em.clear();
 
-        List<Object[]> counts = reviewRepository.countRatingsByCourseIdAndStatus(20, ReviewStatus.APPROVED);
+        List<Object[]> counts = reviewRepository.countRatingsByCourseIdAndStatus(course(20), ReviewStatus.APPROVED);
         assertThat(counts).hasSize(2);
     }
 
@@ -113,7 +118,7 @@ class ReviewRepositoryTests {
     @DisplayName("Lưu và cập nhật CourseRatingSummary")
     void testCourseRatingSummaryOperations() {
         CourseRatingSummary summary = CourseRatingSummary.builder()
-                .courseId(50)
+                .courseId(course(50))
                 .averageRating(new BigDecimal("4.50"))
                 .totalReviews(2)
                 .star5Count(1)
@@ -127,7 +132,7 @@ class ReviewRepositoryTests {
         em.flush();
         em.clear();
 
-        Optional<CourseRatingSummary> loaded = summaryRepository.findByCourseId(50);
+        Optional<CourseRatingSummary> loaded = summaryRepository.findByCourseId(course(50));
         assertThat(loaded).isPresent();
         assertThat(loaded.get().getAverageRating()).isEqualByComparingTo("4.50");
         assertThat(loaded.get().getTotalReviews()).isEqualTo(2);
@@ -141,7 +146,7 @@ class ReviewRepositoryTests {
         UUID otherUserId = UUID.randomUUID();
 
         Review review = em.persistAndFlush(Review.builder()
-                .courseId(30)
+                .courseId(course(30))
                 .studentId(studentId)
                 .rating(5)
                 .status(ReviewStatus.APPROVED)

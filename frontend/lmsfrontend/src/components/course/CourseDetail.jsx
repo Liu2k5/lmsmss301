@@ -346,7 +346,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         <div className="detail-hero__info">
           <div className="detail-hero__top">
             <StatusBadge status={course.status} />
-            <span className="muted">#{course.id} · Giảng viên #{course.instructorId}</span>
+            <span className="muted">#{course.id.slice(0, 8)} · Giảng viên #{course.instructorId.slice(0, 8)}</span>
           </div>
           <h1>{course.title}</h1>
           {course.description && <p className="detail-hero__desc">{course.description}</p>}

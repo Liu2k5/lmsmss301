@@ -1,6 +1,7 @@
 package com.example.course_service.entity;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -29,13 +30,13 @@ import lombok.Setter;
 public class Course {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "id", nullable = false)
-	private Integer id;
+	@GeneratedValue(strategy = GenerationType.UUID)
+	@Column(name = "id", nullable = false, updatable = false)
+	private UUID id;
 
 	/** Chỉ lưu id vì giảng viên thuộc User Service (database khác), không map quan hệ JPA. */
 	@Column(name = "instructor_id", nullable = false)
-	private Integer instructorId;
+	private UUID instructorId;
 
 	@Column(name = "title", nullable = false, length = 255)
 	private String title;

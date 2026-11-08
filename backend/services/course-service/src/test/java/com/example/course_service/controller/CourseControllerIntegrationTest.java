@@ -59,7 +59,7 @@ class CourseControllerIntegrationTest {
 	void taoKhoaHocMoiLuonODraft() throws Exception {
 		send(post("/api/v1/courses"), courseJson("Java cơ bản"))
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.id").isNumber())
+				.andExpect(jsonPath("$.id").isString())
 				.andExpect(jsonPath("$.status").value("DRAFT"))
 				.andExpect(jsonPath("$.editable").value(true))
 				.andExpect(jsonPath("$.allowedTransitions", hasSize(2)))
@@ -69,7 +69,7 @@ class CourseControllerIntegrationTest {
 	@Test
 	void taoKhoaHocThieuTenTraVe400() throws Exception {
 		send(post("/api/v1/courses"), """
-				{"instructorId": 1, "title": "  ", "thumbnailUrl": "ftp://x"}
+				{"instructorId": "22222222-2222-2222-2222-222222222222", "title": "  ", "thumbnailUrl": "ftp://x"}
 				""")
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.details", hasSize(2)));
@@ -96,26 +96,26 @@ class CourseControllerIntegrationTest {
 
 	@Test
 	void capNhatThongTinKhoaHoc() throws Exception {
-		int id = createCourse("Tên cũ");
+		String id = createCourse("Tên cũ");
 		send(put("/api/v1/courses/{id}", id), courseJson("Tên mới"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.title").value("Tên mới"));
 
-		mockMvc.perform(get("/api/v1/courses/{id}", 99999)).andExpect(status().isNotFound());
+		mockMvc.perform(get("/api/v1/courses/{id}", java.util.UUID.randomUUID())).andExpect(status().isNotFound());
 	}
 
 	@Test
 	void quanLyChuongBaiHocVaHocLieu() throws Exception {
-		int courseId = createCourse("Khoá học curriculum");
+		String courseId = createCourse("Khoá học curriculum");
 		JsonNode detail = addSection(courseId, "Chương A");
 		detail = addSection(courseId, "Chương B");
-		int sectionA = detail.get("sections").get(0).get("id").asInt();
-		int sectionB = detail.get("sections").get(1).get("id").asInt();
+		String sectionA = detail.get("sections").get(0).get("id").asText();
+		String sectionB = detail.get("sections").get(1).get("id").asText();
 
 		addLesson(sectionA, "Bài 1", "VIDEO");
 		detail = addLesson(sectionA, "Bài 2", "ARTICLE");
-		int lesson1 = detail.get("sections").get(0).get("lessons").get(0).get("id").asInt();
-		int lesson2 = detail.get("sections").get(0).get("lessons").get(1).get("id").asInt();
+		String lesson1 = detail.get("sections").get(0).get("lessons").get(0).get("id").asText();
+		String lesson2 = detail.get("sections").get(0).get("lessons").get(1).get("id").asText();
 
 		// Học liệu
 		send(post("/api/v1/lessons/{id}/materials", lesson1), """
@@ -132,17 +132,17 @@ class CourseControllerIntegrationTest {
 
 		// Đổi thứ tự chương & bài học
 		send(put("/api/v1/courses/{id}/sections/order", courseId),
-				"{\"orderedIds\": [" + sectionB + "," + sectionA + "]}")
+				"{\"orderedIds\": [\"" + sectionB + "\",\"" + sectionA + "\"]}")
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.sections[0].title").value("Chương B"))
 				.andExpect(jsonPath("$.sections[1].position").value(2));
 
 		send(put("/api/v1/sections/{id}/lessons/order", sectionA),
-				"{\"orderedIds\": [" + lesson2 + "," + lesson1 + "]}")
+				"{\"orderedIds\": [\"" + lesson2 + "\",\"" + lesson1 + "\"]}")
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.sections[1].lessons[0].title").value("Bài 2"));
 
-		send(put("/api/v1/sections/{id}/lessons/order", sectionA), "{\"orderedIds\": [" + lesson1 + "]}")
+		send(put("/api/v1/sections/{id}/lessons/order", sectionA), "{\"orderedIds\": [\"" + lesson1 + "\"]}")
 				.andExpect(status().isBadRequest());
 
 		// Sửa bài học: đặt xem thử
@@ -169,14 +169,14 @@ class CourseControllerIntegrationTest {
 
 	@Test
 	void khongDoiLoaiBaiHocKhiDaCoQuiz() throws Exception {
-		int courseId = createCourse("Khoá có quiz");
-		int sectionId = addSection(courseId, "Chương 1").get("sections").get(0).get("id").asInt();
-		int lessonId = addLesson(sectionId, "Kiểm tra", "QUIZ")
-				.get("sections").get(0).get("lessons").get(0).get("id").asInt();
+		String courseId = createCourse("Khoá có quiz");
+		String sectionId = addSection(courseId, "Chương 1").get("sections").get(0).get("id").asText();
+		String lessonId = addLesson(sectionId, "Kiểm tra", "QUIZ")
+				.get("sections").get(0).get("lessons").get(0).get("id").asText();
 		createQuiz(lessonId);
 
 		mockMvc.perform(get("/api/v1/courses/{id}", courseId))
-				.andExpect(jsonPath("$.sections[0].lessons[0].quizId").isNumber());
+				.andExpect(jsonPath("$.sections[0].lessons[0].quizId").isString());
 
 		send(put("/api/v1/lessons/{id}", lessonId), """
 				{"title": "Kiểm tra", "type": "VIDEO"}
@@ -190,14 +190,14 @@ class CourseControllerIntegrationTest {
 
 	@Test
 	void vongDoiTrangThaiKhoaHoc() throws Exception {
-		int courseId = createCourse("Khoá vòng đời");
+		String courseId = createCourse("Khoá vòng đời");
 
 		// Chưa có chương → không xuất bản được
 		changeStatus(courseId, "PUBLISHED")
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.message", containsString("ít nhất 1 chương")));
 
-		int sectionId = addSection(courseId, "Chương 1").get("sections").get(0).get("id").asInt();
+		String sectionId = addSection(courseId, "Chương 1").get("sections").get(0).get("id").asText();
 		changeStatus(courseId, "PUBLISHED")
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.message", containsString("chưa có bài học")));
@@ -240,8 +240,8 @@ class CourseControllerIntegrationTest {
 
 	@Test
 	void xuatBanKhiBaiQuizChuaCoQuizBiChan() throws Exception {
-		int courseId = createCourse("Khoá thiếu quiz");
-		int sectionId = addSection(courseId, "Chương 1").get("sections").get(0).get("id").asInt();
+		String courseId = createCourse("Khoá thiếu quiz");
+		String sectionId = addSection(courseId, "Chương 1").get("sections").get(0).get("id").asText();
 		addLesson(sectionId, "Kiểm tra cuối khoá", "QUIZ");
 
 		changeStatus(courseId, "PUBLISHED")
@@ -251,8 +251,8 @@ class CourseControllerIntegrationTest {
 
 	@Test
 	void curriculumPublishedBoQuaBaiQuizChuaCoQuizVaChuongRong() throws Exception {
-		int courseId = createCourse("Khoá đang xuất bản");
-		int sectionA = addSection(courseId, "Chương A").get("sections").get(0).get("id").asInt();
+		String courseId = createCourse("Khoá đang xuất bản");
+		String sectionA = addSection(courseId, "Chương A").get("sections").get(0).get("id").asText();
 		addLesson(sectionA, "Bài video", "VIDEO");
 		changeStatus(courseId, "PUBLISHED").andExpect(status().isOk());
 
@@ -300,36 +300,36 @@ class CourseControllerIntegrationTest {
 		return mockMvc.perform(builder.contentType(MediaType.APPLICATION_JSON).content(body));
 	}
 
-	private ResultActions changeStatus(int courseId, String status) throws Exception {
+	private ResultActions changeStatus(String courseId, String status) throws Exception {
 		return send(patch("/api/v1/courses/{id}/status", courseId), "{\"status\": \"" + status + "\"}");
 	}
 
 	private String courseJson(String title) {
 		return """
-				{"instructorId": 1, "title": "%s", "description": "Mô tả",
+				{"instructorId": "22222222-2222-2222-2222-222222222222", "title": "%s", "description": "Mô tả",
 				 "thumbnailUrl": "https://placehold.co/600x340"}
 				""".formatted(title);
 	}
 
-	private int createCourse(String title) throws Exception {
+	private String createCourse(String title) throws Exception {
 		return read(send(post("/api/v1/courses"), courseJson(title)).andExpect(status().isCreated()))
-				.get("id").asInt();
+				.get("id").asText();
 	}
 
-	private JsonNode addSection(int courseId, String title) throws Exception {
+	private JsonNode addSection(String courseId, String title) throws Exception {
 		return read(send(post("/api/v1/courses/{id}/sections", courseId), "{\"title\": \"" + title + "\"}")
 				.andExpect(status().isCreated()));
 	}
 
-	private JsonNode addLesson(int sectionId, String title, String type) throws Exception {
+	private JsonNode addLesson(String sectionId, String title, String type) throws Exception {
 		return read(send(post("/api/v1/sections/{id}/lessons", sectionId),
 				"{\"title\": \"" + title + "\", \"type\": \"" + type + "\"}")
 				.andExpect(status().isCreated()));
 	}
 
-	private void createQuiz(int lessonId) throws Exception {
+	private void createQuiz(String lessonId) throws Exception {
 		send(post("/api/v1/quizzes"), """
-				{"lessonId": %d, "title": "Quiz", "passingScore": 50,
+				{"lessonId": "%s", "title": "Quiz", "passingScore": 50,
 				 "questions": [{"content": "1+1?", "type": "SINGLE_CHOICE",
 				   "options": [{"content": "2", "correct": true}, {"content": "3", "correct": false}]}]}
 				""".formatted(lessonId))

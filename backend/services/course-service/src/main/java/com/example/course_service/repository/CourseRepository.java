@@ -1,6 +1,7 @@
 package com.example.course_service.repository;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import com.example.course_service.entity.Course;
 import com.example.course_service.entity.CourseStatus;
 
-public interface CourseRepository extends JpaRepository<Course, Integer> {
+public interface CourseRepository extends JpaRepository<Course, UUID> {
 
 	/**
 	 * Tìm khoá học theo bộ lọc tuỳ chọn. {@code keywordPattern} phải ở dạng {@code %từ khoá%} viết thường,
@@ -26,7 +27,7 @@ public interface CourseRepository extends JpaRepository<Course, Integer> {
 			""")
 	List<Course> search(@Param("keywordPattern") String keywordPattern,
 			@Param("status") CourseStatus status,
-			@Param("instructorId") Integer instructorId);
+			@Param("instructorId") UUID instructorId);
 
 	boolean existsByTitle(String title);
 }

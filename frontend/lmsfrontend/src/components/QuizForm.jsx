@@ -97,7 +97,7 @@ function validate(form) {
 
 function toPayload(form) {
   return {
-    lessonId: Number(form.lessonId),
+    lessonId: form.lessonId,
     title: form.title.trim(),
     description: form.description.trim() || null,
     passingScore: Number(form.passingScore),

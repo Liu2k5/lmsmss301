@@ -1,6 +1,7 @@
 package com.example.course_service.config;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,7 @@ public class DemoDataSeeder implements ApplicationRunner {
 		}
 
 		Course springCourse = courseRepository.save(Course.builder()
-				.instructorId(1)
+				.instructorId(UUID.fromString("22222222-2222-2222-2222-222222222222"))
 				.title("Lập trình Java Spring Boot")
 				.description("Khoá học nhập môn Spring Boot dành cho sinh viên.")
 				.thumbnailUrl("https://placehold.co/600x340?text=Spring+Boot")

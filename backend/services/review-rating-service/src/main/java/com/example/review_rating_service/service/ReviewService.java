@@ -48,7 +48,7 @@ public class ReviewService {
     private boolean requireCompletedCourse;
 
     @Transactional(readOnly = true)
-    public ReviewEligibilityResponse checkEligibility(Integer courseId, UUID studentId) {
+    public ReviewEligibilityResponse checkEligibility(UUID courseId, UUID studentId) {
         // 1. Kiểm tra học viên đã viết review trước đó chưa
         Optional<Review> existingReview = reviewRepository
                 .findByCourseIdAndStudentIdAndDeletedAtIsNull(courseId, studentId);
@@ -92,7 +92,7 @@ public class ReviewService {
     }
 
     @Transactional
-    public ReviewResponse createReview(Integer courseId, UUID studentId, CreateReviewRequest request) {
+    public ReviewResponse createReview(UUID courseId, UUID studentId, CreateReviewRequest request) {
         ReviewEligibilityResponse eligibility = checkEligibility(courseId, studentId);
         if (!eligibility.isCanReview()) {
             if (eligibility.getExistingReviewId() != null) {
@@ -153,7 +153,7 @@ public class ReviewService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ReviewResponse> getCourseReviews(Integer courseId,
+    public Page<ReviewResponse> getCourseReviews(UUID courseId,
                                                  Integer ratingFilter,
                                                  String sortBy,
                                                  int page,
@@ -193,7 +193,7 @@ public class ReviewService {
     }
 
     @Transactional
-    public void grantReviewPermission(UUID studentId, Integer courseId) {
+    public void grantReviewPermission(UUID studentId, UUID courseId) {
         if (!permissionRepository.existsByCourseIdAndStudentId(courseId, studentId)) {
             ReviewPermission permission = ReviewPermission.builder()
                     .studentId(studentId)

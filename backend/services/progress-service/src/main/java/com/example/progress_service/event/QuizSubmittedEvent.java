@@ -1,5 +1,6 @@
 package com.example.progress_service.event;
 
+import java.util.UUID;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -12,11 +13,11 @@ public class QuizSubmittedEvent {
 
     private String eventId;
 
-    private Integer studentId;
+    private UUID studentId;
 
-    private Integer courseId;
+    private UUID courseId;
 
-    private Integer quizId;
+    private UUID quizId;
 
     private BigDecimal score;
 

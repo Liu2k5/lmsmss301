@@ -10,7 +10,7 @@ import java.util.UUID;
 @Repository
 public interface ReviewPermissionRepository extends JpaRepository<ReviewPermission, Long> {
 
-    Optional<ReviewPermission> findByCourseIdAndStudentId(Integer courseId, UUID studentId);
+    Optional<ReviewPermission> findByCourseIdAndStudentId(UUID courseId, UUID studentId);
 
-    boolean existsByCourseIdAndStudentId(Integer courseId, UUID studentId);
+    boolean existsByCourseIdAndStudentId(UUID courseId, UUID studentId);
 }

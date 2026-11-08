@@ -14,7 +14,7 @@ import java.util.UUID;
 public class MockProgressClient implements ProgressClient {
 
     @Override
-    public Optional<ProgressStatusDto> getProgress(UUID studentId, Integer courseId) {
+    public Optional<ProgressStatusDto> getProgress(UUID studentId, UUID courseId) {
         log.info("[MOCK] Get progress for studentId={} and courseId={}", studentId, courseId);
         // By default in mock mode, assume student has completed the course
         return Optional.of(ProgressStatusDto.builder()

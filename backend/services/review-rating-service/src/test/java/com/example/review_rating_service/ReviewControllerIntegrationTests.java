@@ -39,10 +39,16 @@ class ReviewControllerIntegrationTests {
     private static final String INSTRUCTOR_UUID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
     private static final String ADMIN_UUID = "12345678-1234-1234-1234-123456789012";
 
+
+    /** Id khoá học giả lập: 00000000-0000-0000-0000-%012d. */
+    private static String course(int n) {
+        return "00000000-0000-0000-0000-%012d".formatted(n);
+    }
+
     @Test
     @DisplayName("Public API: Xem danh sách review không cần đăng nhập")
     void testGetCourseReviewsPublic() throws Exception {
-        mockMvc.perform(get("/api/v1/courses/1/reviews"))
+        mockMvc.perform(get("/api/v1/courses/" + course(1) + "/reviews"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray());
     }
@@ -50,9 +56,9 @@ class ReviewControllerIntegrationTests {
     @Test
     @DisplayName("Public API: Xem summary điểm & phân bố sao không cần đăng nhập")
     void testGetRatingSummaryPublic() throws Exception {
-        mockMvc.perform(get("/api/v1/courses/1/ratings/summary"))
+        mockMvc.perform(get("/api/v1/courses/" + course(1) + "/ratings/summary"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.courseId").value(1))
+                .andExpect(jsonPath("$.courseId").value(course(1)))
                 .andExpect(jsonPath("$.averageRating").exists())
                 .andExpect(jsonPath("$.totalReviews").exists())
                 .andExpect(jsonPath("$.starPercentages").isMap());
@@ -66,7 +72,7 @@ class ReviewControllerIntegrationTests {
                 .comment("Đánh giá không đăng nhập")
                 .build();
 
-        mockMvc.perform(post("/api/v1/courses/1/reviews")
+        mockMvc.perform(post("/api/v1/courses/" + course(1) + "/reviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
@@ -81,7 +87,7 @@ class ReviewControllerIntegrationTests {
                 .comment("Rating quá giới hạn")
                 .build();
 
-        mockMvc.perform(post("/api/v1/courses/1/reviews")
+        mockMvc.perform(post("/api/v1/courses/" + course(1) + "/reviews")
                         .header("X-User-Id", STUDENT_UUID_1)
                         .header("X-User-Role", "STUDENT")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,13 +105,13 @@ class ReviewControllerIntegrationTests {
                 .comment("Bài giảng rất chất lượng và dễ hiểu!")
                 .build();
 
-        mockMvc.perform(post("/api/v1/courses/99/reviews")
+        mockMvc.perform(post("/api/v1/courses/" + course(99) + "/reviews")
                         .header("X-User-Id", STUDENT_UUID_1)
                         .header("X-User-Role", "STUDENT")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.courseId").value(99))
+                .andExpect(jsonPath("$.courseId").value(course(99)))
                 .andExpect(jsonPath("$.studentId").value(STUDENT_UUID_1))
                 .andExpect(jsonPath("$.rating").value(5))
                 .andExpect(jsonPath("$.status").value("APPROVED"));
@@ -120,7 +126,7 @@ class ReviewControllerIntegrationTests {
                 .build();
 
         // Lần 1: Thành công
-        mockMvc.perform(post("/api/v1/courses/100/reviews")
+        mockMvc.perform(post("/api/v1/courses/" + course(100) + "/reviews")
                         .header("X-User-Id", STUDENT_UUID_2)
                         .header("X-User-Role", "STUDENT")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -128,7 +134,7 @@ class ReviewControllerIntegrationTests {
                 .andExpect(status().isCreated());
 
         // Lần 2: 409 Conflict
-        mockMvc.perform(post("/api/v1/courses/100/reviews")
+        mockMvc.perform(post("/api/v1/courses/" + course(100) + "/reviews")
                         .header("X-User-Id", STUDENT_UUID_2)
                         .header("X-User-Role", "STUDENT")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -141,7 +147,7 @@ class ReviewControllerIntegrationTests {
     @DisplayName("UC-R07: Toggle Helpful Vote (Like rồi bấm lại là Unlike)")
     void testToggleHelpfulVote() throws Exception {
         // Tạo 1 review trước
-        String createRes = mockMvc.perform(post("/api/v1/courses/200/reviews")
+        String createRes = mockMvc.perform(post("/api/v1/courses/" + course(200) + "/reviews")
                         .header("X-User-Id", STUDENT_UUID_3)
                         .header("X-User-Role", "STUDENT")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -171,7 +177,7 @@ class ReviewControllerIntegrationTests {
     @Test
     @DisplayName("UC-R06: Giảng viên phản hồi đánh giá của học viên với UUID")
     void testInstructorReplyToReview() throws Exception {
-        String createRes = mockMvc.perform(post("/api/v1/courses/300/reviews")
+        String createRes = mockMvc.perform(post("/api/v1/courses/" + course(300) + "/reviews")
                         .header("X-User-Id", STUDENT_UUID_5)
                         .header("X-User-Role", "STUDENT")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -198,7 +204,7 @@ class ReviewControllerIntegrationTests {
     @Test
     @DisplayName("UC-R09: Admin kiểm duyệt / ẩn đánh giá")
     void testAdminModerationHideReview() throws Exception {
-        String createRes = mockMvc.perform(post("/api/v1/courses/400/reviews")
+        String createRes = mockMvc.perform(post("/api/v1/courses/" + course(400) + "/reviews")
                         .header("X-User-Id", STUDENT_UUID_1)
                         .header("X-User-Role", "STUDENT")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -1,13 +1,14 @@
 package com.example.course_service.dto;
 
+import java.util.UUID;
 /** Bài học loại QUIZ dùng cho dropdown chọn bài học khi tạo quiz. */
 public record LessonOptionResponse(
-		Integer id,
+		UUID id,
 		String title,
-		Integer sectionId,
+		UUID sectionId,
 		String sectionTitle,
-		Integer courseId,
+		UUID courseId,
 		String courseTitle,
-		Integer quizId,
+		UUID quizId,
 		String quizTitle) {
 }

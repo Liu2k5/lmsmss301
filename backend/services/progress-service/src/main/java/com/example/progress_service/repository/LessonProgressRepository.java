@@ -4,53 +4,54 @@ import com.example.progress_service.entity.LessonProgress;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
 
 public interface LessonProgressRepository
-        extends JpaRepository<LessonProgress, Integer> {
+        extends JpaRepository<LessonProgress, UUID> {
 
-    List<LessonProgress> findByCourseProgressId(Integer progressId);
+    List<LessonProgress> findByCourseProgressId(UUID progressId);
 
     Optional<LessonProgress> findByCourseProgressIdAndLessonId(
-            Integer progressId,
-            Integer lessonId
+            UUID progressId,
+            UUID lessonId
     );
 
     List<LessonProgress> findByCourseProgressIdAndCompleted(
-            Integer progressId,
+            UUID progressId,
             Boolean completed
     );
 
     long countByCourseProgressIdAndCompleted(
-            Integer progressId,
+            UUID progressId,
             Boolean completed
     );
 
     boolean existsByCourseProgressIdAndLessonId(
-            Integer progressId,
-            Integer lessonId
+            UUID progressId,
+            UUID lessonId
     );
 
     void deleteByCourseProgressIdAndLessonId(
-            Integer progressId,
-            Integer lessonId
+            UUID progressId,
+            UUID lessonId
     );
 
     Optional<LessonProgress>
     findFirstByCourseProgressIdAndCompletedOrderByLessonIdAsc(
-            Integer progressId,
+            UUID progressId,
             Boolean completed
     );
 
     // UC-P10: đếm bài học còn trong curriculum
     long countByCourseProgressIdAndIncludedInCurriculum(
-            Integer progressId,
+            UUID progressId,
             Boolean includedInCurriculum
     );
 
     // UC-P10: đếm bài học hoàn thành và còn trong curriculum
     long countByCourseProgressIdAndCompletedAndIncludedInCurriculum(
-            Integer progressId,
+            UUID progressId,
             Boolean completed,
             Boolean includedInCurriculum
     );
@@ -58,7 +59,7 @@ public interface LessonProgressRepository
     // UC-P10: lấy bài học chưa hoàn thành và còn trong curriculum
     Optional<LessonProgress>
     findFirstByCourseProgressIdAndCompletedAndIncludedInCurriculumOrderByLessonIdAsc(
-            Integer progressId,
+            UUID progressId,
             Boolean completed,
             Boolean includedInCurriculum
     );

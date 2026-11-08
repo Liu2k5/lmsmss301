@@ -1,5 +1,6 @@
 package com.example.progress_service.dto;
 
+import java.util.UUID;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -11,7 +12,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class CourseAnalyticsResponse {
 
-    private Integer courseId;
+    private UUID courseId;
 
     private Integer totalStudents;
 

@@ -5,6 +5,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -13,8 +14,8 @@ import java.util.List;
 @AllArgsConstructor
 public class CourseProgressResponse {
 
-    private Integer studentId;
-    private Integer courseId;
+    private UUID studentId;
+    private UUID courseId;
 
     private BigDecimal completionPercentage;
 

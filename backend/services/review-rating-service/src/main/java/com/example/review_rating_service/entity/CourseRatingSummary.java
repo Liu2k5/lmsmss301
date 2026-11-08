@@ -6,6 +6,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "course_rating_summaries")
@@ -18,7 +19,7 @@ public class CourseRatingSummary {
 
     @Id
     @Column(name = "course_id", nullable = false)
-    private Integer courseId;
+    private UUID courseId;
 
     @Column(name = "average_rating", precision = 3, scale = 2, nullable = false)
     @Builder.Default

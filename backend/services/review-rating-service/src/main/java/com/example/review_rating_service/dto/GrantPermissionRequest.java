@@ -18,5 +18,5 @@ public class GrantPermissionRequest {
     private UUID studentId;
 
     @NotNull(message = "courseId không được để trống")
-    private Integer courseId;
+    private UUID courseId;
 }
