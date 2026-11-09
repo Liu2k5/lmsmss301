@@ -13,4 +13,7 @@ public interface CourseServiceClient {
 
     /** Đề + đáp án đúng của quiz; rỗng nếu quiz không tồn tại hoặc Course Service không sẵn sàng. */
     Optional<QuizAnswerKey> fetchAnswerKey(UUID quizId);
+
+    /** Danh sách bài học đã xuất bản của khoá học (dùng để khởi tạo tiến độ khi event bị lỡ). */
+    List<UUID> fetchPublishedLessonIds(UUID courseId);
 }

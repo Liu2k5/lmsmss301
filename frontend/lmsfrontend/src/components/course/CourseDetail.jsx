@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { courseApi } from '../../api/courseApi.js'
+import { useAuth } from '../../auth/AuthContext.js'
 import StatusBadge from './StatusBadge.jsx'
 import {
   CONFIRM_TRANSITIONS,
@@ -21,6 +22,10 @@ function moved(ids, index, delta) {
 }
 
 export default function CourseDetail({ courseId, onBack, openDialog, closeDialog, notify }) {
+  // Chỉ giảng viên/admin được sửa nội dung; học viên và khách chỉ xem.
+  const { authenticated, isInstructor, isAdmin } = useAuth()
+  const canManage = authenticated && (isInstructor || isAdmin)
+
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -103,7 +108,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     )
   }
 
-  const editable = course.editable
+  const editable = course.editable && canManage
   const totalLessons = course.sections.reduce((sum, section) => sum + section.lessons.length, 0)
   const totalMaterials = course.sections.reduce(
     (sum, section) => sum + section.lessons.reduce((acc, lesson) => acc + lesson.materials.length, 0),
@@ -355,10 +360,13 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
             {formatDate(course.updatedAt)}
           </p>
           <div className="detail-hero__actions">
-            <button type="button" className="button button--ghost" onClick={editCourse} disabled={!editable || busy}>
-              ✎ Sửa thông tin
-            </button>
-            {DELETABLE_STATUSES.has(course.status) && (
+            {canManage && (
+              <button type="button" className="button button--ghost" onClick={editCourse}
+                disabled={!editable || busy}>
+                ✎ Sửa thông tin
+              </button>
+            )}
+            {canManage && DELETABLE_STATUSES.has(course.status) && (
               <button type="button" className="button button--danger-ghost" onClick={deleteCourse} disabled={busy}>
                 Xoá khoá học
               </button>
@@ -367,6 +375,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         </div>
       </section>
 
+      {canManage && (
       <section className="workflow" aria-label="Trạng thái khoá học">
         <div>
           <h2>Quy trình xuất bản</h2>
@@ -394,13 +403,14 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
           ))}
         </div>
       </section>
+      )}
 
-      {!editable && (
+      {!editable && canManage && (
         <div className="alert alert--warning" role="note">
           Khoá học đang lưu trữ nên chỉ xem được. Bấm <strong>Khôi phục</strong> để chỉnh sửa tiếp.
         </div>
       )}
-      {editable && missingQuiz.length > 0 && (
+      {canManage && editable && missingQuiz.length > 0 && (
         <div className="alert alert--warning" role="note">
           {missingQuiz.length} bài học loại Quiz chưa có quiz:{' '}
           {missingQuiz.map((lesson) => lesson.title).join(', ')}.{' '}
@@ -473,14 +483,24 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                             {lesson.preview && <span className="tag tag--info">Xem thử</span>}
                             {lesson.type === 'QUIZ' &&
                               (lesson.quizId ? (
-                                <a
-                                  className="tag tag--success tag--link"
-                                  href={`#/quizzes?quizId=${lesson.quizId}`}
-                                  title="Sửa quiz của bài học này"
-                                >
-                                  Đã có quiz · Sửa →
-                                </a>
-                              ) : (
+                                canManage ? (
+                                  <a
+                                    className="tag tag--success tag--link"
+                                    href={`#/quizzes?quizId=${lesson.quizId}`}
+                                    title="Sửa quiz của bài học này"
+                                  >
+                                    Đã có quiz · Sửa →
+                                  </a>
+                                ) : (
+                                  <a
+                                    className="tag tag--success tag--link"
+                                    href={`#/quiz-attempt?quizId=${lesson.quizId}&courseId=${course.id}`}
+                                    title="Làm bài quiz này"
+                                  >
+                                    Đã có quiz · Làm bài →
+                                  </a>
+                                )
+                              ) : canManage ? (
                                 <a
                                   className="tag tag--warning tag--link"
                                   href={`#/quizzes?lessonId=${lesson.id}`}
@@ -488,6 +508,8 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                                 >
                                   Chưa có quiz · Tạo →
                                 </a>
+                              ) : (
+                                <span className="tag">Chưa có quiz</span>
                               ))}
                             <button type="button" className="tag tag--button" onClick={() => toggle(lesson.id)}
                               aria-expanded={isOpen}>

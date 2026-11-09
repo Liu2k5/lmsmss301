@@ -281,7 +281,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
             Q
           </div>
           <div>
-            <h1>Quản lý bài Quiz</h1>
+            <h1>{canManage ? 'Quản lý bài Quiz' : 'Bài quiz'}</h1>
             <p>LearnHub LMS · Course Service</p>
           </div>
         </div>

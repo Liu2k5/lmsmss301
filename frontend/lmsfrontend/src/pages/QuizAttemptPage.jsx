@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { quizApi } from '../api/quizApi.js'
 import { progressApi } from '../api/progressApi.js'
+import { enrollmentApi } from '../api/enrollmentApi.js'
 import { useAuth } from '../auth/AuthContext.js'
 
 const TYPE_LABEL = {
@@ -25,7 +26,11 @@ export default function QuizAttemptPage({ quizId, courseId }) {
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [enrolling, setEnrolling] = useState(false)
+  const [enrolledNow, setEnrolledNow] = useState(false)
   const [error, setError] = useState(null)
+  // 403 = chưa đăng ký khoá học -> gợi ý đăng ký ngay (UC-E01).
+  const needsEnrollment = error?.status === 403
 
   const loadHistory = useCallback(async () => {
     if (!studentId || !courseId || !quizId) return []
@@ -109,6 +114,23 @@ export default function QuizAttemptPage({ quizId, courseId }) {
   function retry() {
     setResult(null)
     setAnswers({})
+    setError(null)
+  }
+
+  async function enroll() {
+    setEnrolling(true)
+    setError(null)
+    try {
+      await enrollmentApi.enroll(courseId)
+      setEnrolledNow(true)
+      // Progress Service tạo tiến độ từ event StudentEnrolled; chờ một nhịp rồi tải lại lịch sử.
+      await new Promise((resolve) => { setTimeout(resolve, 1500) })
+      setHistory(await loadHistory())
+    } catch (requestError) {
+      setError(requestError)
+    } finally {
+      setEnrolling(false)
+    }
   }
 
   const answeredCount = useMemo(
@@ -160,6 +182,18 @@ export default function QuizAttemptPage({ quizId, courseId }) {
       {error && (
         <div className="alert alert--error" role="alert">
           <strong>{error.message}</strong>
+          {needsEnrollment && (
+            <button type="button" className="button button--primary button--small" onClick={enroll}
+              disabled={enrolling}>
+              {enrolling ? 'Đang đăng ký…' : `Đăng ký khoá học`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {enrolledNow && (
+        <div className="alert alert--success" role="status">
+          <strong>Đã đăng ký khoá học.</strong> Bấm “Nộp bài” lại để ghi nhận lượt làm.
         </div>
       )}
 

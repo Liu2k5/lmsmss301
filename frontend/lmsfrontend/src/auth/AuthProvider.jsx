@@ -3,6 +3,7 @@ import Keycloak from 'keycloak-js'
 import { AuthContext } from './AuthContext.js'
 import { setQuizTokenProvider } from '../api/quizApi.js'
 import { setProgressTokenProvider } from '../api/progressApi.js'
+import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
 
 const keycloak = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
@@ -124,6 +125,20 @@ export function AuthProvider({ children }) {
       return keycloak.token ?? null
     })
     return () => setProgressTokenProvider(null)
+  }, [ready, authenticated])
+
+  // enrollmentApi (đăng ký khoá học - UC-E01) cần JWT khi gọi qua Gateway.
+  useEffect(() => {
+    setEnrollmentTokenProvider(async () => {
+      if (!keycloak.authenticated) return null
+      try {
+        await keycloak.updateToken(30)
+      } catch {
+        return null
+      }
+      return keycloak.token ?? null
+    })
+    return () => setEnrollmentTokenProvider(null)
   }, [ready, authenticated])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

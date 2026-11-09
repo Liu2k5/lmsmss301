@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.progress_service.client.EnrollmentClient;
 import com.example.progress_service.dto.QuestionKey;
 import com.example.progress_service.dto.QuizAnswerKey;
 import com.example.progress_service.dto.QuizAttemptResponse;
@@ -22,6 +23,7 @@ import com.example.progress_service.dto.SubmitQuizRequest;
 import com.example.progress_service.entity.CourseProgress;
 import com.example.progress_service.entity.QuizAttempt;
 import com.example.progress_service.event.QuizSubmittedEvent;
+import com.example.progress_service.event.StudentEnrolledEvent;
 import com.example.progress_service.repository.CourseProgressRepository;
 import com.example.progress_service.repository.LessonProgressRepository;
 import com.example.progress_service.repository.QuizAttemptRepository;
@@ -45,6 +47,10 @@ public class QuizSubmissionService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private final CourseServiceClient courseServiceClient;
+
+    private final EnrollmentClient enrollmentClient;
+
+    private final ProgressService progressService;
 
     private final CourseProgressRepository progressRepository;
 
@@ -76,8 +82,7 @@ public class QuizSubmissionService {
 
         CourseProgress progress = progressRepository
                 .findByStudentIdAndCourseId(request.studentId(), courseId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Bạn cần đăng ký khoá học trước khi làm quiz"));
+                .orElseGet(() -> ensureProgress(request.studentId(), courseId));
 
         int attemptsDone = quizAttemptRepository
                 .countByCourseProgressIdAndQuizId(progress.getId(), quizId);
@@ -115,6 +120,35 @@ public class QuizSubmissionService {
 
         return new QuizSubmitResult(quizId, courseId, attemptNumber, maxAttempts, score,
                 key.passingScore(), passed, correctCount, totalQuestions, lessonCompleted, remaining);
+    }
+
+    /**
+     * Học viên đã đăng ký nhưng Progress Service chưa có tiến độ (event StudentEnrolled bị lỡ,
+     * hoặc đăng ký từ trước khi có event): kiểm tra quyền với Enrollment Service rồi khởi tạo lại.
+     */
+    private CourseProgress ensureProgress(UUID studentId, UUID courseId) {
+
+        boolean allowed = enrollmentClient.check(studentId, courseId)
+                .map(status -> status.enrolled() && status.accessGranted())
+                .orElse(false);
+
+        if (!allowed) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Bạn cần đăng ký khoá học trước khi làm quiz");
+        }
+
+        List<UUID> lessonIds = courseServiceClient.fetchPublishedLessonIds(courseId);
+        if (lessonIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Khoá học chưa có bài học để theo dõi tiến độ");
+        }
+
+        progressService.initializeProgress(new StudentEnrolledEvent(
+                UUID.randomUUID().toString(), studentId, courseId, lessonIds));
+
+        return progressRepository.findByStudentIdAndCourseId(studentId, courseId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Không khởi tạo được tiến độ khoá học"));
     }
 
     /** Lịch sử các lần làm quiz của học viên, mới nhất trước. */

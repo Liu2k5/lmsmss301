@@ -241,8 +241,9 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       SPRING_RABBITMQ_VIRTUAL_HOST: ${RABBITMQ_VHOST}
-      # UC-P04: lấy đề + đáp án đúng từ Course Service để chấm bài.
+      # UC-P04: lấy đề + đáp án đúng từ Course Service, kiểm tra đăng ký từ Enrollment Service.
       COURSE_SERVICE_URL: http://course-service:8081
+      ENROLLMENT_SERVICE_URL: http://enrollment-service:8083
       EUREKA_URL: http://eureka-server:8761/eureka
     depends_on:
       postgres:

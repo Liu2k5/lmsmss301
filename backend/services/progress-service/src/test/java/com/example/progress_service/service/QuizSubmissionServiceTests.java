@@ -25,6 +25,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.progress_service.client.EnrollmentClient;
+import com.example.progress_service.dto.EnrollmentStatus;
 import com.example.progress_service.dto.QuestionKey;
 import com.example.progress_service.dto.QuizAnswerKey;
 import com.example.progress_service.dto.SubmitQuizRequest;
@@ -32,6 +34,7 @@ import com.example.progress_service.entity.CourseProgress;
 import com.example.progress_service.entity.LessonProgress;
 import com.example.progress_service.entity.QuizAttempt;
 import com.example.progress_service.event.QuizSubmittedEvent;
+import com.example.progress_service.event.StudentEnrolledEvent;
 import com.example.progress_service.repository.CourseProgressRepository;
 import com.example.progress_service.repository.LessonProgressRepository;
 import com.example.progress_service.repository.QuizAttemptRepository;
@@ -56,6 +59,12 @@ class QuizSubmissionServiceTests {
     private CourseServiceClient courseServiceClient;
 
     @Mock
+    private EnrollmentClient enrollmentClient;
+
+    @Mock
+    private ProgressService progressService;
+
+    @Mock
     private CourseProgressRepository progressRepository;
 
     @Mock
@@ -76,8 +85,9 @@ class QuizSubmissionServiceTests {
 
     @BeforeEach
     void setUp() {
-        service = new QuizSubmissionService(courseServiceClient, progressRepository, quizAttemptRepository,
-                lessonProgressRepository, quizProgressService, lessonProgressService);
+        service = new QuizSubmissionService(courseServiceClient, enrollmentClient, progressService,
+                progressRepository, quizAttemptRepository, lessonProgressRepository, quizProgressService,
+                lessonProgressService);
 
         progress = new CourseProgress();
         progress.setId(UUID.randomUUID());
@@ -167,11 +177,36 @@ class QuizSubmissionServiceTests {
     void chuaDangKyKhoaHoc() {
         when(courseServiceClient.fetchAnswerKey(QUIZ)).thenReturn(Optional.of(answerKey(3)));
         when(progressRepository.findByStudentIdAndCourseId(STUDENT, COURSE)).thenReturn(Optional.empty());
+        when(enrollmentClient.check(STUDENT, COURSE))
+                .thenReturn(Optional.of(new EnrollmentStatus(false, "NONE", false)));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> service.submit(COURSE, QUIZ, new SubmitQuizRequest(STUDENT, List.of())));
 
         assertEquals(403, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Đã đăng ký nhưng thiếu bản ghi tiến độ -> tự khởi tạo rồi chấm điểm")
+    void daDangKyThieuTienDoThiKhoiTaoLai() {
+        when(courseServiceClient.fetchAnswerKey(QUIZ)).thenReturn(Optional.of(answerKey(3)));
+        when(progressRepository.findByStudentIdAndCourseId(STUDENT, COURSE))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(progress));
+        when(enrollmentClient.check(STUDENT, COURSE))
+                .thenReturn(Optional.of(new EnrollmentStatus(true, "ACTIVE", true)));
+        when(courseServiceClient.fetchPublishedLessonIds(COURSE)).thenReturn(List.of(LESSON));
+        when(quizAttemptRepository.countByCourseProgressIdAndQuizId(progress.getId(), QUIZ)).thenReturn(0);
+        when(lessonProgressRepository.findByCourseProgressIdAndLessonId(progress.getId(), LESSON))
+                .thenReturn(Optional.empty());
+
+        var result = service.submit(COURSE, QUIZ, new SubmitQuizRequest(STUDENT, List.of(
+                new SubmitQuizRequest.SubmittedAnswer(Q1, List.of(Q1_RIGHT)),
+                new SubmitQuizRequest.SubmittedAnswer(Q2, List.of(Q2_RIGHT_A, Q2_RIGHT_B)))));
+
+        verify(progressService).initializeProgress(any(StudentEnrolledEvent.class));
+        assertEquals(new BigDecimal("100.00"), result.score());
+        assertTrue(result.passed());
     }
 
     @Test

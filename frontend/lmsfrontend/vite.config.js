@@ -8,6 +8,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // Enrollment (UC-E01: đăng ký khoá học) phải qua Gateway để có header X-User-Id.
+      '/api/v1/enrollments': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       // Progress-service (UC-P04: nộp bài quiz) — khai báo trước '/api' để thắng khi match.
       '/api/v1/progress': {
         target: 'http://localhost:8084',

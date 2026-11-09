@@ -7,8 +7,13 @@ import { COURSE_FIELDS } from '../components/course/formFields.js'
 import StatusBadge from '../components/course/StatusBadge.jsx'
 import UploadModal from '../components/course/UploadModal.jsx'
 import { STATUS_OPTIONS, formatDate } from '../components/course/courseMeta.js'
+import { useAuth } from '../auth/AuthContext.js'
 
 export default function CoursePage({ courseId, onOpenCourse, onBack }) {
+  // Chỉ giảng viên/admin được tạo & sửa nội dung khoá học; học viên/khách chỉ xem.
+  const { authenticated, isInstructor, isAdmin } = useAuth()
+  const canManage = authenticated && (isInstructor || isAdmin)
+
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState(null)
@@ -106,7 +111,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                 C
               </div>
               <div>
-                <h1>Quản lý khoá học</h1>
+                <h1>{canManage ? 'Quản lý khoá học' : 'Khoá học'}</h1>
                 <p>LearnHub LMS · Course Service</p>
               </div>
             </div>
@@ -114,9 +119,11 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
               <button type="button" className="button button--ghost" onClick={loadCourses} disabled={loading}>
                 ⟳ Làm mới
               </button>
-              <button type="button" className="button button--primary" onClick={openCreate}>
-                + Tạo khoá học
-              </button>
+              {canManage && (
+                <button type="button" className="button button--primary" onClick={openCreate}>
+                  + Tạo khoá học
+                </button>
+              )}
             </div>
           </header>
 
@@ -184,7 +191,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                     ? 'Thử đổi từ khoá hoặc bộ lọc trạng thái.'
                     : 'Tạo khoá học đầu tiên rồi thêm chương, bài học và học liệu.'}
                 </p>
-                {!status && !appliedKeyword && (
+                {canManage && !status && !appliedKeyword && (
                   <button type="button" className="button button--primary" onClick={openCreate}>
                     + Tạo khoá học đầu tiên
                   </button>

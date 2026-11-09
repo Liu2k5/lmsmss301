@@ -332,6 +332,11 @@
   color: #991b1b;
 }
 
+.alert--success {
+  border-color: #86efac;
+  background: var(--color-success-soft);
+}
+
 .alert--warning {
   background: var(--color-warning-soft);
   border: 1px solid #fde68a;
