@@ -63,7 +63,8 @@ export default function RegisterPage() {
             <div className="user-form__grid">
               <label className="user-field">
                 <span>Tên đăng nhập *</span>
-                <input name="username" value={form.username} onChange={change} maxLength="20" required autoComplete="username" />
+                <input name="username" value={form.username} onChange={change} minLength="3" maxLength="20" required autoComplete="username" />
+                <small>Từ 3 đến 20 ký tự.</small>
               </label>
               <label className="user-field">
                 <span>Họ và tên *</span>

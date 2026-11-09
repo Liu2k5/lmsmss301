@@ -19,7 +19,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new LinkedHashMap<>();
         ex.getBindingResult().getFieldErrors()
-            .forEach(e -> errors.put(e.getField(), e.getDefaultMessage()));
+                .forEach(e -> errors.put(e.getField(), e.getDefaultMessage()));
         return ResponseEntity.badRequest().body(Map.of("message", "Validation failed", "errors", errors));
     }
 
@@ -45,14 +45,24 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", "Data conflicts with an existing record."));
     }
 
-    // Keycloak báo lỗi (trùng user, sai secret, thiếu quyền...)
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class); // đổi
+                                                                                                                 // tên
+                                                                                                                 // cho
+                                                                                                                 // đúng
+                                                                                                                 // class
+                                                                                                                 // của
+                                                                                                                 // bạn
+
     @ExceptionHandler(RestClientResponseException.class)
     public ResponseEntity<Map<String, Object>> keycloak(RestClientResponseException ex) {
+        log.error("Keycloak error: status={} body={}",
+                ex.getStatusCode().value(), ex.getResponseBodyAsString(), ex);
+
         HttpStatus status = ex.getStatusCode().value() == 409 ? HttpStatus.CONFLICT
                 : ex.getStatusCode().value() == 400 ? HttpStatus.BAD_REQUEST
-                : HttpStatus.BAD_GATEWAY;
+                        : HttpStatus.BAD_GATEWAY;
         return ResponseEntity.status(status)
-            .body(Map.of("message", "Identity provider error"));
+                .body(Map.of("message", "Identity provider error"));
     }
 
     @ExceptionHandler(MailException.class)
