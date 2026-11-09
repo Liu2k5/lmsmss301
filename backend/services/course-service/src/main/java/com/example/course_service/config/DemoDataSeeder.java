@@ -126,16 +126,109 @@ public class DemoDataSeeder implements ApplicationRunner {
 				.position(2)
 				.build());
 
-		lessonRepository.save(Lesson.builder()
+		Lesson restQuizLesson = lessonRepository.save(Lesson.builder()
 				.section(chapter2)
 				.title("Bài 3: Kiểm tra cuối chương 2")
-				.description("Bài kiểm tra chưa được tạo quiz — dùng để thử chức năng tạo mới.")
+				.description("Bài kiểm tra 3 câu hỏi về REST API.")
 				.type(LessonType.QUIZ)
 				.position(1)
 				.isPreview(false)
 				.build());
 
-		log.info("Đã tạo dữ liệu mẫu: course='{}', lesson video='{}', quiz='{}'",
-				springCourse.getTitle(), videoLesson.getTitle(), quiz.getTitle());
+		Quiz restQuiz = Quiz.builder()
+				.lesson(restQuizLesson)
+				.title("Kiểm tra cuối chương 2")
+				.description("REST API, HTTP method và status code.")
+				.passingScore(new BigDecimal("60.00"))
+				.maxAttempts(5)
+				.build();
+
+		Question q3 = Question.builder()
+				.content("Trong Spring MVC, annotation nào dùng để khai báo một REST controller?")
+				.type(QuestionType.SINGLE_CHOICE)
+				.position(1)
+				.build();
+		q3.addOption(Option.builder().content("@RestController").isCorrect(true).position(1).build());
+		q3.addOption(Option.builder().content("@ControllerAdvice").isCorrect(false).position(2).build());
+		q3.addOption(Option.builder().content("@Entity").isCorrect(false).position(3).build());
+		restQuiz.addQuestion(q3);
+
+		Question q4 = Question.builder()
+				.content("HTTP method nào dùng để thay thế toàn bộ một tài nguyên?")
+				.type(QuestionType.SINGLE_CHOICE)
+				.position(2)
+				.build();
+		q4.addOption(Option.builder().content("PUT").isCorrect(true).position(1).build());
+		q4.addOption(Option.builder().content("GET").isCorrect(false).position(2).build());
+		q4.addOption(Option.builder().content("DELETE").isCorrect(false).position(3).build());
+		restQuiz.addQuestion(q4);
+
+		Question q5 = Question.builder()
+				.content("Những status code nào thể hiện yêu cầu đã xử lý thành công? (chọn nhiều)")
+				.type(QuestionType.MULTIPLE_CHOICE)
+				.position(3)
+				.build();
+		q5.addOption(Option.builder().content("200 OK").isCorrect(true).position(1).build());
+		q5.addOption(Option.builder().content("201 Created").isCorrect(true).position(2).build());
+		q5.addOption(Option.builder().content("204 No Content").isCorrect(true).position(3).build());
+		q5.addOption(Option.builder().content("404 Not Found").isCorrect(false).position(4).build());
+		restQuiz.addQuestion(q5);
+
+		quizRepository.save(restQuiz);
+
+		Lesson finalQuizLesson = lessonRepository.save(Lesson.builder()
+				.section(chapter2)
+				.title("Bài 4: Kiểm tra tổng hợp Spring Boot")
+				.description("Bài kiểm tra cuối khoá: đúng/sai, một đáp án và nhiều đáp án.")
+				.type(LessonType.QUIZ)
+				.position(2)
+				.isPreview(false)
+				.build());
+
+		Quiz finalQuiz = Quiz.builder()
+				.lesson(finalQuizLesson)
+				.title("Kiểm tra tổng hợp Spring Boot")
+				.description("Tổng hợp kiến thức Spring Boot và Spring MVC.")
+				.passingScore(new BigDecimal("70.00"))
+				.maxAttempts(3)
+				.build();
+
+		Question q6 = Question.builder()
+				.content("@SpringBootApplication là tổ hợp của @Configuration, @EnableAutoConfiguration "
+						+ "và @ComponentScan.")
+				.type(QuestionType.TRUE_FALSE)
+				.position(1)
+				.build();
+		q6.addOption(Option.builder().content("Đúng").isCorrect(true).position(1).build());
+		q6.addOption(Option.builder().content("Sai").isCorrect(false).position(2).build());
+		finalQuiz.addQuestion(q6);
+
+		Question q7 = Question.builder()
+				.content("Cấu hình nào khai báo cổng chạy của ứng dụng trong application.properties?")
+				.type(QuestionType.SINGLE_CHOICE)
+				.position(2)
+				.build();
+		q7.addOption(Option.builder().content("server.port=8080").isCorrect(true).position(1).build());
+		q7.addOption(Option.builder().content("app.port=8080").isCorrect(false).position(2).build());
+		q7.addOption(Option.builder().content("spring.port=8080").isCorrect(false).position(3).build());
+		finalQuiz.addQuestion(q7);
+
+		Question q8 = Question.builder()
+				.content("Những cách nào có thể inject dependency vào một Spring bean? (chọn nhiều)")
+				.type(QuestionType.MULTIPLE_CHOICE)
+				.position(3)
+				.build();
+		q8.addOption(Option.builder().content("Constructor injection").isCorrect(true).position(1).build());
+		q8.addOption(Option.builder().content("Setter injection").isCorrect(true).position(2).build());
+		q8.addOption(Option.builder().content("Field injection").isCorrect(true).position(3).build());
+		q8.addOption(Option.builder().content("Khởi tạo bằng new ở mọi nơi cần dùng")
+				.isCorrect(false).position(4).build());
+		finalQuiz.addQuestion(q8);
+
+		quizRepository.save(finalQuiz);
+
+		log.info("Đã tạo dữ liệu mẫu: course='{}', lesson video='{}', quiz='{}', quiz='{}', quiz='{}'",
+				springCourse.getTitle(), videoLesson.getTitle(),
+				quiz.getTitle(), restQuiz.getTitle(), finalQuiz.getTitle());
 	}
 }

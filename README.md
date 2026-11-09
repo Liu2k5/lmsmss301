@@ -83,12 +83,16 @@ npm run dev        # http://localhost:5173
 
 Chi tiết quiz: [docs/quiz-crud-api.md](docs/quiz-crud-api.md) · Khoá học: [docs/course-management-api.md](docs/course-management-api.md)
 
+**Dữ liệu mẫu** (`SEED_DEMO_DATA=true`): khoá *Lập trình Java Spring Boot* có 2 chương / 4 bài học, trong đó
+**3 quiz mẫu** — *Kiểm tra cuối chương 1* (2 câu), *Kiểm tra cuối chương 2* (3 câu) và *Kiểm tra tổng hợp
+Spring Boot* (3 câu, có câu đúng/sai và câu nhiều đáp án).
+
 ## Kiểm thử
 
 ```bash
 cd backend
 mvn -f services/course-service/pom.xml test        # 73 test
-mvn -f services/enrollment-service/pom.xml test    # 60 test
+mvn -f services/enrollment-service/pom.xml test    # 61 test
 mvn -f services/progress-service/pom.xml test      # 10 test
 mvn -f services/review-rating-service/pom.xml test # 18 test
 mvn -f services/user-service/pom.xml test          # 4 test
@@ -110,6 +114,10 @@ mvn test                                           # toàn bộ 7 module
   Khoá chưa xuất bản thì chưa tạo tiến độ (không có bài học để theo dõi).
 - **Tham gia khoá học trên UI**: học viên bấm **“＋ Tham gia khoá học”** ở trang chi tiết khoá học
   (`#/courses/{id}`) khi khoá đang `PUBLISHED`; đã đăng ký thì nút đổi thành nhãn “✓ Đã tham gia khoá học”.
+- **Huỷ đăng ký (UC-E02 → UC-P11)**: học viên bấm **“Huỷ đăng ký”** ở trang chi tiết khoá học; Enrollment
+  Service chuyển enrollment sang `CANCELLED`, thu hồi quyền truy cập và phát `student.unenrolled` (RabbitMQ) →
+  Progress Service lưu trữ tiến độ vào `archived_progress` rồi xoá khỏi bảng hoạt động. Đăng ký lại tạo tiến độ
+  mới (mỗi lần kích hoạt có `eventId` riêng nên không bị bỏ qua vì trùng event).
 - **Khoá học Bản nháp bị ẩn khỏi học viên**: `GET /courses` bỏ khoá `DRAFT` và `GET /courses/{id}` trả `404`
   với học viên; giao diện cũng ẩn thẻ thống kê/lựa chọn lọc “Bản nháp”. Giảng viên sở hữu và Admin vẫn thấy.
 - **Nộp quiz (UC-P04)**: học viên nộp bài ở `#/quiz-attempt?quizId=&courseId=`; Progress Service chấm điểm
