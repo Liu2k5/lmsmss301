@@ -806,3 +806,67 @@ textarea {
     flex: 1 1 100%;
   }
 }
+
+/* UC-P04 — học viên làm bài quiz */
+.quiz-attempt .preview-option {
+  cursor: pointer;
+}
+
+.quiz-attempt .preview-option input {
+  accent-color: var(--color-primary);
+}
+
+.quiz-attempt__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.quiz-result {
+  margin: 20px 0;
+  padding: 20px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.quiz-result--pass {
+  border-color: #86efac;
+  background: var(--color-success-soft);
+}
+
+.quiz-result--fail {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.quiz-result h2 {
+  margin: 0 0 8px;
+}
+
+.quiz-result__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.quiz-history {
+  margin-top: 24px;
+}
+
+.quiz-history table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.quiz-history th,
+.quiz-history td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}

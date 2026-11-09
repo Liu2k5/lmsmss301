@@ -117,6 +117,48 @@ Body sắp xếp — phải chứa **đúng và đủ** id câu hỏi hiện có
 { "orderedIds": ["9f0a…", "1c2b…", "77de…"] }
 ```
 
+### 3.2b. Nộp bài — UC-P04 (Progress Service)
+
+Học viên làm bài trên UI `#/quiz-attempt?quizId=<uuid>&courseId=<uuid>`; điểm do **Progress Service** chấm
+(service sở hữu tiến độ). Đề + đáp án đúng lấy từ API nội bộ của Course Service
+`GET /internal/quizzes/{id}/answer-key` — endpoint này **không** đi qua Gateway.
+
+| Method | Endpoint (progress-service) | Mô tả |
+|---|---|---|
+| POST | `/api/v1/progress/courses/{courseId}/quizzes/{quizId}/submit` | Nộp bài, chấm điểm, lưu lượt làm |
+| GET | `/api/v1/progress/courses/{courseId}/quizzes/{quizId}/attempts?studentId=` | Lịch sử các lần làm (mới nhất trước) |
+
+Body — câu nào không gửi lên được coi là bỏ trống (sai):
+
+```json
+{
+  "studentId": "11111111-1111-1111-1111-111111111111",
+  "answers": [
+    { "questionId": "…", "optionIds": ["…"] },
+    { "questionId": "…", "optionIds": ["…", "…"] }
+  ]
+}
+```
+
+Kết quả:
+
+```json
+{
+  "quizId": "…", "courseId": "…", "attemptNumber": 2, "maxAttempts": 2,
+  "score": 100.00, "passingScore": 70.00, "passed": true,
+  "correctCount": 2, "totalQuestions": 2, "lessonCompleted": true, "remainingAttempts": 0
+}
+```
+
+Quy tắc chấm & ràng buộc:
+
+- Câu đúng khi **tập đáp án chọn bằng đúng tập đáp án đúng** (MULTIPLE_CHOICE phải chọn đủ, không thừa).
+- `score = correctCount / totalQuestions * 100` (làm tròn 2 chữ số); `passed = score >= passingScore`.
+- Chưa đăng ký khoá học → `403`; hết `maxAttempts` → `409`; câu hỏi không thuộc quiz → `400`;
+  Course Service không trả đề → `503`.
+- Đạt quiz → đánh dấu bài học quiz hoàn thành, kéo theo `%` tiến độ khoá học; điểm quiz trung bình
+  (`averageQuizScore`) tính lại trên toàn bộ lượt làm.
+
 ### 3.3. Request body
 
 `position` không gửi lên (server tự sinh theo thứ tự trong mảng).

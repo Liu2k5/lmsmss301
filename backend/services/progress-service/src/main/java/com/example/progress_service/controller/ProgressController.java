@@ -1,5 +1,6 @@
 package com.example.progress_service.controller;
 
+import java.util.List;
 import java.util.UUID;
 import com.example.progress_service.dto.*;
 import com.example.progress_service.service.*;
@@ -7,6 +8,8 @@ import com.example.progress_service.service.*;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/progress")
@@ -18,6 +21,8 @@ public class ProgressController {
     private final LessonProgressService lessonProgressService;
 
     private final QuizProgressService quizProgressService;
+
+    private final QuizSubmissionService quizSubmissionService;
 
     // UC-P02: Mark lesson completed
     @PutMapping("/courses/{courseId}/lessons/{lessonId}/complete")
@@ -51,6 +56,26 @@ public String saveWatchPosition(
 
     return "Watch position saved successfully";
 }
+
+    // UC-P04: Submit quiz & record score
+    @PostMapping("/courses/{courseId}/quizzes/{quizId}/submit")
+    public QuizSubmitResult submitQuiz(
+            @PathVariable UUID courseId,
+            @PathVariable UUID quizId,
+            @Valid @RequestBody SubmitQuizRequest request) {
+
+        return quizSubmissionService.submit(courseId, quizId, request);
+    }
+
+    // UC-P04: lịch sử các lần làm quiz (mới nhất trước)
+    @GetMapping("/courses/{courseId}/quizzes/{quizId}/attempts")
+    public List<QuizAttemptResponse> quizAttempts(
+            @PathVariable UUID courseId,
+            @PathVariable UUID quizId,
+            @RequestParam UUID studentId) {
+
+        return quizSubmissionService.attempts(studentId, courseId, quizId);
+    }
 
     // UC-P05: View progress
     @GetMapping("/courses/{courseId}")

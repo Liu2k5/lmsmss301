@@ -37,6 +37,8 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health").permitAll()
 						// Internal endpoint (D7): service-to-service only, never exposed through the gateway.
 						.requestMatchers(HttpMethod.GET, "/api/v1/enrollments/check").denyAll()
+						// API nội bộ (đáp án quiz để chấm bài, UC-P04) — không phục vụ qua Gateway.
+						.requestMatchers("/internal/**").denyAll()
 						// Các endpoint công khai, khớp với cấu hình của từng service phía sau.
 						.requestMatchers(HttpMethod.POST, "/api/v1/users/register").permitAll()
 						.requestMatchers(HttpMethod.POST,

@@ -76,6 +76,8 @@ npm run dev        # http://localhost:5173
 | POST | `/api/v1/enrollments` | enrollment |
 | GET | `/api/v1/enrollments/me` | enrollment |
 | GET | `/api/v1/progress/courses/{courseId}?studentId=` | progress |
+| POST | `/api/v1/progress/courses/{courseId}/quizzes/{quizId}/submit` | progress |
+| GET | `/api/v1/progress/courses/{courseId}/quizzes/{quizId}/attempts` | progress |
 | GET | `/api/v1/courses/{courseId}/reviews` | review |
 | GET | `/api/v1/courses/{courseId}/ratings/summary` | review |
 
@@ -101,5 +103,8 @@ mvn test                                           # toàn bộ 7 module
 - **Enroll tự tạo tiến độ**: `POST /api/v1/enrollments` phát event `student.enrolled` (RabbitMQ) sau khi
   transaction commit; Progress Service tạo `course_progress` + `lesson_progress` từ curriculum đã xuất bản.
   Khoá chưa xuất bản thì chưa tạo tiến độ (không có bài học để theo dõi).
+- **Nộp quiz (UC-P04)**: học viên nộp bài ở `#/quiz-attempt?quizId=&courseId=`; Progress Service chấm điểm
+  bằng đề + đáp án lấy từ API nội bộ `/internal/quizzes/{id}/answer-key` của Course Service
+  (Gateway chặn `/internal/**`), lưu lịch sử lượt làm và chặn khi hết `maxAttempts`.
 - **Email**: chưa cấu hình SMTP nên `POST /api/v1/users/password/forgot` trả `503`
   (`Email could not be sent`) cho tới khi bổ sung SMTP/MailHog.

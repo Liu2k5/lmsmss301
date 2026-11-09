@@ -4,6 +4,7 @@ import './courses.css'
 import './user.css'
 import CoursePage from './pages/CoursePage.jsx'
 import QuizPage from './pages/QuizPage.jsx'
+import QuizAttemptPage from './pages/QuizAttemptPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
@@ -16,6 +17,7 @@ import { useAuth } from './auth/AuthContext.js'
 /**
  * Điều hướng đơn giản bằng hash:
  * #/courses, #/courses/:id, #/quizzes, #/quizzes?quizId=<uuid>, #/quizzes?lessonId=<uuid>
+ * #/quiz-attempt?quizId=<uuid>&courseId=<uuid>  — học viên làm bài (UC-P04)
  */
 function parseHash(hash) {
   const raw = hash.replace(/^#\/?/, '')
@@ -30,6 +32,13 @@ function parseHash(hash) {
       page: 'quizzes',
       lessonId: uuid(params.get('lessonId')),
       quizId: uuid(params.get('quizId')),
+    }
+  }
+  if (parts[0] === 'quiz-attempt') {
+    return {
+      page: 'quiz-attempt',
+      quizId: uuid(params.get('quizId')),
+      quizCourseId: uuid(params.get('courseId')),
     }
   }
   if (['login', 'register', 'profile', 'forgot-password'].includes(parts[0])) {
@@ -116,6 +125,9 @@ export default function App() {
           route.page === 'profile' ? <ProfilePage /> :
             route.page === 'admin-users' ? <AdminUsersPage /> :
               route.page === 'admin-requests' ? <AdminRequestsPage /> :
+      route.page === 'quiz-attempt' ? (
+        <QuizAttemptPage quizId={route.quizId} courseId={route.quizCourseId} />
+      ) :
       route.page === 'quizzes' ? (
         <QuizPage initialLessonId={route.lessonId} initialQuizId={route.quizId} />
       ) : (

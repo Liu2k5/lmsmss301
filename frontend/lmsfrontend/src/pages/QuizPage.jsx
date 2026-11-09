@@ -79,8 +79,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
 
   // Tải danh sách khi bộ lọc thay đổi (state chỉ set trong callback bất đồng bộ).
   useEffect(() => {
-    if (!canManage) {
-      // Chưa đủ quyền: màn hình chặn truy cập đã thay cho danh sách nên không cần tải.
+    if (!authenticated) {
       return undefined
     }
     let active = true
@@ -105,7 +104,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     return () => {
       active = false
     }
-  }, [activeKeyword, filters.courseId, canManage])
+  }, [activeKeyword, filters.courseId, authenticated])
 
   // Tải danh sách bài học loại QUIZ (dùng cho dropdown + thống kê).
   useEffect(() => {
@@ -253,27 +252,22 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     )
   }
 
-  if (!canManage) {
+  if (!authenticated) {
     return (
       <div className="app app--message">
-        <h1>Quản lý bài Quiz</h1>
-        <p>
-          {authenticated
-            ? 'Chỉ giảng viên phụ trách khoá học (hoặc quản trị viên) mới được soạn quiz.'
-            : 'Vui lòng đăng nhập bằng tài khoản giảng viên để soạn quiz.'}
-        </p>
-        {!authenticated && (
-          <a className="button button--primary" href="#/login">
-            Đăng nhập
-          </a>
-        )}
+        <h1>Bài quiz</h1>
+        <p>Vui lòng đăng nhập để làm bài hoặc soạn quiz (giảng viên).</p>
+        <a className="button button--primary" href="#/login">
+          Đăng nhập
+        </a>
       </div>
     )
   }
 
-  const courses = Array.from(
-    new Map(lessonOptions.map((lesson) => [lesson.courseId, lesson.courseTitle])).entries(),
-  ).map(([id, title]) => ({ id, title }))
+  const courseSource = canManage
+    ? lessonOptions.map((lesson) => [lesson.courseId, lesson.courseTitle])
+    : quizzes.map((quiz) => [quiz.courseId, quiz.courseTitle])
+  const courses = Array.from(new Map(courseSource).entries()).map(([id, title]) => ({ id, title }))
 
   const emptyLessons = lessonOptions.filter((lesson) => lesson.quizId == null)
   const totalQuestions = quizzes.reduce((sum, quiz) => sum + quiz.questionCount, 0)
@@ -295,14 +289,16 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
           <button type="button" className="button button--ghost" onClick={refresh} disabled={loading}>
             ⟳ Làm mới
           </button>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => setEditor({ mode: 'create' })}
-            disabled={openingEditor || loading}
-          >
-            + Tạo quiz
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => setEditor({ mode: 'create' })}
+              disabled={openingEditor || loading}
+            >
+              + Tạo quiz
+            </button>
+          )}
         </div>
       </header>
 
@@ -315,10 +311,12 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
           <span className="stat__value">{totalQuestions}</span>
           <span className="stat__label">Câu hỏi</span>
         </div>
-        <div className="stat">
-          <span className="stat__value">{emptyLessons.length}</span>
-          <span className="stat__label">Bài học còn trống</span>
-        </div>
+        {canManage && (
+          <div className="stat">
+            <span className="stat__value">{emptyLessons.length}</span>
+            <span className="stat__label">Bài học còn trống</span>
+          </div>
+        )}
       </section>
 
       <section className="toolbar" aria-label="Bộ lọc">
@@ -425,6 +423,13 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
               </dl>
 
               <footer className="quiz-card__actions">
+                <a
+                  className="button button--primary"
+                  href={`#/quiz-attempt?quizId=${quiz.id}&courseId=${quiz.courseId}`}
+                >
+                  Làm bài
+                </a>
+                {canManage && (
                 <button
                   type="button"
                   className="button button--ghost"
@@ -433,22 +438,31 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
                 >
                   Sửa
                 </button>
+                )}
                 <button type="button" className="button button--ghost" onClick={() => setPreviewId(quiz.id)}>
                   Xem trước
                 </button>
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  onClick={() => {
-                    setDuplicateTarget(quiz)
-                    setDuplicateLessonId('')
-                  }}
-                >
-                  Nhân bản
-                </button>
-                <button type="button" className="button button--danger-ghost" onClick={() => setConfirmTarget(quiz)}>
-                  Xoá
-                </button>
+                {canManage && (
+                  <>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      onClick={() => {
+                        setDuplicateTarget(quiz)
+                        setDuplicateLessonId('')
+                      }}
+                    >
+                      Nhân bản
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--danger-ghost"
+                      onClick={() => setConfirmTarget(quiz)}
+                    >
+                      Xoá
+                    </button>
+                  </>
+                )}
               </footer>
             </article>
           ))}

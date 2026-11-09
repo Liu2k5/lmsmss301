@@ -20,8 +20,10 @@ import com.example.course_service.dto.OptionRequest;
 import com.example.course_service.dto.OptionResponse;
 import com.example.course_service.dto.PreviewOptionResponse;
 import com.example.course_service.dto.PreviewQuestionResponse;
+import com.example.course_service.dto.QuestionKeyResponse;
 import com.example.course_service.dto.QuestionRequest;
 import com.example.course_service.dto.QuestionResponse;
+import com.example.course_service.dto.QuizAnswerKeyResponse;
 import com.example.course_service.dto.QuizPreviewResponse;
 import com.example.course_service.dto.QuizRequest;
 import com.example.course_service.dto.QuizResponse;
@@ -75,6 +77,28 @@ public class QuizServiceImpl implements QuizService {
 	@Override
 	public QuizResponse findById(UUID id) {
 		return toResponse(requireQuiz(id));
+	}
+
+	@Override
+	public QuizAnswerKeyResponse answerKey(UUID id) {
+		Quiz quiz = requireQuiz(id);
+		Lesson lesson = quiz.getLesson();
+		return new QuizAnswerKeyResponse(
+				quiz.getId(),
+				lesson.getSection().getCourse().getId(),
+				lesson.getId(),
+				quiz.getTitle(),
+				quiz.getPassingScore(),
+				quiz.getMaxAttempts(),
+				sortedQuestions(quiz).stream()
+						.map(question -> new QuestionKeyResponse(
+								question.getId(),
+								question.getType(),
+								question.getOptions().stream()
+										.filter(Option::isCorrect)
+										.map(Option::getId)
+										.toList()))
+						.toList());
 	}
 
 	@Override

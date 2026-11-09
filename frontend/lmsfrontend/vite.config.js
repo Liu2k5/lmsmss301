@@ -8,7 +8,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Chuyển tiếp mọi request /api sang course-service để tránh CORS khi dev.
+      // Progress-service (UC-P04: nộp bài quiz) — khai báo trước '/api' để thắng khi match.
+      '/api/v1/progress': {
+        target: 'http://localhost:8084',
+        changeOrigin: true,
+      },
+      // Chuyển tiếp mọi request /api còn lại sang course-service để tránh CORS khi dev.
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true,

@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.example.course_service.dto.LessonOptionResponse;
 import com.example.course_service.dto.QuestionRequest;
 import com.example.course_service.dto.QuestionResponse;
+import com.example.course_service.dto.QuizAnswerKeyResponse;
 import com.example.course_service.dto.QuizPreviewResponse;
 import com.example.course_service.dto.QuizRequest;
 import com.example.course_service.dto.QuizResponse;
@@ -32,6 +33,9 @@ public interface QuizService {
 	List<QuizSummaryResponse> findAll(UUID lessonId, UUID courseId, String keyword);
 
 	QuizResponse findById(UUID id);
+
+	/** Đề + đáp án đúng cho Progress Service chấm bài (UC-P04). Chỉ dùng nội bộ. */
+	QuizAnswerKeyResponse answerKey(UUID id);
 
 	/** Bài học loại QUIZ kèm quiz hiện có (nếu đã có) để client chọn khi tạo mới. */
 	List<LessonOptionResponse> findLessonOptions();

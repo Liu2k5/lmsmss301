@@ -28,6 +28,11 @@ spring:
   jackson:
     serialization:
 #      write-dates-as-timestamps: false
+app:
+  services:
+    # Course Service: lấy đề + đáp án đúng để chấm bài (UC-P04).
+    course:
+      url: ${COURSE_SERVICE_URL:http://localhost:8081}
 eureka:
   client:
     service-url:

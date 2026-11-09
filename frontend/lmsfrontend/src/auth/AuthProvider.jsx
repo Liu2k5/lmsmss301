@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Keycloak from 'keycloak-js'
 import { AuthContext } from './AuthContext.js'
 import { setQuizTokenProvider } from '../api/quizApi.js'
+import { setProgressTokenProvider } from '../api/progressApi.js'
 
 const keycloak = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
@@ -87,6 +88,14 @@ export function AuthProvider({ children }) {
     isInstructor: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
       (role) => role.toUpperCase() === 'INSTRUCTOR',
     )),
+    // Thông tin người đang đăng nhập (sub = studentId/instructorId dùng ở các service).
+    user: keycloak.tokenParsed
+      ? {
+          id: keycloak.tokenParsed.sub,
+          username: keycloak.tokenParsed.preferred_username,
+          name: keycloak.tokenParsed.name ?? keycloak.tokenParsed.preferred_username,
+        }
+      : null,
   }), [ready, authenticated, authError])
 
   // quizApi cần JWT cho mọi request (backend giới hạn quiz cho giảng viên/admin).
@@ -101,6 +110,20 @@ export function AuthProvider({ children }) {
       return keycloak.token ?? null
     })
     return () => setQuizTokenProvider(null)
+  }, [ready, authenticated])
+
+  // progressApi (nộp bài quiz - UC-P04) cũng cần JWT khi gọi qua Gateway.
+  useEffect(() => {
+    setProgressTokenProvider(async () => {
+      if (!keycloak.authenticated) return null
+      try {
+        await keycloak.updateToken(30)
+      } catch {
+        return null
+      }
+      return keycloak.token ?? null
+    })
+    return () => setProgressTokenProvider(null)
   }, [ready, authenticated])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
