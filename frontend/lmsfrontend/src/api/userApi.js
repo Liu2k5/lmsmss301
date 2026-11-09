@@ -21,8 +21,6 @@ export const userApi = {
   universities: () => userRequest('/universities'),
   me: (token) => userRequest('/users/me', token),
   updateMe: (token, payload) => userRequest('/users/me', token, json('PUT', payload)),
-  changePassword: (token, payload) =>
-    userRequest('/users/me/password', token, json('PUT', payload)),
   myRequests: (token) => userRequest('/users/me/requests', token),
   requestDeletion: (token) => userRequest('/users/me/requests/deletion', token, json('POST', {})),
   requestInstructorRole: (token) =>

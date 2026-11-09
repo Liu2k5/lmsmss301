@@ -26,9 +26,16 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [passwordActionStatus, setPasswordActionStatus] = useState('')
 
   useEffect(() => {
     let active = true
+    keycloak.onActionUpdate = (status, action) => {
+      if (action === 'UPDATE_PASSWORD' && active) {
+        setPasswordActionStatus(status)
+      }
+    }
+
     initializeKeycloak()
       .then((isAuthenticated) => {
         if (!active) return
@@ -67,6 +74,21 @@ export function AuthProvider({ children }) {
         setAuthError('Không thể bắt đầu đăng nhập. Kiểm tra cấu hình Keycloak client.')
       }
     },
+    async updatePassword() {
+      sessionStorage.setItem('postLoginHash', '#/profile')
+      setPasswordActionStatus('')
+      try {
+        await keycloak.login({
+          action: 'UPDATE_PASSWORD',
+          prompt: 'login',
+          redirectUri: `${window.location.origin}${window.location.pathname}`,
+        })
+      } catch (error) {
+        sessionStorage.removeItem('postLoginHash')
+        console.error('Không thể bắt đầu đổi mật khẩu trên Keycloak', error)
+        setAuthError('Không thể mở trang đổi mật khẩu của Keycloak.')
+      }
+    },
     async logout() {
       sessionStorage.removeItem('postLoginHash')
       try {
@@ -81,7 +103,8 @@ export function AuthProvider({ children }) {
       await keycloak.updateToken(30)
       return keycloak.token ?? null
     },
-  }), [ready, authenticated, authError])
+    passwordActionStatus,
+  }), [ready, authenticated, authError, passwordActionStatus])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

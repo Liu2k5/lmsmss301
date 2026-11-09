@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.user_service.dto.ChangePasswordRequest;
 import com.example.user_service.dto.ResetPasswordRequest;
 import com.example.user_service.entity.PasswordResetCode;
 import com.example.user_service.entity.User;
@@ -132,15 +131,4 @@ public class PasswordResetService {
         return true;
     }
 
-    public void changePassword(
-            String accessToken, ChangePasswordRequest request) {
-        if (!request.newPassword().equals(request.confirmPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu xác nhận không khớp");
-        }
-        if (request.currentPassword().equals(request.newPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Mật khẩu mới phải khác mật khẩu hiện tại");
-        }
-        keycloak.changePassword(request.currentPassword(), request.newPassword(), accessToken);
-    }
 }
