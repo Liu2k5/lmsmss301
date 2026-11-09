@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
 import Keycloak from 'keycloak-js'
-import { AuthContext } from './AuthContext.js'
-import { setQuizTokenProvider } from '../api/quizApi.js'
-import { setProgressTokenProvider } from '../api/progressApi.js'
-import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
+import { useEffect, useMemo, useState } from 'react'
 import { setCourseTokenProvider } from '../api/courseApi.js'
+import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
+import { setProgressTokenProvider } from '../api/progressApi.js'
+import { setQuizTokenProvider } from '../api/quizApi.js'
+import { AuthContext } from './AuthContext.js'
 
 const keycloak = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
@@ -30,9 +30,16 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [passwordActionStatus, setPasswordActionStatus] = useState('')
 
   useEffect(() => {
     let active = true
+    keycloak.onActionUpdate = (status, action) => {
+      if (action === 'UPDATE_PASSWORD' && active) {
+        setPasswordActionStatus(status)
+      }
+    }
+
     initializeKeycloak()
       .then((isAuthenticated) => {
         if (!active) return
@@ -56,59 +63,64 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const value = useMemo(() => {
-    const isAdmin = Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
+  const value = useMemo(() => ({
+    ready,
+    authenticated,
+    authError,
+    isAdmin: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
       (role) => role.toUpperCase() === 'ADMIN' || role.toUpperCase() === 'ADMINISTRATOR',
-    ))
-    const isInstructor = Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
-      (role) => role.toUpperCase() === 'INSTRUCTOR',
-    ))
-    const hasStudentRole = Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
-      (role) => role.toUpperCase() === 'STUDENT',
-    ))
-    const isStudent = Boolean(authenticated && (hasStudentRole || (!isAdmin && !isInstructor)))
-
-    return {
-      ready,
-      authenticated,
-      authError,
-      isAdmin,
-      isInstructor,
-      isStudent,
-      async login() {
-        sessionStorage.setItem('postLoginHash', '#/profile')
-        try {
-          await keycloak.login({ redirectUri: `${window.location.origin}${window.location.pathname}` })
-        } catch (error) {
-          sessionStorage.removeItem('postLoginHash')
-          console.error('Không thể bắt đầu đăng nhập Keycloak', error)
-          setAuthError('Không thể bắt đầu đăng nhập. Kiểm tra cấu hình Keycloak client.')
-        }
-      },
-      async logout() {
+    )),
+    async login() {
+      sessionStorage.setItem('postLoginHash', '#/profile')
+      try {
+        await keycloak.login({ redirectUri: `${window.location.origin}${window.location.pathname}` })
+      } catch (error) {
         sessionStorage.removeItem('postLoginHash')
-        try {
-          await keycloak.logout({ redirectUri: `${window.location.origin}${window.location.pathname}` })
-        } catch (error) {
-          console.error('Không thể đăng xuất khỏi Keycloak', error)
-          setAuthError('Không thể đăng xuất khỏi Keycloak.')
-        }
-      },
-      async getToken() {
-        if (!keycloak.authenticated) return null
-        await keycloak.updateToken(30)
-        return keycloak.token ?? null
-      },
-      // Thông tin người đang đăng nhập (sub = studentId/instructorId dùng ở các service).
-      user: keycloak.tokenParsed
-        ? {
-            id: keycloak.tokenParsed.sub,
-            username: keycloak.tokenParsed.preferred_username,
-            name: keycloak.tokenParsed.name ?? keycloak.tokenParsed.preferred_username,
-          }
-        : null,
-    }
-  }, [ready, authenticated, authError])
+        console.error('Không thể bắt đầu đăng nhập Keycloak', error)
+        setAuthError('Không thể bắt đầu đăng nhập. Kiểm tra cấu hình Keycloak client.')
+      }
+    },
+    async updatePassword() {
+      sessionStorage.setItem('postLoginHash', '#/profile')
+      setPasswordActionStatus('')
+      try {
+        await keycloak.login({
+          action: 'UPDATE_PASSWORD',
+          prompt: 'login',
+          redirectUri: `${window.location.origin}${window.location.pathname}`,
+        })
+      } catch (error) {
+        sessionStorage.removeItem('postLoginHash')
+        console.error('Không thể bắt đầu đổi mật khẩu trên Keycloak', error)
+        setAuthError('Không thể mở trang đổi mật khẩu của Keycloak.')
+      }
+    },
+    async logout() {
+      sessionStorage.removeItem('postLoginHash')
+      try {
+        await keycloak.logout({ redirectUri: `${window.location.origin}${window.location.pathname}` })
+      } catch (error) {
+        console.error('Không thể đăng xuất khỏi Keycloak', error)
+        setAuthError('Không thể đăng xuất khỏi Keycloak.')
+      }
+    },
+    async getToken() {
+      if (!keycloak.authenticated) return null
+      await keycloak.updateToken(30)
+      return keycloak.token ?? null
+    },
+    isInstructor: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
+      (role) => role.toUpperCase() === 'INSTRUCTOR',
+    )),
+    // Thông tin người đang đăng nhập (sub = studentId/instructorId dùng ở các service).
+    user: keycloak.tokenParsed
+      ? {
+        id: keycloak.tokenParsed.sub,
+        username: keycloak.tokenParsed.preferred_username,
+        name: keycloak.tokenParsed.name ?? keycloak.tokenParsed.preferred_username,
+      }
+      : null,
+  }), [ready, authenticated, authError])
 
   // quizApi cần JWT cho mọi request (backend giới hạn quiz cho giảng viên/admin).
   useEffect(() => {

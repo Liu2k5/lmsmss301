@@ -3,16 +3,12 @@ package com.example.user_service.controller;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.user_service.dto.ChangePasswordRequest;
 import com.example.user_service.dto.ForgotPasswordRequest;
 import com.example.user_service.dto.ResetPasswordRequest;
 import com.example.user_service.service.PasswordResetService;
@@ -45,11 +41,4 @@ public class PasswordController {
         return Map.of("message", "Đặt lại mật khẩu thành công.");
     }
 
-    @PutMapping("/me/password")
-    public Map<String, String> changePassword(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody ChangePasswordRequest request) {
-        passwords.changePassword(jwt.getTokenValue(), request);
-        return Map.of("message", "Đổi mật khẩu thành công.");
-    }
 }

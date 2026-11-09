@@ -185,19 +185,6 @@ public class KeycloakAdminService {
                 .toBodilessEntity();
     }
 
-    public void changePassword(String currentPassword, String newPassword, String accessToken) {
-        rest.put()
-                .uri(url + "/realms/" + realm + "/account/credentials/password")
-                .header("Authorization", "Bearer " + accessToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of(
-                        "currentPassword", currentPassword,
-                        "newPassword", newPassword,
-                        "confirmation", newPassword))
-                .retrieve()
-                .toBodilessEntity();
-    }
-
     public void replaceRealmRole(String username, Role previousRole, Role newRole) {
         String token = adminToken();
         String userId = findUserId(username, token);
