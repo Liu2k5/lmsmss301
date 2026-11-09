@@ -340,6 +340,7 @@ Mở file này và dùng **Markdown Preview** (`Ctrl+Shift+V`) — VS Code rende
 
 | File | Use case |
 |---|---|
+| `drawio/uc-overview.drawio` | **Use case overview** toàn hệ thống — 7 trang: tổng quan nhóm use case, 5 trang theo actor, 7 use case Key Challenge (xem mục 7) |
 | `drawio/uc-p04-submit-quiz.drawio` | UC-P04 — Submit quiz & record score (7 participant, 19 message, **mức service**) |
 
 > UC-C30 chưa có bản `.drawio` trong repo (vẫn có bản Mermaid ở mục 3.2 và bản PlantUML/ảnh ở mục 6).
@@ -372,3 +373,34 @@ java -jar plantuml.jar -charset UTF-8 -tsvg -o ./rendered docs/diagrams/*.puml
 
 > PlantUML cần **Graphviz** để bố cục sơ đồ object. Nếu máy chưa có, cài `graphviz` hoặc trỏ tới binary bằng
 > `java -DGRAPHVIZ_DOT=/đường/dẫn/dot -jar plantuml.jar …`.
+
+---
+
+## 7. Sơ đồ use case tổng quan (`uc-overview.drawio`)
+
+Toàn bộ **76 use case** trong bảng `Use Case Summary` được vẽ lại thành một file draw.io **7 trang** — mỗi trang
+một mức nhìn khác nhau, để vừa có ảnh tổng quan cho báo cáo vừa tra cứu được chi tiết:
+
+| Trang | Tên | Nội dung |
+|---|---|---|
+| 00 | Use case tổng quan | 5 actor + 5 system boundary, **23 nhóm use case** (gộp các UC liên tiếp cùng nghiệp vụ), đường kết nối tô màu theo actor |
+| 01 | Actor **Guest** | 5 use case (UC-U01, U11, C28, C29, R04) |
+| 02 | Actor **Student** | 24 use case |
+| 03 | Actor **Instructor** | 37 use case |
+| 04 | Actor **Admin** | 20 use case |
+| 05 | Actor **System** | 10 use case (event / scheduled job) |
+| 06 | Key Challenge | 7 use case gắn nhãn *Key Challenge* + quan hệ «include» / «extend» / «event» |
+
+Quy ước vẽ:
+
+- **System boundary** = microservice sở hữu use case (`course-service`, `user-service`, `enrollment-service`,
+  `progress-service`, `review-rating-service`) — khớp cột `Service` của bảng tính.
+- **Ellipse vàng** = use case thuộc *Key Challenge* (access control / progress tracking), **ellipse xanh** = nghiệp vụ
+  thường.
+- Đường **liền** = association actor ↔ use case (chỉ vẽ một chiều actor → use case, đúng UML).
+- Đường **nét đứt** ở trang 06: `«include»` (bắt buộc gọi), `«extend»` (mở rộng có điều kiện: đạt 100% → cấp
+  chứng chỉ), `«event»` (thông báo bất đồng bộ qua RabbitMQ).
+- Mỗi trang có ô **note**: chú thích màu + danh sách mã use case của trang đó, tiện đối chiếu với bảng tính.
+
+Tổng số cặp *actor–use case* = 96 trên 5 trang actor (một use case có nhiều actor được vẽ nhiều lần, đúng như cột
+`Actor` của bảng tính); số use case duy nhất vẫn là **76**.
