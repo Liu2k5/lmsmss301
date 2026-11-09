@@ -216,6 +216,15 @@
   font-weight: 600;
 }
 
+/* Học viên đã tham gia khoá học (UC-E01). */
+.badge--joined {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
 .quiz-card__score {
   font-size: 12px;
   font-weight: 600;

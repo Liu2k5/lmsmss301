@@ -1,10 +1,10 @@
-import Keycloak from 'keycloak-js'
 import { useEffect, useMemo, useState } from 'react'
-import { setCourseTokenProvider } from '../api/courseApi.js'
-import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
-import { setProgressTokenProvider } from '../api/progressApi.js'
-import { setQuizTokenProvider } from '../api/quizApi.js'
+import Keycloak from 'keycloak-js'
 import { AuthContext } from './AuthContext.js'
+import { setQuizTokenProvider } from '../api/quizApi.js'
+import { setProgressTokenProvider } from '../api/progressApi.js'
+import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
+import { setCourseTokenProvider } from '../api/courseApi.js'
 
 const keycloak = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
@@ -30,7 +30,8 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
-  const [passwordActionStatus, setPasswordActionStatus] = useState('')
+  // Chỉ cần setter: Keycloak báo trạng thái action (đổi mật khẩu) để JS client xử lý URL.
+  const [, setPasswordActionStatus] = useState('')
 
   useEffect(() => {
     let active = true
@@ -82,8 +83,8 @@ export function AuthProvider({ children }) {
       isAdmin,
       isInstructor,
       isStudent,
-      async login() {
-        sessionStorage.setItem('postLoginHash', '#/profile')
+      async login(nextHash = '#/profile') {
+        sessionStorage.setItem('postLoginHash', nextHash)
         try {
           await keycloak.login({ redirectUri: `${window.location.origin}${window.location.pathname}` })
         } catch (error) {

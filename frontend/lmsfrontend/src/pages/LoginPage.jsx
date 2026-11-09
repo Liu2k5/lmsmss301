@@ -13,7 +13,7 @@ export default function LoginPage() {
         {authenticated ? (
           <a className="button button--primary button--full" href="#/profile">Mở hồ sơ của tôi</a>
         ) : (
-          <button className="button button--primary button--full" type="button" onClick={login}>
+          <button className="button button--primary button--full" type="button" onClick={() => login()}>
             Tiếp tục với Keycloak
           </button>
         )}

@@ -20,13 +20,13 @@ import { COURSE_FIELDS, LESSON_FIELDS, MATERIAL_FIELDS, SECTION_FIELDS, UPLOADED
 function moved(ids, index, delta) {
   const next = [...ids]
   const target = index + delta
-  ;[next[index], next[target]] = [next[target], next[index]]
+    ;[next[index], next[target]] = [next[target], next[index]]
   return next
 }
 
 export default function CourseDetail({ courseId, onBack, openDialog, closeDialog, notify }) {
   // Chỉ giảng viên/admin được sửa nội dung; học viên và khách chỉ xem.
-  const { authenticated, isInstructor, isAdmin } = useAuth()
+  const { authenticated, isInstructor, isAdmin, login } = useAuth()
   const canManage = authenticated && (isInstructor || isAdmin)
 
   const [course, setCourse] = useState(null)
@@ -35,47 +35,17 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
   const [busy, setBusy] = useState(false)
   const [expanded, setExpanded] = useState(() => new Set())
   const [playingId, setPlayingId] = useState(null)
-  const [enrollmentStatus, setEnrollmentStatus] = useState(null)
-  const [enrolling, setEnrolling] = useState(false)
   const [showStudentsModal, setShowStudentsModal] = useState(false)
   const [confirmCancelEnrollment, setConfirmCancelEnrollment] = useState(false)
-
-  const checkEnrollment = useCallback(async () => {
-    if (!authenticated) {
-      setEnrollmentStatus(null)
-      return
-    }
-    try {
-      const list = await enrollmentApi.myEnrollments()
-      const match = list.find((e) => e.courseId === courseId)
-      setEnrollmentStatus(match ? match.status : 'NONE')
-    } catch {
-      setEnrollmentStatus('NONE')
-    }
-  }, [authenticated, courseId])
-
-  useEffect(() => {
-    checkEnrollment()
-  }, [checkEnrollment])
-
-  async function handleEnroll() {
-    setEnrolling(true)
-    try {
-      await enrollmentApi.enroll(courseId)
-      setEnrollmentStatus('ACTIVE')
-      notify('success', 'Đăng ký khoá học thành công! Bạn có thể bắt đầu học ngay bây giờ.')
-    } catch (error) {
-      notify('error', error.message || 'Không thể đăng ký khoá học.')
-    } finally {
-      setEnrolling(false)
-    }
-  }
+  // Học viên: đã tham gia khoá học này chưa (UC-E01).
+  const [enrolled, setEnrolled] = useState(null)
+  const [joining, setJoining] = useState(false)
 
   async function handleCancelEnroll() {
     setBusy(true)
     try {
       await enrollmentApi.cancel(courseId)
-      setEnrollmentStatus('CANCELLED')
+      setEnrolled(false)
       setConfirmCancelEnrollment(false)
       notify('success', 'Đã huỷ đăng ký khoá học. Tiến độ học của bạn đã được lưu trữ an toàn.')
     } catch (error) {
@@ -101,6 +71,44 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tải chi tiết khi mở khoá học
     load()
   }, [load])
+
+  // Học viên: kiểm tra đã đăng ký khoá học này chưa để hiện đúng nút tham gia.
+  useEffect(() => {
+    if (!authenticated || canManage) return undefined
+    let active = true
+    enrollmentApi
+      .myEnrollments()
+      .then((list) => {
+        if (!active) return
+        setEnrolled(list.some((item) => item.courseId === courseId && item.status === 'ACTIVE'))
+      })
+      .catch(() => {
+        if (active) setEnrolled(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [authenticated, canManage, courseId])
+
+  /** UC-E01 — tham gia khoá học. Progress Service tạo tiến độ từ event StudentEnrolled. */
+  async function joinCourse() {
+    setJoining(true)
+    try {
+      await enrollmentApi.enroll(courseId)
+      setEnrolled(true)
+      notify('success', `Đã tham gia khoá học "${course?.title ?? ''}". Tiến độ học tập đã được khởi tạo.`)
+    } catch (error) {
+      // 409 = đã đăng ký trước đó (ví dụ mở hai tab); coi như đã tham gia.
+      if (error.status === 409) {
+        setEnrolled(true)
+        notify('success', 'Bạn đã tham gia khoá học này rồi.')
+      } else {
+        notify('error', error.message)
+      }
+    } finally {
+      setJoining(false)
+    }
+  }
 
   /** Chạy một thao tác trả về chi tiết khoá học mới; báo lỗi bằng toast. */
   async function run(action, successMessage) {
@@ -433,45 +441,38 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                 Xoá khoá học
               </button>
             )}
-            {!canManage && (
-              <>
-                {!authenticated ? (
-                  <a href="#/login" className="button button--primary">
-                    Đăng nhập để đăng ký học
-                  </a>
-                ) : enrollmentStatus === 'ACTIVE' ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span className="status-badge status-badge--success" style={{ padding: '6px 12px' }}>
-                      ✓ Đang theo học
-                    </span>
-                    <button
-                      type="button"
-                      className="button button--ghost button--small text-danger"
-                      onClick={() => setConfirmCancelEnrollment(true)}
-                      disabled={busy}
-                      title="Huỷ đăng ký khoá học này (UC-E02)"
-                    >
-                      Huỷ đăng ký
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="button button--primary"
-                    onClick={handleEnroll}
-                    disabled={enrolling || course.status !== 'PUBLISHED' || busy}
-                    title="Đăng ký khoá học này (UC-E01)"
-                  >
-                    {enrolling ? 'Đang đăng ký…' : course.status === 'PUBLISHED' ? 'Đăng ký khoá học' : 'Khoá học chưa mở'}
-                  </button>
-                )}
-              </>
+            {!canManage && !authenticated && (
+              <button type="button" className="button button--primary" onClick={() => login(`#/courses/${course.id}`)}>
+                ＋ Tham gia khoá học
+              </button>
+            )}
+            {!canManage && authenticated && enrolled === false && course.status === 'PUBLISHED' && (
+              <button type="button" className="button button--primary" onClick={joinCourse} disabled={joining}>
+                {joining ? 'Đang đăng ký…' : '＋ Tham gia khoá học'}
+              </button>
+            )}
+            {!canManage && authenticated && enrolled === true && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="badge badge--joined">✓ Đã tham gia khoá học</span>
+                <button
+                  type="button"
+                  className="button button--ghost button--small text-danger"
+                  onClick={() => setConfirmCancelEnrollment(true)}
+                  disabled={busy}
+                  title="Huỷ đăng ký khoá học này (UC-E02)"
+                >
+                  Huỷ đăng ký
+                </button>
+              </div>
+            )}
+            {!canManage && authenticated && enrolled === false && course.status !== 'PUBLISHED' && (
+              <span className="muted small">Khoá học chưa mở đăng ký.</span>
             )}
           </div>
         </div>
       </section>
 
-      {canManage && (
+    { canManage && (
       <section className="workflow" aria-label="Trạng thái khoá học">
         <div>
           <h2>Quy trình xuất bản</h2>
@@ -484,13 +485,12 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
             <button
               key={target}
               type="button"
-              className={`button ${
-                target === 'PUBLISHED'
+              className={`button ${target === 'PUBLISHED'
                   ? 'button--primary'
                   : target === 'ARCHIVED'
                     ? 'button--danger-ghost'
                     : 'button--ghost'
-              }`}
+                }`}
               onClick={() => changeStatus(target)}
               disabled={busy}
             >
@@ -499,252 +499,261 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
           ))}
         </div>
       </section>
-      )}
+    )
+}
 
-      {!editable && canManage && (
-        <div className="alert alert--warning" role="note">
-          Khoá học đang lưu trữ nên chỉ xem được. Bấm <strong>Khôi phục</strong> để chỉnh sửa tiếp.
-        </div>
-      )}
-      {canManage && editable && missingQuiz.length > 0 && (
-        <div className="alert alert--warning" role="note">
-          {missingQuiz.length} bài học loại Quiz chưa có quiz:{' '}
-          {missingQuiz.map((lesson) => lesson.title).join(', ')}.{' '}
-          <a href={`#/quizzes?lessonId=${missingQuiz[0].id}`}>Tạo quiz cho “{missingQuiz[0].title}” →</a>
-        </div>
-      )}
+{
+  !editable && canManage && (
+    <div className="alert alert--warning" role="note">
+      Khoá học đang lưu trữ nên chỉ xem được. Bấm <strong>Khôi phục</strong> để chỉnh sửa tiếp.
+    </div>
+  )
+}
+{
+  canManage && editable && missingQuiz.length > 0 && (
+    <div className="alert alert--warning" role="note">
+      {missingQuiz.length} bài học loại Quiz chưa có quiz:{' '}
+      {missingQuiz.map((lesson) => lesson.title).join(', ')}.{' '}
+      <a href={`#/quizzes?lessonId=${missingQuiz[0].id}`}>Tạo quiz cho “{missingQuiz[0].title}” →</a>
+    </div>
+  )
+}
 
-      <section className="curriculum">
-        <header className="curriculum__header">
-          <h2>Nội dung khoá học</h2>
+<section className="curriculum">
+  <header className="curriculum__header">
+    <h2>Nội dung khoá học</h2>
+    {editable && (
+      <button type="button" className="button button--primary" onClick={addSection} disabled={busy}>
+        + Thêm chương
+      </button>
+    )}
+  </header>
+
+  {course.sections.length === 0 ? (
+    <div className="state-card state-card--compact">
+      <p>Chưa có chương nào. Thêm chương đầu tiên để bắt đầu xây dựng nội dung.</p>
+    </div>
+  ) : (
+    course.sections.map((section, sectionIndex) => (
+      <article className="section-card" key={section.id}>
+        <header className="section-card__header">
+          <div className="section-card__title">
+            <span className="section-card__index">Chương {section.position}</span>
+            <h3>{section.title}</h3>
+            {section.description && <p className="muted small">{section.description}</p>}
+          </div>
           {editable && (
-            <button type="button" className="button button--primary" onClick={addSection} disabled={busy}>
-              + Thêm chương
-            </button>
+            <div className="row-actions">
+              <button type="button" className="icon-button icon-button--neutral" aria-label="Chuyển chương lên"
+                title="Lên" onClick={() => moveSection(sectionIndex, -1)} disabled={busy || sectionIndex === 0}>
+                ↑
+              </button>
+              <button type="button" className="icon-button icon-button--neutral" aria-label="Chuyển chương xuống"
+                title="Xuống" onClick={() => moveSection(sectionIndex, 1)}
+                disabled={busy || sectionIndex === course.sections.length - 1}>
+                ↓
+              </button>
+              <button type="button" className="icon-button icon-button--neutral" aria-label="Sửa chương"
+                title="Sửa" onClick={() => editSection(section)} disabled={busy}>
+                ✎
+              </button>
+              <button type="button" className="icon-button" aria-label="Xoá chương" title="Xoá"
+                onClick={() => deleteSection(section)} disabled={busy}>
+                🗑
+              </button>
+            </div>
           )}
         </header>
 
-        {course.sections.length === 0 ? (
-          <div className="state-card state-card--compact">
-            <p>Chưa có chương nào. Thêm chương đầu tiên để bắt đầu xây dựng nội dung.</p>
-          </div>
-        ) : (
-          course.sections.map((section, sectionIndex) => (
-            <article className="section-card" key={section.id}>
-              <header className="section-card__header">
-                <div className="section-card__title">
-                  <span className="section-card__index">Chương {section.position}</span>
-                  <h3>{section.title}</h3>
-                  {section.description && <p className="muted small">{section.description}</p>}
-                </div>
-                {editable && (
-                  <div className="row-actions">
-                    <button type="button" className="icon-button icon-button--neutral" aria-label="Chuyển chương lên"
-                      title="Lên" onClick={() => moveSection(sectionIndex, -1)} disabled={busy || sectionIndex === 0}>
-                      ↑
-                    </button>
-                    <button type="button" className="icon-button icon-button--neutral" aria-label="Chuyển chương xuống"
-                      title="Xuống" onClick={() => moveSection(sectionIndex, 1)}
-                      disabled={busy || sectionIndex === course.sections.length - 1}>
-                      ↓
-                    </button>
-                    <button type="button" className="icon-button icon-button--neutral" aria-label="Sửa chương"
-                      title="Sửa" onClick={() => editSection(section)} disabled={busy}>
-                      ✎
-                    </button>
-                    <button type="button" className="icon-button" aria-label="Xoá chương" title="Xoá"
-                      onClick={() => deleteSection(section)} disabled={busy}>
-                      🗑
-                    </button>
+        <ol className="lesson-list">
+          {section.lessons.map((lesson, lessonIndex) => {
+            const meta = lessonTypeMeta(lesson.type)
+            const isOpen = expanded.has(lesson.id)
+            return (
+              <li className="lesson" key={lesson.id}>
+                <div className="lesson__row">
+                  <span className={`lesson__icon lesson__icon--${lesson.type.toLowerCase()}`} aria-hidden="true">
+                    {meta.icon}
+                  </span>
+                  <div className="lesson__main">
+                    <span className="lesson__title">
+                      {lesson.position}. {lesson.title}
+                    </span>
+                    <span className="lesson__tags">
+                      <span className="tag">{meta.label}</span>
+                      {lesson.preview && <span className="tag tag--info">Xem thử</span>}
+                      {lesson.type === 'QUIZ' &&
+                        (lesson.quizId ? (
+                          canManage ? (
+                            <a
+                              className="tag tag--success tag--link"
+                              href={`#/quizzes?quizId=${lesson.quizId}`}
+                              title="Sửa quiz của bài học này"
+                            >
+                              Đã có quiz · Sửa →
+                            </a>
+                          ) : (
+                            <a
+                              className="tag tag--success tag--link"
+                              href={`#/quiz-attempt?quizId=${lesson.quizId}&courseId=${course.id}`}
+                              title="Làm bài quiz này"
+                            >
+                              Đã có quiz · Làm bài →
+                            </a>
+                          )
+                        ) : canManage ? (
+                          <a
+                            className="tag tag--warning tag--link"
+                            href={`#/quizzes?lessonId=${lesson.id}`}
+                            title="Tạo quiz cho bài học này"
+                          >
+                            Chưa có quiz · Tạo →
+                          </a>
+                        ) : (
+                          <span className="tag">Chưa có quiz</span>
+                        ))}
+                      <button type="button" className="tag tag--button" onClick={() => toggle(lesson.id)}
+                        aria-expanded={isOpen}>
+                        {lesson.materials.length} học liệu {isOpen ? '▴' : '▾'}
+                      </button>
+                    </span>
                   </div>
-                )}
-              </header>
+                  {editable && (
+                    <div className="row-actions">
+                      <button type="button" className="icon-button icon-button--neutral icon-button--small"
+                        aria-label="Chuyển bài học lên" title="Lên"
+                        onClick={() => moveLesson(section, lessonIndex, -1)} disabled={busy || lessonIndex === 0}>
+                        ↑
+                      </button>
+                      <button type="button" className="icon-button icon-button--neutral icon-button--small"
+                        aria-label="Chuyển bài học xuống" title="Xuống"
+                        onClick={() => moveLesson(section, lessonIndex, 1)}
+                        disabled={busy || lessonIndex === section.lessons.length - 1}>
+                        ↓
+                      </button>
+                      <button type="button" className="icon-button icon-button--neutral icon-button--small"
+                        aria-label="Sửa bài học" title="Sửa" onClick={() => editLesson(lesson)} disabled={busy}>
+                        ✎
+                      </button>
+                      <button type="button" className="icon-button icon-button--small" aria-label="Xoá bài học"
+                        title="Xoá" onClick={() => deleteLesson(lesson)} disabled={busy}>
+                        🗑
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              <ol className="lesson-list">
-                {section.lessons.map((lesson, lessonIndex) => {
-                  const meta = lessonTypeMeta(lesson.type)
-                  const isOpen = expanded.has(lesson.id)
-                  return (
-                    <li className="lesson" key={lesson.id}>
-                      <div className="lesson__row">
-                        <span className={`lesson__icon lesson__icon--${lesson.type.toLowerCase()}`} aria-hidden="true">
-                          {meta.icon}
-                        </span>
-                        <div className="lesson__main">
-                          <span className="lesson__title">
-                            {lesson.position}. {lesson.title}
-                          </span>
-                          <span className="lesson__tags">
-                            <span className="tag">{meta.label}</span>
-                            {lesson.preview && <span className="tag tag--info">Xem thử</span>}
-                            {lesson.type === 'QUIZ' &&
-                              (lesson.quizId ? (
-                                canManage ? (
-                                  <a
-                                    className="tag tag--success tag--link"
-                                    href={`#/quizzes?quizId=${lesson.quizId}`}
-                                    title="Sửa quiz của bài học này"
-                                  >
-                                    Đã có quiz · Sửa →
-                                  </a>
-                                ) : (
-                                  <a
-                                    className="tag tag--success tag--link"
-                                    href={`#/quiz-attempt?quizId=${lesson.quizId}&courseId=${course.id}`}
-                                    title="Làm bài quiz này"
-                                  >
-                                    Đã có quiz · Làm bài →
-                                  </a>
-                                )
-                              ) : canManage ? (
-                                <a
-                                  className="tag tag--warning tag--link"
-                                  href={`#/quizzes?lessonId=${lesson.id}`}
-                                  title="Tạo quiz cho bài học này"
-                                >
-                                  Chưa có quiz · Tạo →
+                {isOpen && (
+                  <div className="materials">
+                    {lesson.materials.length === 0 ? (
+                      <p className="muted small">Chưa có học liệu.</p>
+                    ) : (
+                      <ul>
+                        {lesson.materials.map((material) => {
+                          const canPlay = material.url && material.type === 'VIDEO' && material.uploaded
+                          const playing = playingId === material.id
+                          return (
+                            <li className="material" key={material.id}>
+                              <span className="tag">
+                                {MATERIAL_TYPES.find((type) => type.value === material.type)?.label ?? material.type}
+                              </span>
+                              {material.uploaded && <span className="tag tag--info" title="File lưu trên MinIO">MinIO</span>}
+                              {material.url ? (
+                                <a href={material.url} target="_blank" rel="noreferrer" className="material__name">
+                                  {material.name}
                                 </a>
                               ) : (
-                                <span className="tag">Chưa có quiz</span>
-                              ))}
-                            <button type="button" className="tag tag--button" onClick={() => toggle(lesson.id)}
-                              aria-expanded={isOpen}>
-                              {lesson.materials.length} học liệu {isOpen ? '▴' : '▾'}
-                            </button>
-                          </span>
-                        </div>
-                        {editable && (
-                          <div className="row-actions">
-                            <button type="button" className="icon-button icon-button--neutral icon-button--small"
-                              aria-label="Chuyển bài học lên" title="Lên"
-                              onClick={() => moveLesson(section, lessonIndex, -1)} disabled={busy || lessonIndex === 0}>
-                              ↑
-                            </button>
-                            <button type="button" className="icon-button icon-button--neutral icon-button--small"
-                              aria-label="Chuyển bài học xuống" title="Xuống"
-                              onClick={() => moveLesson(section, lessonIndex, 1)}
-                              disabled={busy || lessonIndex === section.lessons.length - 1}>
-                              ↓
-                            </button>
-                            <button type="button" className="icon-button icon-button--neutral icon-button--small"
-                              aria-label="Sửa bài học" title="Sửa" onClick={() => editLesson(lesson)} disabled={busy}>
-                              ✎
-                            </button>
-                            <button type="button" className="icon-button icon-button--small" aria-label="Xoá bài học"
-                              title="Xoá" onClick={() => deleteLesson(lesson)} disabled={busy}>
-                              🗑
-                            </button>
-                          </div>
-                        )}
+                                <span className="material__name" title="Không tạo được link xem file (MinIO chưa chạy?)">
+                                  {material.name} ⚠
+                                </span>
+                              )}
+                              <span className="muted small">
+                                {[formatBytes(material.fileSize), material.mimeType].filter(Boolean).join(' · ')}
+                              </span>
+                              {canPlay && (
+                                <button type="button" className="tag tag--button" aria-expanded={playing}
+                                  onClick={() => setPlayingId(playing ? null : material.id)}>
+                                  {playing ? '■ Đóng' : '▶ Xem'}
+                                </button>
+                              )}
+                              {editable && (
+                                <span className="row-actions">
+                                  <button type="button" className="icon-button icon-button--neutral icon-button--small"
+                                    aria-label="Sửa học liệu" onClick={() => editMaterial(material)} disabled={busy}>
+                                    ✎
+                                  </button>
+                                  <button type="button" className="icon-button icon-button--small"
+                                    aria-label="Xoá học liệu" onClick={() => deleteMaterial(material)} disabled={busy}>
+                                    🗑
+                                  </button>
+                                </span>
+                              )}
+                              {playing && (
+                                <video className="material__player" src={material.url} controls autoPlay preload="metadata">
+                                  Trình duyệt không phát được video này.
+                                </video>
+                              )}
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                    {editable && (
+                      <div className="materials__actions">
+                        <button type="button" className="button button--primary button--small"
+                          onClick={() => uploadMaterial(lesson)} disabled={busy}>
+                          ⬆ Upload video / file
+                        </button>
+                        <button type="button" className="button button--ghost button--small"
+                          onClick={() => addMaterial(lesson)} disabled={busy}>
+                          + Thêm link
+                        </button>
                       </div>
+                    )}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ol>
 
-                      {isOpen && (
-                        <div className="materials">
-                          {lesson.materials.length === 0 ? (
-                            <p className="muted small">Chưa có học liệu.</p>
-                          ) : (
-                            <ul>
-                              {lesson.materials.map((material) => {
-                                const canPlay = material.url && material.type === 'VIDEO' && material.uploaded
-                                const playing = playingId === material.id
-                                return (
-                                <li className="material" key={material.id}>
-                                  <span className="tag">
-                                    {MATERIAL_TYPES.find((type) => type.value === material.type)?.label ?? material.type}
-                                  </span>
-                                  {material.uploaded && <span className="tag tag--info" title="File lưu trên MinIO">MinIO</span>}
-                                  {material.url ? (
-                                    <a href={material.url} target="_blank" rel="noreferrer" className="material__name">
-                                      {material.name}
-                                    </a>
-                                  ) : (
-                                    <span className="material__name" title="Không tạo được link xem file (MinIO chưa chạy?)">
-                                      {material.name} ⚠
-                                    </span>
-                                  )}
-                                  <span className="muted small">
-                                    {[formatBytes(material.fileSize), material.mimeType].filter(Boolean).join(' · ')}
-                                  </span>
-                                  {canPlay && (
-                                    <button type="button" className="tag tag--button" aria-expanded={playing}
-                                      onClick={() => setPlayingId(playing ? null : material.id)}>
-                                      {playing ? '■ Đóng' : '▶ Xem'}
-                                    </button>
-                                  )}
-                                  {editable && (
-                                    <span className="row-actions">
-                                      <button type="button" className="icon-button icon-button--neutral icon-button--small"
-                                        aria-label="Sửa học liệu" onClick={() => editMaterial(material)} disabled={busy}>
-                                        ✎
-                                      </button>
-                                      <button type="button" className="icon-button icon-button--small"
-                                        aria-label="Xoá học liệu" onClick={() => deleteMaterial(material)} disabled={busy}>
-                                        🗑
-                                      </button>
-                                    </span>
-                                  )}
-                                  {playing && (
-                                    <video className="material__player" src={material.url} controls autoPlay preload="metadata">
-                                      Trình duyệt không phát được video này.
-                                    </video>
-                                  )}
-                                </li>
-                                )
-                              })}
-                            </ul>
-                          )}
-                          {editable && (
-                            <div className="materials__actions">
-                              <button type="button" className="button button--primary button--small"
-                                onClick={() => uploadMaterial(lesson)} disabled={busy}>
-                                ⬆ Upload video / file
-                              </button>
-                              <button type="button" className="button button--ghost button--small"
-                                onClick={() => addMaterial(lesson)} disabled={busy}>
-                                + Thêm link
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ol>
+        {section.lessons.length === 0 && <p className="muted small section-card__empty">Chương chưa có bài học.</p>}
 
-              {section.lessons.length === 0 && <p className="muted small section-card__empty">Chương chưa có bài học.</p>}
-
-              {editable && (
-                <button type="button" className="button button--ghost button--small section-card__add"
-                  onClick={() => addLesson(section)} disabled={busy}>
-                  + Thêm bài học
-                </button>
-              )}
-            </article>
-          ))
+        {editable && (
+          <button type="button" className="button button--ghost button--small section-card__add"
+            onClick={() => addLesson(section)} disabled={busy}>
+            + Thêm bài học
+          </button>
         )}
-      </section>
+      </article>
+    ))
+  )}
+</section>
 
-      {showStudentsModal && (
-        <CourseStudentsModal
-          courseId={course.id}
-          courseTitle={course.title}
-          isAdmin={isAdmin}
-          onClose={() => setShowStudentsModal(false)}
-          notify={notify}
-        />
-      )}
+{
+  showStudentsModal && (
+    <CourseStudentsModal
+      courseId={course.id}
+      courseTitle={course.title}
+      isAdmin={isAdmin}
+      onClose={() => setShowStudentsModal(false)}
+      notify={notify}
+    />
+  )
+}
 
-      {confirmCancelEnrollment && (
-        <ConfirmDialog
-          title="Huỷ đăng ký khoá học?"
-          message={`Bạn có chắc muốn huỷ đăng ký khoá học "${course.title}"? Tiến độ học tập và bài quiz của bạn sẽ được lưu trữ an toàn.`}
-          confirmLabel="Huỷ đăng ký"
-          danger={true}
-          onConfirm={handleCancelEnroll}
-          onCancel={() => setConfirmCancelEnrollment(false)}
-        />
-      )}
-    </div>
+{
+  confirmCancelEnrollment && (
+    <ConfirmDialog
+      title="Huỷ đăng ký khoá học?"
+      message={`Bạn có chắc muốn huỷ đăng ký khoá học "${course.title}"? Tiến độ học tập và bài quiz của bạn sẽ được lưu trữ an toàn.`}
+      confirmLabel="Huỷ đăng ký"
+      danger={true}
+      onConfirm={handleCancelEnroll}
+      onCancel={() => setConfirmCancelEnrollment(false)}
+    />
+  )
+}
+    </div >
   )
 }

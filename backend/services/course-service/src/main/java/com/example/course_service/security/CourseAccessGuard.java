@@ -58,4 +58,20 @@ public class CourseAccessGuard {
 					"Mã giảng viên phải là tài khoản đang đăng nhập (hoặc dùng tài khoản quản trị)");
 		}
 	}
+
+	/**
+	 * Khoá học ở trạng thái Bản nháp chỉ dành cho người soạn (Admin, hoặc giảng viên phụ trách).
+	 * Học viên đã đăng nhập nhưng không phải chủ khoá học thì không thấy khoá nháp.
+	 * Chưa xác thực (khách, hoặc test tắt filter) thì giữ nguyên hành vi catalog công khai.
+	 */
+	public boolean canSeeDraft(Course course) {
+		if (currentUser.isAdmin()) {
+			return true;
+		}
+		var me = currentUser.id();
+		if (me.isEmpty()) {
+			return true;
+		}
+		return currentUser.isInstructor() && me.get().equals(course.getInstructorId());
+	}
 }

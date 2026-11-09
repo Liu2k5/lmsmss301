@@ -104,6 +104,7 @@ public class CourseServiceImpl implements CourseService {
 		Map<UUID, Long> lessonCounts = toMap(lessonRepository.countByCourse());
 
 		return courseRepository.search(pattern, status, instructorId).stream()
+				.filter(course -> course.getStatus() != CourseStatus.DRAFT || courseAccessGuard.canSeeDraft(course))
 				.map(course -> new CourseSummaryResponse(
 						course.getId(), course.getInstructorId(), course.getTitle(), course.getDescription(),
 						viewUrl(course.getThumbnailUrl()), course.getStatus(),
@@ -115,7 +116,12 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	public CourseDetailResponse getDetail(UUID id) {
-		return toDetail(requireCourse(id));
+		Course course = requireCourse(id);
+		// Khoá học nháp không hiện với học viên: coi như không tồn tại để không lộ nội dung đang soạn.
+		if (course.getStatus() == CourseStatus.DRAFT && !courseAccessGuard.canSeeDraft(course)) {
+			throw new ResourceNotFoundException("Không tìm thấy khoá học id=" + id);
+		}
+		return toDetail(course);
 	}
 
 	@Override

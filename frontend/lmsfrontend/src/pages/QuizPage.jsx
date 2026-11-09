@@ -398,7 +398,6 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
           {quizzes.map((quiz) => (
             <article className="quiz-card" key={quiz.id}>
               <header className="quiz-card__header">
-                <span className="badge">Quiz #{quiz.id}</span>
                 <span className="quiz-card__score">
                   {Number(quiz.passingScore)}% để đạt
                   {quiz.maxAttempts ? ` · tối đa ${quiz.maxAttempts} lần` : ' · không giới hạn lượt'}
