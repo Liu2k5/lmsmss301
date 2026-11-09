@@ -79,7 +79,8 @@ Giảng viên chỉ sửa được quiz thuộc khoá học có `instructorId` t
 { "status": 403, "message": "Chỉ giảng viên phụ trách khoá học mới được sửa quiz của khoá học này", "details": [] }
 ```
 
-Catalog (khoá học, chương, bài học, học liệu) vẫn công khai như trước — chỉ quiz bị hạn chế.
+`GET` catalog (khoá học, chương, bài học, học liệu) vẫn công khai; mọi API **ghi** của catalog cũng đã được
+hạn chế giống quiz — xem ma trận ở [course-management-api.md](course-management-api.md#30-phân-quyền-uc-c01c13).
 
 ### 3.1. Quiz
 

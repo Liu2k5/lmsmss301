@@ -24,7 +24,9 @@ import com.example.course_service.security.KeycloakRoleConverter;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * Catalog (khoá học / chương / bài học / học liệu) vẫn công khai để khách xem.
+ * Đọc catalog (khoá học / chương / bài học / học liệu) vẫn công khai để khách xem;
+ * mọi thao tác ghi nội dung (UC-C01…C13) chỉ dành cho INSTRUCTOR và ADMIN (kèm kiểm tra
+ * giảng viên sở hữu khoá học ở tầng service).
  * Riêng quiz bị hạn chế theo bảng use case UC-C14…C19:
  * <ul>
  *   <li>Tạo / sửa / xoá quiz, câu hỏi, nhân bản, sắp xếp: chỉ INSTRUCTOR và ADMIN</li>
@@ -54,6 +56,21 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+						// Soạn nội dung khoá học (UC-C01…C13): chỉ giảng viên/admin.
+						.requestMatchers(HttpMethod.POST,
+								"/api/v1/courses/**", "/api/v1/sections/**", "/api/v1/lessons/**",
+								"/api/v1/materials/**")
+						.hasAnyRole("INSTRUCTOR", "ADMIN")
+						.requestMatchers(HttpMethod.PUT,
+								"/api/v1/courses/**", "/api/v1/sections/**", "/api/v1/lessons/**",
+								"/api/v1/materials/**")
+						.hasAnyRole("INSTRUCTOR", "ADMIN")
+						.requestMatchers(HttpMethod.PATCH, "/api/v1/courses/**")
+						.hasAnyRole("INSTRUCTOR", "ADMIN")
+						.requestMatchers(HttpMethod.DELETE,
+								"/api/v1/courses/**", "/api/v1/sections/**", "/api/v1/lessons/**",
+								"/api/v1/materials/**")
+						.hasAnyRole("INSTRUCTOR", "ADMIN")
 						// Sửa nội dung quiz (UC-C14…C19): chỉ giảng viên soạn được quiz.
 						.requestMatchers(HttpMethod.POST, "/api/v1/quizzes/**").hasAnyRole("INSTRUCTOR", "ADMIN")
 						.requestMatchers(HttpMethod.PUT, "/api/v1/quizzes/**").hasAnyRole("INSTRUCTOR", "ADMIN")

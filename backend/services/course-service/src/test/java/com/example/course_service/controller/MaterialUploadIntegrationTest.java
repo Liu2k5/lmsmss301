@@ -46,7 +46,7 @@ import tools.jackson.databind.ObjectMapper;
  * Không dùng @Transactional vì việc xoá file chạy sau khi transaction commit.
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false) // test nghiệp vụ: bỏ qua xác thực, phần quyền có test riêng
 class MaterialUploadIntegrationTest {
 
 	private static final String OBJECT_KEY = "courses/1/lessons/1/abc-bai-giang.mp4";

@@ -4,6 +4,7 @@ import { AuthContext } from './AuthContext.js'
 import { setQuizTokenProvider } from '../api/quizApi.js'
 import { setProgressTokenProvider } from '../api/progressApi.js'
 import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
+import { setCourseTokenProvider } from '../api/courseApi.js'
 
 const keycloak = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
@@ -139,6 +140,20 @@ export function AuthProvider({ children }) {
       return keycloak.token ?? null
     })
     return () => setEnrollmentTokenProvider(null)
+  }, [ready, authenticated])
+
+  // courseApi (soạn nội dung khoá học - UC-C01…C13) cần JWT cho các thao tác ghi.
+  useEffect(() => {
+    setCourseTokenProvider(async () => {
+      if (!keycloak.authenticated) return null
+      try {
+        await keycloak.updateToken(30)
+      } catch {
+        return null
+      }
+      return keycloak.token ?? null
+    })
+    return () => setCourseTokenProvider(null)
   }, [ready, authenticated])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

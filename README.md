@@ -87,8 +87,9 @@ Chi tiết quiz: [docs/quiz-crud-api.md](docs/quiz-crud-api.md) · Khoá học: 
 
 ```bash
 cd backend
-mvn -f services/course-service/pom.xml test        # 57 test
-mvn -f services/enrollment-service/pom.xml test    # 59 test
+mvn -f services/course-service/pom.xml test        # 70 test
+mvn -f services/enrollment-service/pom.xml test    # 60 test
+mvn -f services/progress-service/pom.xml test      # 10 test
 mvn -f services/review-rating-service/pom.xml test # 18 test
 mvn -f services/user-service/pom.xml test          # 4 test
 mvn test                                           # toàn bộ 7 module
@@ -100,6 +101,10 @@ mvn test                                           # toàn bộ 7 module
   `courseId`, `lessonId`, `studentId`). `studentId`/`instructorId` khớp `sub` trong JWT.
 - **Role đồng bộ với Keycloak**: realm dùng `student` / `instructor` / `admin`; user-service ánh xạ sang
   `STUDENT` / `INSTRUCTOR` / `ADMINISTRATOR` cho `@PreAuthorize`.
+- **Quyền ghi nội dung khoá học**: Course Service đọc catalog công khai, nhưng mọi API ghi (`POST`/`PUT`/
+  `PATCH`/`DELETE` khoá học, chương, bài học, học liệu, quiz) chỉ cho `instructor`/`admin`; giảng viên chỉ
+  thao tác trên khoá học mình phụ trách (`instructorId` = `sub` trong JWT). Học viên nhận `403`, không có
+  token nhận `401` — chi tiết ở [docs/course-management-api.md](docs/course-management-api.md).
 - **Enroll tự tạo tiến độ**: `POST /api/v1/enrollments` phát event `student.enrolled` (RabbitMQ) sau khi
   transaction commit; Progress Service tạo `course_progress` + `lesson_progress` từ curriculum đã xuất bản.
   Khoá chưa xuất bản thì chưa tạo tiến độ (không có bài học để theo dõi).

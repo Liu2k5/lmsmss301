@@ -51,6 +51,7 @@ import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.MaterialRepository;
 import com.example.course_service.repository.QuizRepository;
 import com.example.course_service.repository.SectionRepository;
+import com.example.course_service.security.CourseAccessGuard;
 import com.example.course_service.service.CourseService;
 import com.example.course_service.service.StorageService;
 
@@ -81,6 +82,7 @@ public class CourseServiceImpl implements CourseService {
 	private final MaterialRepository materialRepository;
 	private final QuizRepository quizRepository;
 	private final StorageService storageService;
+	private final CourseAccessGuard courseAccessGuard;
 	private final PlatformTransactionManager transactionManager;
 
 	private static final Logger log = LoggerFactory.getLogger(CourseServiceImpl.class);
@@ -154,6 +156,7 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public CourseDetailResponse create(CourseRequest request) {
+		courseAccessGuard.checkCanAssignInstructor(request.instructorId());
 		Course course = Course.builder()
 				.instructorId(request.instructorId())
 				.title(request.title().trim())
@@ -167,8 +170,9 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public CourseDetailResponse update(UUID id, CourseRequest request) {
-		Course course = requireCourse(id);
+		Course course = requireManageableCourse(id);
 		ensureEditable(course);
+		courseAccessGuard.checkCanAssignInstructor(request.instructorId());
 		course.setInstructorId(request.instructorId());
 		course.setTitle(request.title().trim());
 		course.setDescription(trimToNull(request.description()));
@@ -195,7 +199,7 @@ public class CourseServiceImpl implements CourseService {
 		if (file.getSize() > MAX_THUMBNAIL_BYTES) {
 			throw new BusinessRuleException("Ảnh bìa tối đa 5 MB");
 		}
-		readTransaction().executeWithoutResult(status -> ensureEditable(requireCourse(id)));
+		readTransaction().executeWithoutResult(status -> ensureEditable(requireManageableCourse(id)));
 
 		StorageService.StoredFile stored = storageService.upload("courses/" + id + "/thumbnail", file);
 
@@ -231,7 +235,7 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public CourseDetailResponse removeThumbnail(UUID id) {
-		Course course = requireCourse(id);
+		Course course = requireManageableCourse(id);
 		ensureEditable(course);
 		replaceThumbnail(course, null);
 		return toDetail(courseRepository.saveAndFlush(course));
@@ -249,7 +253,7 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public CourseDetailResponse changeStatus(UUID id, CourseStatus target) {
-		Course course = requireCourse(id);
+		Course course = requireManageableCourse(id);
 		CourseStatus current = course.getStatus();
 
 		if (current == target) {
@@ -269,7 +273,7 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public void delete(UUID id) {
-		Course course = requireCourse(id);
+		Course course = requireManageableCourse(id);
 		// Chỉ xoá hẳn khoá học chưa từng xuất bản (bản nháp) hoặc đã lưu trữ.
 		if (course.getStatus() != CourseStatus.DRAFT && course.getStatus() != CourseStatus.ARCHIVED) {
 			throw new ConflictException("Khoá học đang " + course.getStatus()
@@ -287,7 +291,7 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public CourseDetailResponse addSection(UUID courseId, SectionRequest request) {
-		Course course = requireCourse(courseId);
+		Course course = requireManageableCourse(courseId);
 		ensureEditable(course);
 
 		sectionRepository.save(Section.builder()
@@ -325,7 +329,7 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public CourseDetailResponse reorderSections(UUID courseId, List<UUID> orderedIds) {
-		Course course = requireCourse(courseId);
+		Course course = requireManageableCourse(courseId);
 		ensureEditable(course);
 
 		List<Section> sections = sectionRepository.findByCourseIdOrderByPositionAscIdAsc(courseId);
@@ -527,6 +531,13 @@ public class CourseServiceImpl implements CourseService {
 
 	// ============================================================ tìm & kiểm tra
 
+	/** Như {@link #requireCourse} nhưng chặn nếu người gọi không phải giảng viên phụ trách (Admin bỏ qua). */
+	private Course requireManageableCourse(UUID id) {
+		Course course = requireCourse(id);
+		courseAccessGuard.checkCanManage(course);
+		return course;
+	}
+
 	private Course requireCourse(UUID id) {
 		return courseRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khoá học id=" + id));
@@ -535,6 +546,7 @@ public class CourseServiceImpl implements CourseService {
 	private Section requireEditableSection(UUID sectionId) {
 		Section section = sectionRepository.findByIdWithCourse(sectionId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chương id=" + sectionId));
+		courseAccessGuard.checkCanManage(section.getCourse());
 		ensureEditable(section.getCourse());
 		return section;
 	}
@@ -542,6 +554,7 @@ public class CourseServiceImpl implements CourseService {
 	private Lesson requireEditableLesson(UUID lessonId) {
 		Lesson lesson = lessonRepository.findByIdWithContext(lessonId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài học id=" + lessonId));
+		courseAccessGuard.checkCanManage(lesson.getSection().getCourse());
 		ensureEditable(lesson.getSection().getCourse());
 		return lesson;
 	}
@@ -549,6 +562,7 @@ public class CourseServiceImpl implements CourseService {
 	private Material requireEditableMaterial(UUID materialId) {
 		Material material = materialRepository.findByIdWithContext(materialId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy học liệu id=" + materialId));
+		courseAccessGuard.checkCanManage(material.getLesson().getSection().getCourse());
 		ensureEditable(material.getLesson().getSection().getCourse());
 		return material;
 	}

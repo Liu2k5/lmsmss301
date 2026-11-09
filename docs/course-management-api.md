@@ -56,6 +56,25 @@ Response chi tiết có sẵn `allowedTransitions` và `editable` để client t
 Lỗi dùng chung format `ApiError` như phần Quiz (`message`, `details[]` theo field). Gọi sai method trả `405`,
 sai `Content-Type` trả `415` (không còn bị gộp thành `500`).
 
+### 3.0. Phân quyền (UC-C01…C13)
+
+Course Service tự xác thực JWT của Keycloak (`jwk-set-uri`, không gọi discovery lúc khởi động).
+
+| Nhóm API | Ai được gọi |
+|---|---|
+| `GET` `/courses/**`, `/sections/**`, `/lessons/**`, `/materials/**` | công khai (không cần token) |
+| `POST` / `PUT` / `PATCH` / `DELETE` `/courses/**`, `/sections/**`, `/lessons/**`, `/materials/**` | `INSTRUCTOR`, `ADMIN` |
+| Không có token ở API ghi | `401` |
+| Có token nhưng là `STUDENT`, **hoặc** giảng viên không phụ trách khoá học | `403` |
+
+Giảng viên chỉ thao tác trên khoá học có `instructorId` trùng `sub` trong JWT (kiểm tra ở tầng service cho
+từng khoá học / chương / bài học / học liệu), và chỉ được gán `instructorId` là chính mình khi tạo/sửa.
+`ADMIN` bỏ qua kiểm tra sở hữu. Ví dụ `403`:
+
+```json
+{ "status": 403, "message": "Chỉ giảng viên phụ trách khoá học mới được sửa khoá học này", "details": [] }
+```
+
 ### Khoá học
 
 | Method | URL | Body | Trả về |
