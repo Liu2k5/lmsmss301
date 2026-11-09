@@ -89,14 +89,17 @@ mvn -f services/course-service/pom.xml test        # 57 test
 mvn -f services/enrollment-service/pom.xml test    # 59 test
 mvn -f services/review-rating-service/pom.xml test # 18 test
 mvn -f services/user-service/pom.xml test          # 4 test
+mvn test                                           # toàn bộ 7 module
 ```
 
 ## Biết trước khi tích hợp
 
-Các nhánh được phát triển độc lập nên còn **lệch kiểu ID giữa service**:
-
-- `course-service`, `progress-service`: `courseId`, `lessonId`, `studentId` là **Integer**.
-- `enrollment-service`, `review-rating-service`, `user-service`: dùng **UUID** (khớp `sub` trong JWT).
-
-Vì vậy luồng "đăng ký khoá học → ghi tiến độ → đánh giá" qua Gateway hiện chưa nối được end-to-end;
-cần thống nhất kiểu ID (khuyến nghị UUID ở mọi service) trước khi demo trọn luồng học viên.
+- **Mọi service dùng khoá chính `UUID`** (khoá học, chương, bài học, học liệu, quiz, câu hỏi, đáp án,
+  `courseId`, `lessonId`, `studentId`). `studentId`/`instructorId` khớp `sub` trong JWT.
+- **Role đồng bộ với Keycloak**: realm dùng `student` / `instructor` / `admin`; user-service ánh xạ sang
+  `STUDENT` / `INSTRUCTOR` / `ADMINISTRATOR` cho `@PreAuthorize`.
+- **Enroll tự tạo tiến độ**: `POST /api/v1/enrollments` phát event `student.enrolled` (RabbitMQ) sau khi
+  transaction commit; Progress Service tạo `course_progress` + `lesson_progress` từ curriculum đã xuất bản.
+  Khoá chưa xuất bản thì chưa tạo tiến độ (không có bài học để theo dõi).
+- **Email**: chưa cấu hình SMTP nên `POST /api/v1/users/password/forgot` trả `503`
+  (`Email could not be sent`) cho tới khi bổ sung SMTP/MailHog.

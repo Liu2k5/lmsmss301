@@ -14,7 +14,9 @@ import com.example.enrollment_service.web.dto.CheckResponse;
 import com.example.enrollment_service.web.dto.EnrollmentResponse;
 import com.example.enrollment_service.web.exception.ConflictException;
 import com.example.enrollment_service.web.exception.NotFoundException;
+import com.example.enrollment_service.integration.EnrollmentActivatedEvent;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,13 +33,16 @@ public class EnrollmentService {
 	private final EnrollmentRepository enrollments;
 	private final EnrollmentAccessRepository accesses;
 	private final EnrollEventRepository events;
+	private final ApplicationEventPublisher applicationEvents;
 
 	public EnrollmentService(EnrollmentRepository enrollments,
 							 EnrollmentAccessRepository accesses,
-							 EnrollEventRepository events) {
+							 EnrollEventRepository events,
+							 ApplicationEventPublisher applicationEvents) {
 		this.enrollments = enrollments;
 		this.accesses = accesses;
 		this.events = events;
+		this.applicationEvents = applicationEvents;
 	}
 
 	@Transactional
@@ -120,6 +125,9 @@ public class EnrollmentService {
 		enrollments.save(enrollment);
 		recordAccess(enrollment, AccessStatus.GRANTED, now, eventType.name());
 		recordEvent(enrollment, eventType, now);
+		// Chỉ phát sau khi commit, để Progress Service không tạo tiến độ cho giao dịch bị rollback.
+		applicationEvents.publishEvent(
+				new EnrollmentActivatedEvent(enrollment.getId(), studentId, courseId));
 		return EnrollmentResponse.from(enrollment);
 	}
 

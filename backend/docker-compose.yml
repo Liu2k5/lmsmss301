@@ -199,12 +199,21 @@ services:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       EUREKA_URL: http://eureka-server:8761/eureka
+      # Enrollment phát event student.enrolled để Progress Service tạo tiến độ ban đầu.
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      COURSE_SERVICE_URL: http://course-service:8081
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]

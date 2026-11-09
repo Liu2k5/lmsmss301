@@ -37,6 +37,15 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health").permitAll()
 						// Internal endpoint (D7): service-to-service only, never exposed through the gateway.
 						.requestMatchers(HttpMethod.GET, "/api/v1/enrollments/check").denyAll()
+						// Các endpoint công khai, khớp với cấu hình của từng service phía sau.
+						.requestMatchers(HttpMethod.POST, "/api/v1/users/register").permitAll()
+						.requestMatchers(HttpMethod.POST,
+								"/api/v1/users/password/forgot",
+								"/api/v1/users/password/reset").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/v1/universities/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/v1/courses/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/v1/courses/*/reviews/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/v1/courses/*/ratings/**").permitAll()
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter)))
 				.addFilterAfter(userHeaderFilter, BasicAuthenticationFilter.class)

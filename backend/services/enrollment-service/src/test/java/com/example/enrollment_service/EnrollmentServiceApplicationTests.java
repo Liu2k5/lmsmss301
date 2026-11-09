@@ -1,6 +1,7 @@
 package com.example.enrollment_service;
 
 import com.example.enrollment_service.domain.*;
+import com.example.enrollment_service.integration.EnrollmentActivatedEvent;
 import com.example.enrollment_service.repository.*;
 import com.example.enrollment_service.service.EnrollmentService;
 import com.example.enrollment_service.web.dto.EnrollmentResponse;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +31,7 @@ class EnrollmentServiceApplicationTests {
     private EnrollmentRepository enrollments;
     private EnrollmentAccessRepository accesses;
     private EnrollEventRepository events;
+    private ApplicationEventPublisher applicationEvents;
     private EnrollmentService service;
 
     @BeforeEach
@@ -36,7 +39,8 @@ class EnrollmentServiceApplicationTests {
         enrollments = mock(EnrollmentRepository.class);
         accesses = mock(EnrollmentAccessRepository.class);
         events = mock(EnrollEventRepository.class);
-        service = new EnrollmentService(enrollments, accesses, events);
+        applicationEvents = mock(ApplicationEventPublisher.class);
+        service = new EnrollmentService(enrollments, accesses, events, applicationEvents);
     }
 
     private Enrollment existing(Status status) {
@@ -58,6 +62,15 @@ class EnrollmentServiceApplicationTests {
         var captor = ArgumentCaptor.forClass(Enrollment.class);
         verify(enrollments).save(captor.capture());
         return captor.getValue();
+    }
+
+    private void assertActivationPublished(Enrollment e) {
+        var captor = ArgumentCaptor.forClass(EnrollmentActivatedEvent.class);
+        verify(applicationEvents, atLeastOnce()).publishEvent(captor.capture());
+        EnrollmentActivatedEvent published = captor.getValue();
+        assertEquals(e.getId(), published.enrollmentId());
+        assertEquals(student, published.studentId());
+        assertEquals(course, published.courseId());
     }
 
     private void assertAccessAndEvent(Enrollment e, AccessStatus accessStatus, EventType eventType) {
@@ -103,6 +116,15 @@ class EnrollmentServiceApplicationTests {
         assertFalse(e.getCreatedAt().isAfter(after));
         assertEquals(EnrollmentResponse.from(e), response);
         assertAccessAndEvent(e, AccessStatus.GRANTED, EventType.ENROLLED);
+        assertActivationPublished(e);
+    }
+
+    @Test
+    void grantPublishesActivationForProgressService() {
+        Enrollment e = existing(Status.SUSPENDED);
+        service.grant(student, course);
+
+        assertActivationPublished(e);
     }
 
     @Test

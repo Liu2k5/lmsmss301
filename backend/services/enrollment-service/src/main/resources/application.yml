@@ -20,6 +20,16 @@ spring:
     type: redis
     redis:
       time-to-live: 5m
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:lms}
+    password: ${RABBITMQ_PASSWORD:lms}
+    virtual-host: ${RABBITMQ_VHOST:/}
+app:
+  services:
+    course:
+      url: ${COURSE_SERVICE_URL:http://localhost:8081}
 eureka:
   client:
     service-url:
