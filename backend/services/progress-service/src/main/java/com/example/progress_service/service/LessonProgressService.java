@@ -6,6 +6,8 @@ import com.example.progress_service.entity.LessonProgress;
 import com.example.progress_service.repository.CourseProgressRepository;
 import com.example.progress_service.repository.LessonProgressRepository;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,34 @@ public class LessonProgressService {
     private final LessonProgressRepository lessonRepository;
 
     private final ProgressService progressService;
+
+    private final CourseServiceClient courseServiceClient;
+
+    /**
+     * Bài học được thêm vào curriculum sau khi học viên đã đăng ký nên chưa có dòng tiến độ:
+     * tạo mới nếu bài học thuộc curriculum đã xuất bản của khoá (UC-P10 một phần), ngược lại báo 404.
+     */
+    private LessonProgress trackNewLesson(CourseProgress progress, UUID courseId, UUID lessonId) {
+
+        List<UUID> publishedLessonIds = courseServiceClient.fetchPublishedLessonIds(courseId);
+        if (publishedLessonIds == null || !publishedLessonIds.contains(lessonId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Bài học không thuộc khoá học đã xuất bản nên không theo dõi được tiến độ");
+        }
+
+        LessonProgress created = lessonRepository.save(LessonProgress.builder()
+                .courseProgress(progress)
+                .lessonId(lessonId)
+                .completed(false)
+                .watchPosition(0)
+                .videoDuration(0)
+                .includedInCurriculum(true)
+                .build());
+
+        progress.setTotalLessons((progress.getTotalLessons() == null ? 0 : progress.getTotalLessons()) + 1);
+        progressRepository.save(progress);
+        return created;
+    }
 
     /**
      * UC-P02: Đánh dấu lesson hoàn thành thủ công.
@@ -52,8 +82,7 @@ public class LessonProgressService {
                 .findByCourseProgressIdAndLessonId(
                         progress.getId(),
                         lessonId)
-                .orElseThrow(() -> new RuntimeException(
-                        "Lesson progress not found"));
+                .orElseGet(() -> trackNewLesson(progress, courseId, lessonId));
 
         // Chỉ cập nhật nếu lesson chưa hoàn thành
         if (!Boolean.TRUE.equals(lesson.getCompleted())) {

@@ -124,6 +124,11 @@ mvn test                                           # toàn bộ 7 module
 - **Trang `/quizzes` theo vai trò**: giảng viên/admin thấy toàn bộ quiz; **học viên chỉ thấy quiz thuộc các
   khoá học mình đã đăng ký** (lọc theo `GET /enrollments/me`, trạng thái `ACTIVE`) — chưa đăng ký khoá nào thì
   hiện lời nhắc kèm nút “Khám phá khoá học”. Đáp án đúng vẫn chỉ nằm ở API nội bộ, không lộ qua danh sách.
+- **Đánh dấu hoàn thành bài học (UC-P02)**: ở trang chi tiết khoá học, học viên đã đăng ký thấy nút
+  **“✓ Đánh dấu đã hoàn thành”** trên các bài **Video** và **Bài đọc** (Quiz tự hoàn thành khi đạt điểm);
+  đã xong thì nút đổi thành nhãn “✓ Đã hoàn thành” và % khoá học cập nhật ngay. Bài học được thêm vào
+  curriculum *sau khi* học viên đăng ký vẫn đánh dấu được — Progress Service tự tạo dòng tiến độ nếu bài
+  thuộc curriculum đã xuất bản.
 - **Đánh giá khoá học (UC-R01/R02)**: học viên **đã hoàn thành 100%** khoá học thấy nút **“★ Gửi đánh giá”**
   ở trang chi tiết khoá học (mở form 1–5 sao + nhận xét); đã đánh giá rồi thì nút đổi thành **“★ Sửa đánh giá”**
   và form được điền sẵn. Review & Rating Service là nơi kiểm tra điều kiện (`app.review.require-completed-course`,

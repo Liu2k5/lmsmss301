@@ -44,6 +44,9 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
   const [reviewOpen, setReviewOpen] = useState(false)
   const [existingReview, setExistingReview] = useState(null)
   const [loadingReview, setLoadingReview] = useState(false)
+  // UC-P02: tiến độ học của học viên trong khoá (để biết bài nào đã hoàn thành).
+  const [courseProgress, setCourseProgress] = useState(null)
+  const [completingId, setCompletingId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -80,32 +83,52 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     }
   }, [authenticated, canManage, courseId])
 
-  // Học viên: kiểm tra đã hoàn thành khoá học chưa để bật nút gửi đánh giá (UC-R01).
-  useEffect(() => {
-    if (!authenticated || canManage || !enrolled || !user?.id) {
-      return undefined
+  /**
+   * Nạp tiến độ học của học viên trong khoá: dùng cho nút "Đánh dấu đã hoàn thành" (UC-P02)
+   * và điều kiện gửi đánh giá (UC-R01 — cần hoàn thành 100%).
+   */
+  const studentId = user?.id ?? null
+  const refreshStudentProgress = useCallback(async () => {
+    if (!authenticated || canManage || !enrolled || !studentId) {
+      return
     }
-    let active = true
-    Promise.all([
-      progressApi.courseProgress(courseId, user.id).catch(() => null),
+    const [progress, eligibility] = await Promise.all([
+      progressApi.courseProgress(courseId, studentId).catch(() => null),
       reviewApi.eligibility(courseId).catch(() => null),
-    ]).then(([progress, eligibility]) => {
-      if (!active) return
-      const percent = Number(progress?.completionPercentage ?? 0)
-      const completed = Boolean(progress) && (percent >= 100 || progress?.status === 'COMPLETED')
-      setReviewState({
-        completed,
-        percent,
-        // Đã đánh giá rồi thì hiện đánh giá hiện tại để sửa (UC-R02).
-        existingReviewId: eligibility?.existingReviewId ?? null,
-        canReview: Boolean(eligibility?.canReview),
-        reason: eligibility?.reason ?? null,
-      })
+    ])
+    setCourseProgress(progress)
+    const percent = Number(progress?.completionPercentage ?? 0)
+    setReviewState({
+      completed: Boolean(progress) && (percent >= 100 || progress?.status === 'COMPLETED'),
+      percent,
+      // Đã đánh giá rồi thì hiện đánh giá hiện tại để sửa (UC-R02).
+      existingReviewId: eligibility?.existingReviewId ?? null,
+      canReview: Boolean(eligibility?.canReview),
+      reason: eligibility?.reason ?? null,
     })
-    return () => {
-      active = false
+  }, [authenticated, canManage, enrolled, courseId, studentId])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tải tiến độ khi mở khoá học
+    refreshStudentProgress()
+  }, [refreshStudentProgress])
+
+  /** UC-P02 — học viên tự đánh dấu bài Video / Bài đọc đã hoàn thành. */
+  async function markLessonCompleted(lesson) {
+    if (!studentId) {
+      return
     }
-  }, [authenticated, canManage, enrolled, courseId, user?.id])
+    setCompletingId(lesson.id)
+    try {
+      await progressApi.markLessonCompleted(courseId, lesson.id, studentId)
+      await refreshStudentProgress()
+      notify('success', `Đã đánh dấu "${lesson.title}" hoàn thành.`)
+    } catch (error) {
+      notify('error', error.message)
+    } finally {
+      setCompletingId(null)
+    }
+  }
 
   /** Mở modal đánh giá; nếu đã có đánh giá thì nạp lại nội dung để điền sẵn (UC-R02). */
   async function openReviewModal() {
@@ -460,6 +483,13 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     })
   }
 
+  // Bài học đã hoàn thành (từ tiến độ của học viên) — dùng cho nhãn "Đã hoàn thành".
+  const completedLessonIds = new Set(
+    (courseProgress?.lessons ?? []).filter((item) => item.completed).map((item) => item.lessonId),
+  )
+  // Video và Bài đọc do học viên tự đánh dấu hoàn thành (UC-P02); Quiz hoàn thành khi đạt điểm.
+  const canSelfComplete = (lesson) => !canManage && enrolled && (lesson.type === 'VIDEO' || lesson.type === 'ARTICLE')
+
   // ------------------------------------------------------------------ view
 
   return (
@@ -654,6 +684,19 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                           <span className="lesson__tags">
                             <span className="tag">{meta.label}</span>
                             {lesson.preview && <span className="tag tag--info">Xem thử</span>}
+                            {canSelfComplete(lesson) &&
+                              (completedLessonIds.has(lesson.id) ? (
+                                <span className="tag tag--success">✓ Đã hoàn thành</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="tag tag--button tag--complete"
+                                  onClick={() => markLessonCompleted(lesson)}
+                                  disabled={completingId === lesson.id}
+                                >
+                                  {completingId === lesson.id ? 'Đang lưu…' : '✓ Đánh dấu đã hoàn thành'}
+                                </button>
+                              ))}
                             {lesson.type === 'QUIZ' &&
                               (lesson.quizId ? (
                                 canManage ? (
