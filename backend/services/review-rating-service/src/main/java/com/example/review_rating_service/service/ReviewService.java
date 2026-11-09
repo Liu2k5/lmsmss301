@@ -47,7 +47,7 @@ public class ReviewService {
     @Value("${app.review.require-completed-course:false}")
     private boolean requireCompletedCourse;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ReviewEligibilityResponse checkEligibility(UUID courseId, UUID studentId) {
         // 1. Kiểm tra học viên đã viết review trước đó chưa
         Optional<Review> existingReview = reviewRepository
@@ -60,7 +60,7 @@ public class ReviewService {
                     .build();
         }
 
-        // 2. Guard: kiểm tra đã ghi danh khóa học chưa (Enrollment Service)
+        // 2. Guard: kiểm tra đã ghi danh khóa học chưa (Enrollment Service qua OpenFeign)
         if (requireEnrollment) {
             Optional<EnrollmentStatusDto> enrollmentOpt = enrollmentClient.checkEnrollment(studentId, courseId);
             if (enrollmentOpt.isEmpty() || !enrollmentOpt.get().isActive()) {
@@ -71,7 +71,7 @@ public class ReviewService {
             }
         }
 
-        // 3. Guard: kiểm tra đã hoàn thành khóa học chưa (Progress Service / Permission)
+        // 3. Guard: kiểm tra đã hoàn thành khóa học chưa (Hybrid: DB cache + Progress Service qua OpenFeign)
         if (requireCompletedCourse) {
             boolean hasPermission = permissionRepository.existsByCourseIdAndStudentId(courseId, studentId);
             if (!hasPermission) {
@@ -81,6 +81,9 @@ public class ReviewService {
                             .canReview(false)
                             .reason("Bạn cần hoàn thành khóa học để có thể gửi đánh giá")
                             .build();
+                } else {
+                    // Tự động lưu cache quyền vào DB cho các lần sau
+                    grantReviewPermission(studentId, courseId);
                 }
             }
         }

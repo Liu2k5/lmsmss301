@@ -15,11 +15,16 @@ import java.util.UUID;
 public class ProgressStatusDto {
     private UUID studentId;
     private UUID courseId;
-    private BigDecimal percentComplete;
+    private BigDecimal completionPercentage;
+    private Integer completedLessons;
+    private Integer totalLessons;
+    private String status;
     private Boolean courseCompleted;
 
     public boolean isCompleted() {
-        return Boolean.TRUE.equals(courseCompleted) ||
-                (percentComplete != null && percentComplete.compareTo(new BigDecimal("100.00")) >= 0);
+        if ("COMPLETED".equalsIgnoreCase(status) || Boolean.TRUE.equals(courseCompleted)) {
+            return true;
+        }
+        return completionPercentage != null && completionPercentage.compareTo(new BigDecimal("100.00")) >= 0;
     }
 }
