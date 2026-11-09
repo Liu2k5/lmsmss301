@@ -341,6 +341,7 @@ Mở file này và dùng **Markdown Preview** (`Ctrl+Shift+V`) — VS Code rende
 | File | Use case |
 |---|---|
 | `drawio/uc-overview.drawio` | **Use case overview** toàn hệ thống — 7 trang: tổng quan nhóm use case, 5 trang theo actor, 7 use case Key Challenge (xem mục 7) |
+| `drawio/uc-overview-by-role.drawio` | **Use case overview theo từng role** — 6 trang: ma trận role × service + 5 trang tổng quan (nhóm use case) cho Guest / Student / Instructor / Admin / System (xem mục 7.2) |
 | `drawio/uc-p04-submit-quiz.drawio` | UC-P04 — Submit quiz & record score (7 participant, 19 message, **mức service**) |
 
 > UC-C30 chưa có bản `.drawio` trong repo (vẫn có bản Mermaid ở mục 3.2 và bản PlantUML/ảnh ở mục 6).
@@ -404,3 +405,32 @@ Quy ước vẽ:
 
 Tổng số cặp *actor–use case* = 96 trên 5 trang actor (một use case có nhiều actor được vẽ nhiều lần, đúng như cột
 `Actor` của bảng tính); số use case duy nhất vẫn là **76**.
+
+### 7.2. Sơ đồ use case tổng quan theo từng role (`uc-overview-by-role.drawio`)
+
+Bản **tổng quan theo role**: các use case được **gộp thành nhóm nghiệp vụ** (thay vì liệt kê từng UC), để trả lời
+nhanh câu hỏi *"role này làm được gì, ở service nào"*. File gồm 6 trang:
+
+| Trang | Nội dung |
+|---|---|
+| 00 | **Ma trận role × service** — mỗi hàng một role, mỗi cột một microservice; ô giao ghi số use case, các nhóm và mã UC (ô vàng = có *Key Challenge*) |
+| 01 | Role **Guest** — 5 UC / 4 nhóm / 3 service |
+| 02 | Role **Student** — 24 UC / 10 nhóm / 5 service |
+| 03 | Role **Instructor** — 37 UC / 13 nhóm / 5 service |
+| 04 | Role **Admin** — 20 UC / 8 nhóm / 4 service |
+| 05 | Role **System** — 10 UC / 6 nhóm / 3 service |
+
+Mỗi trang role gồm: actor ở bên trái, các **system boundary** của những service có use case cho role đó, bên trong là
+các ellipse nhóm nghiệp vụ kèm **số lượng + mã UC thực tế của role**. Ví dụ nhóm *"Xuất bản, ẩn/lưu trữ & danh mục"*
+(Instructor) chỉ hiện `UC-C20, C21, C23, C24` vì `C22 / C25 / C26 / C27` là quyền Admin — số liệu lấy trực tiếp từ cột
+`Actor` của bảng tính nên luôn khớp.
+
+Phân bố use case theo role (một UC có nhiều role nên tổng > 76):
+
+| Role | Course | User | Enrollment | Progress | Review & Rating | Tổng |
+|---|---|---|---|---|---|---|
+| Guest | 2 | 2 | – | – | 1 | **5** |
+| Student | 3 | 9 | 3 | 4 | 5 | **24** |
+| Instructor | 24 | 7 | 1 | 1 | 4 | **37** |
+| Admin | 7 | 9 | 2 | – | 2 | **20** |
+| System | – | – | 2 | 7 | 1 | **10** |
