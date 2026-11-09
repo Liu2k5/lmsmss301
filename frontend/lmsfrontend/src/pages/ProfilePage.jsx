@@ -3,21 +3,25 @@ import { useAuth } from '../auth/AuthContext.js'
 import { userApi } from '../api/userApi.js'
 
 export default function ProfilePage() {
-  const { authenticated, getToken, isAdmin } = useAuth()
+  const { authenticated, getToken, isAdmin, updatePassword, passwordActionStatus } = useAuth()
   const [profile, setProfile] = useState(null)
   const [universities, setUniversities] = useState([])
   const [form, setForm] = useState({ fullname: '', phone: '', universityId: '' })
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  })
   const [requests, setRequests] = useState([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [passwordUpdating, setPasswordUpdating] = useState(false)
   const [requestBusy, setRequestBusy] = useState(false)
+  const passwordActionNotice = passwordActionStatus === 'success'
+    ? 'Mật khẩu đã được cập nhật trên Keycloak.'
+    : passwordActionStatus === 'cancelled'
+      ? 'Bạn đã hủy thao tác đổi mật khẩu.'
+      : ''
+  const passwordActionError = passwordActionStatus === 'error'
+    ? 'Keycloak không thể hoàn tất thao tác đổi mật khẩu. Vui lòng thử lại.'
+    : ''
 
   useEffect(() => {
     if (!authenticated) return
@@ -44,21 +48,12 @@ export default function ProfilePage() {
     return () => { active = false }
   }, [authenticated, getToken])
 
-  async function submitPassword(event) {
-    event.preventDefault()
-    setSaving(true)
+  async function startPasswordUpdate() {
+    setPasswordUpdating(true)
     setError('')
     setNotice('')
-    try {
-      const token = await getToken()
-      const result = await userApi.changePassword(token, passwordForm)
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      setNotice(result.message)
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setSaving(false)
-    }
+    await updatePassword()
+    setPasswordUpdating(false)
   }
 
   async function submitAccountRequest(kind) {
@@ -121,8 +116,12 @@ export default function ProfilePage() {
       </div>
       {loading ? <div className="user-panel">Đang tải hồ sơ…</div> : (
         <section className="user-panel profile-panel">
-          {error && <div className="user-alert user-alert--error" role="alert">{error}</div>}
-          {notice && <div className="user-alert user-alert--success" role="status">{notice}</div>}
+          {(error || passwordActionError) && (
+            <div className="user-alert user-alert--error" role="alert">{error || passwordActionError}</div>
+          )}
+          {(passwordActionNotice || notice) && (
+            <div className="user-alert user-alert--success" role="status">{passwordActionNotice || notice}</div>
+          )}
           {profile && (
             <>
               <div className="profile-summary">
@@ -163,31 +162,13 @@ export default function ProfilePage() {
               <section className="profile-subsection">
                 <span className="eyebrow">BẢO MẬT</span>
                 <h2>Đổi mật khẩu</h2>
-                <form className="user-form" onSubmit={submitPassword}>
-                  <div className="user-form__grid">
-                    <label className="user-field">
-                      <span>Mật khẩu hiện tại *</span>
-                      <input type="password" value={passwordForm.currentPassword}
-                        onChange={(event) => setPasswordForm({ ...passwordForm, currentPassword: event.target.value })}
-                        autoComplete="current-password" required />
-                    </label>
-                    <label className="user-field">
-                      <span>Mật khẩu mới *</span>
-                      <input type="password" value={passwordForm.newPassword}
-                        onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })}
-                        minLength="8" maxLength="72" autoComplete="new-password" required />
-                    </label>
-                    <label className="user-field">
-                      <span>Xác nhận mật khẩu mới *</span>
-                      <input type="password" value={passwordForm.confirmPassword}
-                        onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })}
-                        minLength="8" maxLength="72" autoComplete="new-password" required />
-                    </label>
-                  </div>
-                  <button className="button button--primary" type="submit" disabled={saving}>
-                    {saving ? 'Đang đổi…' : 'Đổi mật khẩu'}
-                  </button>
-                </form>
+                <p className="muted small">
+                  Bạn sẽ được chuyển tới Keycloak để xác thực và cập nhật mật khẩu.
+                </p>
+                <button className="button button--primary" type="button" disabled={passwordUpdating}
+                  onClick={startPasswordUpdate}>
+                  {passwordUpdating ? 'Đang chuyển tới Keycloak…' : 'Đổi mật khẩu'}
+                </button>
               </section>
 
               <section className="profile-subsection">
