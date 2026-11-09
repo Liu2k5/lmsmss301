@@ -92,7 +92,7 @@ public class KeycloakAdminService {
 
         Map<String, Object> role = rest.get()
             .uri(url + "/admin/realms/" + realm
-                + "/roles/" + r.role().name())
+                + "/roles/" + r.role().realmName())
             .header("Authorization", "Bearer " + token)
             .retrieve()
             .body(new ParameterizedTypeReference<>() {});
@@ -236,7 +236,7 @@ public class KeycloakAdminService {
 
     private Map<String, Object> getRealmRole(Role role, String token) {
         return rest.get()
-                .uri(url + "/admin/realms/" + realm + "/roles/" + role.name())
+                .uri(url + "/admin/realms/" + realm + "/roles/" + role.realmName())
                 .header("Authorization", "Bearer " + token)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});

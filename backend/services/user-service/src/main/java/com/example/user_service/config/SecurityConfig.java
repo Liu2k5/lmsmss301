@@ -20,6 +20,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.example.user_service.entity.Role;
+
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -54,7 +56,8 @@ public class SecurityConfig {
         return source;
     }
 
-    // Keycloak để role trong claim realm_access.roles, đổi thành ROLE_STUDENT, ROLE_INSTRUCTOR...
+    // Keycloak để role chữ thường trong claim realm_access.roles (student, instructor, admin),
+    // đổi thành ROLE_STUDENT / ROLE_INSTRUCTOR / ROLE_ADMINISTRATOR để khớp @PreAuthorize.
     private JwtAuthenticationConverter jwtConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
@@ -62,7 +65,10 @@ public class SecurityConfig {
             Map<String, Object> realmAccess = jwt.getClaim("realm_access");
             if (realmAccess != null && realmAccess.get("roles") instanceof Collection<?> roles) {
                 for (Object role : roles) {
-                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+                    Role mapped = Role.fromRealmName(String.valueOf(role));
+                    if (mapped != null) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + mapped.name()));
+                    }
                 }
             }
             return authorities;

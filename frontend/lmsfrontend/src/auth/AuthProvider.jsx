@@ -56,7 +56,9 @@ export function AuthProvider({ children }) {
     ready,
     authenticated,
     authError,
-    isAdmin: Boolean(keycloak.tokenParsed?.realm_access?.roles?.includes('ADMINISTRATOR')),
+    isAdmin: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
+      (role) => role.toUpperCase() === 'ADMIN' || role.toUpperCase() === 'ADMINISTRATOR',
+    )),
     async login() {
       sessionStorage.setItem('postLoginHash', '#/profile')
       try {
