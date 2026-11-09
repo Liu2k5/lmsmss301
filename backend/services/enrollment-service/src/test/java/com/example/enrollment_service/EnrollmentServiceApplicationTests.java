@@ -2,6 +2,7 @@ package com.example.enrollment_service;
 
 import com.example.enrollment_service.domain.*;
 import com.example.enrollment_service.integration.EnrollmentActivatedEvent;
+import com.example.enrollment_service.integration.EnrollmentDeactivatedEvent;
 import com.example.enrollment_service.repository.*;
 import com.example.enrollment_service.service.EnrollmentService;
 import com.example.enrollment_service.web.dto.EnrollmentResponse;
@@ -69,6 +70,15 @@ class EnrollmentServiceApplicationTests {
         verify(applicationEvents, atLeastOnce()).publishEvent(captor.capture());
         EnrollmentActivatedEvent published = captor.getValue();
         assertEquals(e.getId(), published.enrollmentId());
+        assertEquals(student, published.studentId());
+        assertEquals(course, published.courseId());
+    }
+
+    private void assertDeactivationPublished() {
+        var captor = ArgumentCaptor.forClass(EnrollmentDeactivatedEvent.class);
+        verify(applicationEvents, atLeastOnce()).publishEvent(captor.capture());
+        EnrollmentDeactivatedEvent published = captor.getValue();
+        assertNotNull(published.eventId());
         assertEquals(student, published.studentId());
         assertEquals(course, published.courseId());
     }
@@ -163,6 +173,7 @@ class EnrollmentServiceApplicationTests {
         assertNotNull(e.getCancelledAt());
         assertEquals(e.getCancelledAt(), e.getUpdatedAt());
         assertAccessAndEvent(e, AccessStatus.REVOKED, EventType.CANCELLED);
+        assertDeactivationPublished();
     }
 
     @Test
@@ -173,6 +184,7 @@ class EnrollmentServiceApplicationTests {
         assertEquals(Status.CANCELLED, e.getStatus());
         assertFalse(e.isAccessGranted());
         assertAccessAndEvent(e, AccessStatus.REVOKED, EventType.CANCELLED);
+        assertDeactivationPublished();
     }
 
     @Test
@@ -235,6 +247,7 @@ class EnrollmentServiceApplicationTests {
         assertEquals(Status.SUSPENDED, e.getStatus());
         assertFalse(e.isAccessGranted());
         assertAccessAndEvent(e, AccessStatus.REVOKED, EventType.REVOKED);
+        assertDeactivationPublished();
     }
 
     @Test
@@ -365,4 +378,3 @@ class EnrollmentServiceApplicationTests {
         assertSame(failure, assertThrows(IllegalStateException.class, () -> service.enroll(student, course)));
     }
 }
-  

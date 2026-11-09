@@ -3,6 +3,7 @@ import './App.css'
 import './courses.css'
 import './user.css'
 import CoursePage from './pages/CoursePage.jsx'
+import MyCoursesPage from './pages/MyCoursesPage.jsx'
 import QuizPage from './pages/QuizPage.jsx'
 import QuizAttemptPage from './pages/QuizAttemptPage.jsx'
 import HomePage from './pages/HomePage.jsx'
@@ -16,7 +17,7 @@ import { useAuth } from './auth/AuthContext.js'
 
 /**
  * Điều hướng đơn giản bằng hash:
- * #/courses, #/courses/:id, #/quizzes, #/quizzes?quizId=<uuid>, #/quizzes?lessonId=<uuid>
+ * #/courses, #/courses/:id, #/my-courses, #/quizzes, #/quizzes?quizId=<uuid>, #/quizzes?lessonId=<uuid>
  * #/quiz-attempt?quizId=<uuid>&courseId=<uuid>  — học viên làm bài (UC-P04)
  */
 function parseHash(hash) {
@@ -27,6 +28,9 @@ function parseHash(hash) {
   const uuid = (value) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value ?? '') ? value : null
 
+  if (parts[0] === 'my-courses') {
+    return { page: 'my-courses' }
+  }
   if (parts[0] === 'quizzes') {
     return {
       page: 'quizzes',
@@ -60,7 +64,7 @@ function navigate(path) {
 }
 
 export default function App() {
-  const { authenticated, isAdmin, logout } = useAuth()
+  const { authenticated, isAdmin, isStudent, logout } = useAuth()
   const [route, setRoute] = useState(() => parseHash(window.location.hash))
 
   useEffect(() => {
@@ -85,6 +89,12 @@ export default function App() {
             aria-current={route.page === 'courses' ? 'page' : undefined}>
             Khoá học
           </a>
+          {authenticated && isStudent && (
+            <a href="#/my-courses" className={`top-nav__link${route.page === 'my-courses' ? ' is-active' : ''}`}
+              aria-current={route.page === 'my-courses' ? 'page' : undefined}>
+              Khoá học của tôi
+            </a>
+          )}
           <a href="#/quizzes" className={`top-nav__link${route.page === 'quizzes' ? ' is-active' : ''}`}
             aria-current={route.page === 'quizzes' ? 'page' : undefined}>
             Quiz
@@ -123,6 +133,7 @@ export default function App() {
           route.page === 'register' ? <RegisterPage /> :
           route.page === 'forgot-password' ? <ForgotPasswordPage /> :
           route.page === 'profile' ? <ProfilePage /> :
+          route.page === 'my-courses' ? <MyCoursesPage /> :
             route.page === 'admin-users' ? <AdminUsersPage /> :
               route.page === 'admin-requests' ? <AdminRequestsPage /> :
       route.page === 'quiz-attempt' ? (

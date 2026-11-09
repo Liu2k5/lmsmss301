@@ -15,6 +15,7 @@ import com.example.enrollment_service.web.dto.EnrollmentResponse;
 import com.example.enrollment_service.web.exception.ConflictException;
 import com.example.enrollment_service.web.exception.NotFoundException;
 import com.example.enrollment_service.integration.EnrollmentActivatedEvent;
+import com.example.enrollment_service.integration.EnrollmentDeactivatedEvent;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
@@ -71,6 +72,9 @@ public class EnrollmentService {
 		enrollments.save(enrollment);
 		recordAccess(enrollment, AccessStatus.REVOKED, now, "CANCELLED");
 		recordEvent(enrollment, EventType.CANCELLED, now);
+		// Thông báo bất đồng bộ để Progress Service archive tiến độ (UC-P11).
+		applicationEvents.publishEvent(
+				new EnrollmentDeactivatedEvent(UUID.randomUUID(), studentId, courseId));
 	}
 
 	@Transactional(readOnly = true)
@@ -112,6 +116,9 @@ public class EnrollmentService {
 		enrollments.save(enrollment);
 		recordAccess(enrollment, AccessStatus.REVOKED, now, "REVOKED");
 		recordEvent(enrollment, EventType.REVOKED, now);
+		// Thông báo bất đồng bộ để Progress Service archive tiến độ (UC-P11).
+		applicationEvents.publishEvent(
+				new EnrollmentDeactivatedEvent(UUID.randomUUID(), studentId, courseId));
 	}
 
 	private EnrollmentResponse activate(UUID studentId, UUID courseId, EventType eventType) {

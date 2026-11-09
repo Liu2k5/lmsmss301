@@ -15,8 +15,26 @@ async function enrollmentRequest(path, options = {}) {
   return request(`${V1}${path}`, { ...options, token })
 }
 
-/** UC-E01 — học viên tự đăng ký khoá học. */
 export const enrollmentApi = {
+  /** UC-E01 — học viên tự đăng ký khoá học. */
   enroll: (courseId) => enrollmentRequest('', json('POST', { courseId })),
+
+  /** UC-E02 — học viên huỷ đăng ký khoá học. */
+  cancel: (courseId) => enrollmentRequest(`/${courseId}`, { method: 'DELETE' }),
+
+  /** UC-E03 — học viên xem danh sách khoá học của mình. */
   myEnrollments: () => enrollmentRequest('/me'),
+
+  /** UC-E04 — kiểm tra trạng thái đăng ký của học viên (nội bộ). */
+  check: (studentId, courseId) =>
+    enrollmentRequest(`/check?studentId=${encodeURIComponent(studentId)}&courseId=${encodeURIComponent(courseId)}`),
+
+  /** UC-E05 — giảng viên / admin xem danh sách học viên đăng ký khoá học. */
+  getCourseStudents: (courseId) => enrollmentRequest(`/courses/${courseId}/students`),
+
+  /** UC-E06 — admin cấp quyền truy cập khoá học cho học viên. */
+  grant: (studentId, courseId) => enrollmentRequest('/admin/grant', json('POST', { studentId, courseId })),
+
+  /** UC-E07 — admin thu hồi quyền truy cập khoá học. */
+  revoke: (studentId, courseId) => enrollmentRequest('/admin/revoke', json('POST', { studentId, courseId })),
 }

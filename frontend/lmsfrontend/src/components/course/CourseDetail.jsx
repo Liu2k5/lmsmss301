@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { courseApi } from '../../api/courseApi.js'
+import { enrollmentApi } from '../../api/enrollmentApi.js'
 import { useAuth } from '../../auth/AuthContext.js'
+import ConfirmDialog from './ConfirmDialog.jsx'
+import CourseStudentsModal from './CourseStudentsModal.jsx'
 import StatusBadge from './StatusBadge.jsx'
 import {
   CONFIRM_TRANSITIONS,
@@ -32,6 +35,55 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
   const [busy, setBusy] = useState(false)
   const [expanded, setExpanded] = useState(() => new Set())
   const [playingId, setPlayingId] = useState(null)
+  const [enrollmentStatus, setEnrollmentStatus] = useState(null)
+  const [enrolling, setEnrolling] = useState(false)
+  const [showStudentsModal, setShowStudentsModal] = useState(false)
+  const [confirmCancelEnrollment, setConfirmCancelEnrollment] = useState(false)
+
+  const checkEnrollment = useCallback(async () => {
+    if (!authenticated) {
+      setEnrollmentStatus(null)
+      return
+    }
+    try {
+      const list = await enrollmentApi.myEnrollments()
+      const match = list.find((e) => e.courseId === courseId)
+      setEnrollmentStatus(match ? match.status : 'NONE')
+    } catch {
+      setEnrollmentStatus('NONE')
+    }
+  }, [authenticated, courseId])
+
+  useEffect(() => {
+    checkEnrollment()
+  }, [checkEnrollment])
+
+  async function handleEnroll() {
+    setEnrolling(true)
+    try {
+      await enrollmentApi.enroll(courseId)
+      setEnrollmentStatus('ACTIVE')
+      notify('success', 'Đăng ký khoá học thành công! Bạn có thể bắt đầu học ngay bây giờ.')
+    } catch (error) {
+      notify('error', error.message || 'Không thể đăng ký khoá học.')
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  async function handleCancelEnroll() {
+    setBusy(true)
+    try {
+      await enrollmentApi.cancel(courseId)
+      setEnrollmentStatus('CANCELLED')
+      setConfirmCancelEnrollment(false)
+      notify('success', 'Đã huỷ đăng ký khoá học. Tiến độ học của bạn đã được lưu trữ an toàn.')
+    } catch (error) {
+      notify('error', error.message || 'Không thể huỷ đăng ký khoá học.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -361,15 +413,59 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
           </p>
           <div className="detail-hero__actions">
             {canManage && (
-              <button type="button" className="button button--ghost" onClick={editCourse}
-                disabled={!editable || busy}>
-                ✎ Sửa thông tin
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setShowStudentsModal(true)}
+                  title="Xem danh sách học viên đăng ký khoá học này (UC-E05)"
+                >
+                  👥 Học viên
+                </button>
+                <button type="button" className="button button--ghost" onClick={editCourse}
+                  disabled={!editable || busy}>
+                  ✎ Sửa thông tin
+                </button>
+              </>
             )}
             {canManage && DELETABLE_STATUSES.has(course.status) && (
               <button type="button" className="button button--danger-ghost" onClick={deleteCourse} disabled={busy}>
                 Xoá khoá học
               </button>
+            )}
+            {!canManage && (
+              <>
+                {!authenticated ? (
+                  <a href="#/login" className="button button--primary">
+                    Đăng nhập để đăng ký học
+                  </a>
+                ) : enrollmentStatus === 'ACTIVE' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="status-badge status-badge--success" style={{ padding: '6px 12px' }}>
+                      ✓ Đang theo học
+                    </span>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small text-danger"
+                      onClick={() => setConfirmCancelEnrollment(true)}
+                      disabled={busy}
+                      title="Huỷ đăng ký khoá học này (UC-E02)"
+                    >
+                      Huỷ đăng ký
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={handleEnroll}
+                    disabled={enrolling || course.status !== 'PUBLISHED' || busy}
+                    title="Đăng ký khoá học này (UC-E01)"
+                  >
+                    {enrolling ? 'Đang đăng ký…' : course.status === 'PUBLISHED' ? 'Đăng ký khoá học' : 'Khoá học chưa mở'}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -628,6 +724,27 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
           ))
         )}
       </section>
+
+      {showStudentsModal && (
+        <CourseStudentsModal
+          courseId={course.id}
+          courseTitle={course.title}
+          isAdmin={isAdmin}
+          onClose={() => setShowStudentsModal(false)}
+          notify={notify}
+        />
+      )}
+
+      {confirmCancelEnrollment && (
+        <ConfirmDialog
+          title="Huỷ đăng ký khoá học?"
+          message={`Bạn có chắc muốn huỷ đăng ký khoá học "${course.title}"? Tiến độ học tập và bài quiz của bạn sẽ được lưu trữ an toàn.`}
+          confirmLabel="Huỷ đăng ký"
+          danger={true}
+          onConfirm={handleCancelEnroll}
+          onCancel={() => setConfirmCancelEnrollment(false)}
+        />
+      )}
     </div>
   )
 }

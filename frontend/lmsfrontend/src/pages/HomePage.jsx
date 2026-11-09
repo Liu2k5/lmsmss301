@@ -1,7 +1,7 @@
 import { useAuth } from '../auth/AuthContext.js'
 
 export default function HomePage() {
-  const { authenticated, isAdmin } = useAuth()
+  const { authenticated, isAdmin, isStudent } = useAuth()
 
   return (
     <main className="user-page home-page">
@@ -12,8 +12,8 @@ export default function HomePage() {
           <p>Không gian học tập trực tuyến để bạn khám phá khoá học, theo dõi tiến độ và phát triển kỹ năng mỗi ngày.</p>
           <div className="user-actions">
             <a className="button button--primary" href="#/courses">Khám phá khoá học</a>
-            <a className="button button--ghost" href={authenticated ? '#/profile' : '#/register'}>
-              {authenticated ? 'Hồ sơ của tôi' : 'Tạo tài khoản'}
+            <a className="button button--ghost" href={authenticated ? (isStudent ? '#/my-courses' : '#/profile') : '#/register'}>
+              {authenticated ? (isStudent ? 'Khoá học của tôi' : 'Hồ sơ của tôi') : 'Tạo tài khoản'}
             </a>
           </div>
         </div>
@@ -42,11 +42,19 @@ export default function HomePage() {
             <h3>Luyện tập cùng quiz</h3>
             <p>Củng cố kiến thức với những bài kiểm tra ngắn sau bài học.</p>
           </a>
-          <a className="home-feature" href={authenticated ? '#/profile' : '#/login'}>
-            <span className="feature-icon feature-icon--green">◎</span>
-            <h3>Theo dõi hành trình</h3>
-            <p>Cập nhật hồ sơ và quản lý thông tin tài khoản của bạn.</p>
-          </a>
+          {isStudent ? (
+            <a className="home-feature" href="#/my-courses">
+              <span className="feature-icon feature-icon--green">◎</span>
+              <h3>Khoá học của tôi</h3>
+              <p>Quản lý các khoá học đã đăng ký và tiếp tục bài học.</p>
+            </a>
+          ) : (
+            <a className="home-feature" href={authenticated ? '#/profile' : '#/login'}>
+              <span className="feature-icon feature-icon--green">◎</span>
+              <h3>Theo dõi hành trình</h3>
+              <p>Cập nhật hồ sơ và quản lý thông tin tài khoản của bạn.</p>
+            </a>
+          )}
           {isAdmin && (
             <a className="home-feature" href="#/admin/users">
               <span className="feature-icon feature-icon--violet">♙</span>
