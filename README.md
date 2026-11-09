@@ -121,6 +121,9 @@ mvn test                                           # toàn bộ 7 module
   mới (mỗi lần kích hoạt có `eventId` riêng nên không bị bỏ qua vì trùng event).
 - **Khoá học Bản nháp bị ẩn khỏi học viên**: `GET /courses` bỏ khoá `DRAFT` và `GET /courses/{id}` trả `404`
   với học viên; giao diện cũng ẩn thẻ thống kê/lựa chọn lọc “Bản nháp”. Giảng viên sở hữu và Admin vẫn thấy.
+- **Trang `/quizzes` theo vai trò**: giảng viên/admin thấy toàn bộ quiz; **học viên chỉ thấy quiz thuộc các
+  khoá học mình đã đăng ký** (lọc theo `GET /enrollments/me`, trạng thái `ACTIVE`) — chưa đăng ký khoá nào thì
+  hiện lời nhắc kèm nút “Khám phá khoá học”. Đáp án đúng vẫn chỉ nằm ở API nội bộ, không lộ qua danh sách.
 - **Nộp quiz (UC-P04)**: học viên nộp bài ở `#/quiz-attempt?quizId=&courseId=`; Progress Service chấm điểm
   bằng đề + đáp án lấy từ API nội bộ `/internal/quizzes/{id}/answer-key` của Course Service
   (Gateway chặn `/internal/**`), lưu lịch sử lượt làm và chặn khi hết `maxAttempts`.
