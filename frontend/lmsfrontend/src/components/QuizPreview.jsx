@@ -111,6 +111,9 @@ export default function QuizPreview({ quizId, onClose }) {
               <div className="preview-meta">
                 <span className="badge">{preview.questions.length} câu hỏi</span>
                 <span className="quiz-card__score">{Number(preview.passingScore)}% để đạt</span>
+                {preview.maxAttempts && (
+                  <span className="badge">Tối đa {preview.maxAttempts} lần làm</span>
+                )}
                 <button
                   type="button"
                   className="button button--ghost button--small preview-meta__toggle"

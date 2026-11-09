@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import QuizForm from '../components/QuizForm.jsx'
 import QuizPreview from '../components/QuizPreview.jsx'
 import { quizApi } from '../api/quizApi.js'
+import { useAuth } from '../auth/AuthContext.js'
 
 function formatDate(value) {
   if (!value) {
@@ -47,6 +48,10 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
   const [toast, setToast] = useState(null)
   const handledLink = useRef(null)
 
+  // Quiz là công cụ soạn bài: chỉ giảng viên (hoặc admin) được dùng.
+  const { ready, authenticated, isInstructor, isAdmin } = useAuth()
+  const canManage = authenticated && (isInstructor || isAdmin)
+
   useEffect(() => {
     const timer = setTimeout(() => setActiveKeyword(filters.keyword.trim()), 300)
     return () => clearTimeout(timer)
@@ -74,6 +79,10 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
 
   // Tải danh sách khi bộ lọc thay đổi (state chỉ set trong callback bất đồng bộ).
   useEffect(() => {
+    if (!canManage) {
+      // Chưa đủ quyền: màn hình chặn truy cập đã thay cho danh sách nên không cần tải.
+      return undefined
+    }
     let active = true
     quizApi
       .list({ keyword: activeKeyword, courseId: filters.courseId })
@@ -96,10 +105,13 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     return () => {
       active = false
     }
-  }, [activeKeyword, filters.courseId])
+  }, [activeKeyword, filters.courseId, canManage])
 
   // Tải danh sách bài học loại QUIZ (dùng cho dropdown + thống kê).
   useEffect(() => {
+    if (!canManage) {
+      return undefined
+    }
     let active = true
     quizApi
       .lessonOptions()
@@ -108,12 +120,12 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [canManage])
 
   // Deep-link: #/quizzes?quizId=… hoặc #/quizzes?lessonId=… (hash đổi cũng kích hoạt lại).
   useEffect(() => {
     const link = initialQuizId ? `q:${initialQuizId}` : initialLessonId ? `l:${initialLessonId}` : null
-    if (!link || handledLink.current === link) {
+    if (!canManage || !link || handledLink.current === link) {
       return undefined
     }
 
@@ -159,7 +171,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     return () => {
       active = false
     }
-  }, [initialLessonId, initialQuizId])
+  }, [initialLessonId, initialQuizId, canManage])
 
   function applyFilters(patch) {
     setLoading(true)
@@ -231,6 +243,32 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     } finally {
       setDeleting(false)
     }
+  }
+
+  if (!ready) {
+    return (
+      <div className="app app--message">
+        <p>Đang kiểm tra quyền truy cập…</p>
+      </div>
+    )
+  }
+
+  if (!canManage) {
+    return (
+      <div className="app app--message">
+        <h1>Quản lý bài Quiz</h1>
+        <p>
+          {authenticated
+            ? 'Chỉ giảng viên phụ trách khoá học (hoặc quản trị viên) mới được soạn quiz.'
+            : 'Vui lòng đăng nhập bằng tài khoản giảng viên để soạn quiz.'}
+        </p>
+        {!authenticated && (
+          <a className="button button--primary" href="#/login">
+            Đăng nhập
+          </a>
+        )}
+      </div>
+    )
   }
 
   const courses = Array.from(
@@ -363,7 +401,10 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
             <article className="quiz-card" key={quiz.id}>
               <header className="quiz-card__header">
                 <span className="badge">Quiz #{quiz.id}</span>
-                <span className="quiz-card__score">{Number(quiz.passingScore)}% để đạt</span>
+                <span className="quiz-card__score">
+                  {Number(quiz.passingScore)}% để đạt
+                  {quiz.maxAttempts ? ` · tối đa ${quiz.maxAttempts} lần` : ' · không giới hạn lượt'}
+                </span>
               </header>
               <h2 className="quiz-card__title">{quiz.title}</h2>
               <p className="quiz-card__lesson">{quiz.lessonTitle}</p>

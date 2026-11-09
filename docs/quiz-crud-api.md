@@ -5,6 +5,7 @@ Chức năng soạn quiz cho giảng viên (UC-C14 → UC-C19): quản lý quiz,
 - Backend: `backend/services/course-service` (port **8081**)
 - Frontend: `frontend/lmsfrontend` (Vite 5173, proxy `/api` → `localhost:8081`)
 - **Mọi id (quiz, câu hỏi, đáp án, bài học, khoá học) là `UUID`**, không còn là số nguyên.
+- **Phân quyền** theo UC-C14…C19 (xem mục 3.0): chỉ giảng viên phụ trách khoá học và quản trị viên được soạn quiz.
 
 ---
 
@@ -57,6 +58,29 @@ Course 1─n Section 1─n Lesson 1─1 Quiz 1─n Question 1─n Option
 
 Base path: `/api/v1/quizzes`
 
+### 3.0. Phân quyền (UC-C14…C19)
+
+Course Service tự xác thực JWT của Keycloak (`spring.security.oauth2.resourceserver.jwt.jwk-set-uri`),
+không tin header do client gửi. Realm role → authority: `student` → `ROLE_STUDENT`,
+`instructor` → `ROLE_INSTRUCTOR`, `admin` → `ROLE_ADMIN`.
+
+| Nhóm API | Ai được gọi |
+|---|---|
+| `POST` / `PUT` / `DELETE` `/quizzes/**` (quiz, câu hỏi, nhân bản, sắp xếp) | `INSTRUCTOR`, `ADMIN` |
+| `GET /quizzes/{id}` (kèm đáp án đúng), `GET /quizzes/lesson-options` | `INSTRUCTOR`, `ADMIN` |
+| `GET /quizzes`, `GET /quizzes/{id}/preview` (không có đáp án) | mọi người dùng đã đăng nhập |
+| Không có token | `401` |
+| Có token nhưng sai vai trò, **hoặc** giảng viên không phụ trách khoá học của quiz | `403` |
+
+Giảng viên chỉ sửa được quiz thuộc khoá học có `instructorId` trùng `sub` trong JWT.
+`ADMIN` bỏ qua kiểm tra sở hữu. Ví dụ `403`:
+
+```json
+{ "status": 403, "message": "Chỉ giảng viên phụ trách khoá học mới được sửa quiz của khoá học này", "details": [] }
+```
+
+Catalog (khoá học, chương, bài học, học liệu) vẫn công khai như trước — chỉ quiz bị hạn chế.
+
 ### 3.1. Quiz
 
 | Method | Endpoint | Mô tả | Mã |
@@ -90,12 +114,15 @@ Base path: `/api/v1/quizzes`
 Body sắp xếp — phải chứa **đúng và đủ** id câu hỏi hiện có:
 
 ```json
-{ "orderedIds": [12, 9, 11] }
+{ "orderedIds": ["9f0a…", "1c2b…", "77de…"] }
 ```
 
 ### 3.3. Request body
 
 `position` không gửi lên (server tự sinh theo thứ tự trong mảng).
+
+`maxAttempts` = **số lần làm tối đa** (UC-C14), số nguyên 1–100; gửi `null`/bỏ trống = không giới hạn.
+Giá trị được trả lại trong `GET /quizzes/{id}`, `GET /quizzes` và `GET /quizzes/{id}/preview`.
 
 ```json
 {
@@ -103,6 +130,7 @@ Body sắp xếp — phải chứa **đúng và đủ** id câu hỏi hiện có
   "title": "Kiểm tra cuối chương 1",
   "description": "Chọn đáp án đúng nhất.",
   "passingScore": 70,
+  "maxAttempts": 3,
   "questions": [
     {
       "content": "Spring Boot là gì?",

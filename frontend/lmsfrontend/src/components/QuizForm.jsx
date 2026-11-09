@@ -25,6 +25,7 @@ function toFormState(quiz, initialLessonId) {
       title: '',
       description: '',
       passingScore: '70',
+      maxAttempts: '',
       questions: [newQuestion()],
     }
   }
@@ -33,6 +34,7 @@ function toFormState(quiz, initialLessonId) {
     title: quiz.title ?? '',
     description: quiz.description ?? '',
     passingScore: String(quiz.passingScore ?? '70'),
+    maxAttempts: quiz.maxAttempts == null ? '' : String(quiz.maxAttempts),
     questions: (quiz.questions ?? []).map((question) => ({
       id: question.id,
       content: question.content,
@@ -57,6 +59,12 @@ function validate(form) {
   const score = Number(form.passingScore)
   if (Number.isNaN(score) || score < 0 || score > 100) {
     messages.push('Điểm đạt phải nằm trong khoảng 0 – 100.')
+  }
+  if (form.maxAttempts !== '' && form.maxAttempts != null) {
+    const attempts = Number(form.maxAttempts)
+    if (!Number.isInteger(attempts) || attempts < 1 || attempts > 100) {
+      messages.push('Số lần làm tối đa phải là số nguyên từ 1 đến 100 (bỏ trống = không giới hạn).')
+    }
   }
   if (form.questions.length === 0) {
     messages.push('Quiz phải có ít nhất 1 câu hỏi.')
@@ -101,6 +109,7 @@ function toPayload(form) {
     title: form.title.trim(),
     description: form.description.trim() || null,
     passingScore: Number(form.passingScore),
+    maxAttempts: form.maxAttempts === '' ? null : Number(form.maxAttempts),
     questions: form.questions.map((question) => ({
       id: question.id ?? null,
       content: question.content.trim(),
@@ -352,6 +361,20 @@ export default function QuizForm({ quiz, initialLessonId, lessonOptions, onSubmi
                 step="0.5"
                 value={form.passingScore}
                 onChange={(event) => patchForm({ passingScore: event.target.value })}
+                disabled={saving}
+              />
+            </label>
+
+            <label className="field">
+              <span className="field__label">Số lần làm tối đa</span>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                step="1"
+                value={form.maxAttempts}
+                placeholder="Không giới hạn"
+                onChange={(event) => patchForm({ maxAttempts: event.target.value })}
                 disabled={saving}
               />
             </label>

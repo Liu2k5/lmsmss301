@@ -40,6 +40,7 @@ import com.example.course_service.exception.ResourceNotFoundException;
 import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.QuestionRepository;
 import com.example.course_service.repository.QuizRepository;
+import com.example.course_service.security.QuizAccessGuard;
 import com.example.course_service.service.QuizService;
 
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class QuizServiceImpl implements QuizService {
 	private final QuizRepository quizRepository;
 	private final LessonRepository lessonRepository;
 	private final QuestionRepository questionRepository;
+	private final QuizAccessGuard quizAccessGuard;
 
 	// ================================================================ truy vấn
 
@@ -84,6 +86,7 @@ public class QuizServiceImpl implements QuizService {
 
 		return new QuizPreviewResponse(
 				quiz.getId(), quiz.getTitle(), quiz.getDescription(), quiz.getPassingScore(),
+				quiz.getMaxAttempts(),
 				lesson.getTitle(), section.getTitle(), course.getTitle(),
 				sortedQuestions(quiz).stream()
 						.map(question -> new PreviewQuestionResponse(
@@ -122,6 +125,7 @@ public class QuizServiceImpl implements QuizService {
 	@Transactional
 	public QuizResponse create(QuizRequest request) {
 		Lesson lesson = requireQuizLesson(request.lessonId());
+		quizAccessGuard.checkCanManage(lesson.getSection().getCourse());
 		if (quizRepository.existsByLessonId(lesson.getId())) {
 			throw new ConflictException("Bài học này đã có quiz. Mỗi bài học chỉ có một quiz.");
 		}
@@ -133,6 +137,7 @@ public class QuizServiceImpl implements QuizService {
 				.title(request.title().trim())
 				.description(trimToNull(request.description()))
 				.passingScore(request.passingScore())
+				.maxAttempts(request.maxAttempts())
 				.build();
 		applyQuestions(quiz, request.questions());
 
@@ -143,7 +148,9 @@ public class QuizServiceImpl implements QuizService {
 	@Transactional
 	public QuizResponse update(UUID id, QuizRequest request) {
 		Quiz quiz = requireQuiz(id);
+		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
 		Lesson lesson = requireQuizLesson(request.lessonId());
+		quizAccessGuard.checkCanManage(lesson.getSection().getCourse());
 
 		if (!quiz.getLesson().getId().equals(lesson.getId())
 				&& quizRepository.existsByLessonIdAndIdNot(lesson.getId(), id)) {
@@ -156,6 +163,7 @@ public class QuizServiceImpl implements QuizService {
 		quiz.setTitle(request.title().trim());
 		quiz.setDescription(trimToNull(request.description()));
 		quiz.setPassingScore(request.passingScore());
+		quiz.setMaxAttempts(request.maxAttempts());
 		applyQuestions(quiz, request.questions());
 
 		return toResponse(quizRepository.saveAndFlush(quiz));
@@ -164,14 +172,18 @@ public class QuizServiceImpl implements QuizService {
 	@Override
 	@Transactional
 	public void delete(UUID id) {
-		quizRepository.delete(requireQuiz(id));
+		Quiz quiz = requireQuiz(id);
+		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
+		quizRepository.delete(quiz);
 	}
 
 	@Override
 	@Transactional
 	public QuizResponse duplicate(UUID id, UUID targetLessonId) {
 		Quiz source = requireQuiz(id);
+		quizAccessGuard.checkCanManage(source.getLesson().getSection().getCourse());
 		Lesson targetLesson = requireQuizLesson(targetLessonId);
+		quizAccessGuard.checkCanManage(targetLesson.getSection().getCourse());
 		if (quizRepository.existsByLessonId(targetLesson.getId())) {
 			throw new ConflictException("Bài học đích đã có quiz. Mỗi bài học chỉ có một quiz.");
 		}
@@ -181,6 +193,7 @@ public class QuizServiceImpl implements QuizService {
 				.title(source.getTitle())
 				.description(source.getDescription())
 				.passingScore(source.getPassingScore())
+				.maxAttempts(source.getMaxAttempts())
 				.build();
 
 		int questionPosition = 1;
@@ -210,6 +223,7 @@ public class QuizServiceImpl implements QuizService {
 	@Transactional
 	public QuestionResponse addQuestion(UUID quizId, QuestionRequest request) {
 		Quiz quiz = requireQuiz(quizId);
+		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
 		validateQuestion(request, quiz.getQuestions().size() + 1);
 
 		Question question = Question.builder()
@@ -227,6 +241,7 @@ public class QuizServiceImpl implements QuizService {
 	@Transactional
 	public QuestionResponse updateQuestion(UUID quizId, UUID questionId, QuestionRequest request) {
 		Quiz quiz = requireQuiz(quizId);
+		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
 		Question question = requireQuestion(quiz, questionId);
 		validateQuestion(request, question.getPosition() == null ? 1 : question.getPosition());
 
@@ -241,6 +256,7 @@ public class QuizServiceImpl implements QuizService {
 	@Transactional
 	public void deleteQuestion(UUID quizId, UUID questionId) {
 		Quiz quiz = requireQuiz(quizId);
+		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
 		Question question = requireQuestion(quiz, questionId);
 		if (quiz.getQuestions().size() <= 1) {
 			throw new BusinessRuleException("Quiz phải có ít nhất 1 câu hỏi. Hãy thêm câu hỏi khác trước khi xoá.");
@@ -255,6 +271,7 @@ public class QuizServiceImpl implements QuizService {
 	@Transactional
 	public List<QuestionResponse> reorderQuestions(UUID quizId, List<UUID> orderedIds) {
 		Quiz quiz = requireQuiz(quizId);
+		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
 		List<Question> questions = new ArrayList<>(quiz.getQuestions());
 
 		Set<UUID> expected = questions.stream().map(Question::getId).collect(Collectors.toSet());
@@ -433,7 +450,7 @@ public class QuizServiceImpl implements QuizService {
 				quiz.getId(), lesson.getId(), lesson.getTitle(),
 				section.getId(), section.getTitle(),
 				course.getId(), course.getTitle(),
-				quiz.getTitle(), quiz.getPassingScore(),
+				quiz.getTitle(), quiz.getPassingScore(), quiz.getMaxAttempts(),
 				quiz.getQuestions().size(), quiz.getUpdatedAt());
 	}
 
@@ -446,7 +463,7 @@ public class QuizServiceImpl implements QuizService {
 				lesson.getId(), lesson.getTitle(),
 				section.getId(), section.getTitle(),
 				course.getId(), course.getTitle(),
-				quiz.getTitle(), quiz.getDescription(), quiz.getPassingScore(),
+				quiz.getTitle(), quiz.getDescription(), quiz.getPassingScore(), quiz.getMaxAttempts(),
 				quiz.getCreatedAt(), quiz.getUpdatedAt(),
 				sortedQuestions(quiz).stream().map(this::toQuestionResponse).toList());
 	}

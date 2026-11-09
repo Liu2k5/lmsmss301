@@ -41,6 +41,13 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.CONFLICT, ex.getMessage(), request, List.of());
 	}
 
+	/** Giảng viên sửa quiz của khoá học không do mình phụ trách. */
+	@ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+	public ResponseEntity<ApiError> handleAccessDenied(
+			org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+		return build(HttpStatus.FORBIDDEN, ex.getMessage(), request, List.of());
+	}
+
 	@ExceptionHandler(StorageException.class)
 	public ResponseEntity<ApiError> handleStorage(StorageException ex, HttpServletRequest request) {
 		log.error("Lỗi kho lưu file: {}", ex.getMessage(), ex.getCause());

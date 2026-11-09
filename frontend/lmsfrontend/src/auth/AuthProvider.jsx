@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Keycloak from 'keycloak-js'
 import { AuthContext } from './AuthContext.js'
+import { setQuizTokenProvider } from '../api/quizApi.js'
 
 const keycloak = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
@@ -83,7 +84,24 @@ export function AuthProvider({ children }) {
       await keycloak.updateToken(30)
       return keycloak.token ?? null
     },
+    isInstructor: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
+      (role) => role.toUpperCase() === 'INSTRUCTOR',
+    )),
   }), [ready, authenticated, authError])
+
+  // quizApi cần JWT cho mọi request (backend giới hạn quiz cho giảng viên/admin).
+  useEffect(() => {
+    setQuizTokenProvider(async () => {
+      if (!keycloak.authenticated) return null
+      try {
+        await keycloak.updateToken(30)
+      } catch {
+        return null
+      }
+      return keycloak.token ?? null
+    })
+    return () => setQuizTokenProvider(null)
+  }, [ready, authenticated])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

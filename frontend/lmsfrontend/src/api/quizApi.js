@@ -4,6 +4,22 @@ const BASE_URL = '/api/v1/quizzes'
 
 export { ApiError }
 
+/**
+ * Quiz chỉ dành cho giảng viên/admin nên mọi request phải kèm JWT.
+ * AuthProvider đăng ký hàm lấy token khi khởi tạo; nếu chưa đăng nhập, request đi không token
+ * và backend trả 401 (UI hiển thị yêu cầu đăng nhập).
+ */
+let tokenProvider = async () => null
+
+export function setQuizTokenProvider(provider) {
+  tokenProvider = typeof provider === 'function' ? provider : async () => null
+}
+
+async function quizRequest(path, options = {}) {
+  const token = await tokenProvider().catch(() => null)
+  return request(`${BASE_URL}${path}`, { ...options, token })
+}
+
 function query(params) {
   const search = new URLSearchParams()
   Object.entries(params ?? {}).forEach(([key, value]) => {
@@ -17,21 +33,21 @@ function query(params) {
 
 export const quizApi = {
   /** @param {{lessonId?: number|string, courseId?: number|string, keyword?: string}} [params] */
-  list: (params) => request(`${BASE_URL}${query(params)}`),
-  get: (id) => request(`${BASE_URL}/${id}`),
-  preview: (id) => request(`${BASE_URL}/${id}/preview`),
-  lessonOptions: () => request(`${BASE_URL}/lesson-options`),
-  create: (payload) => request(BASE_URL, json('POST', payload)),
-  update: (id, payload) => request(`${BASE_URL}/${id}`, json('PUT', payload)),
-  remove: (id) => request(`${BASE_URL}/${id}`, { method: 'DELETE' }),
-  duplicate: (id, lessonId) => request(`${BASE_URL}/${id}/duplicate`, json('POST', { lessonId })),
+  list: (params) => quizRequest(query(params)),
+  get: (id) => quizRequest(`/${id}`),
+  preview: (id) => quizRequest(`/${id}/preview`),
+  lessonOptions: () => quizRequest('/lesson-options'),
+  create: (payload) => quizRequest('', json('POST', payload)),
+  update: (id, payload) => quizRequest(`/${id}`, json('PUT', payload)),
+  remove: (id) => quizRequest(`/${id}`, { method: 'DELETE' }),
+  duplicate: (id, lessonId) => quizRequest(`/${id}/duplicate`, json('POST', { lessonId })),
 
   // ------------------------------------------------------------ câu hỏi
-  addQuestion: (quizId, payload) => request(`${BASE_URL}/${quizId}/questions`, json('POST', payload)),
+  addQuestion: (quizId, payload) => quizRequest(`/${quizId}/questions`, json('POST', payload)),
   updateQuestion: (quizId, questionId, payload) =>
-    request(`${BASE_URL}/${quizId}/questions/${questionId}`, json('PUT', payload)),
+    quizRequest(`/${quizId}/questions/${questionId}`, json('PUT', payload)),
   removeQuestion: (quizId, questionId) =>
-    request(`${BASE_URL}/${quizId}/questions/${questionId}`, { method: 'DELETE' }),
+    quizRequest(`/${quizId}/questions/${questionId}`, { method: 'DELETE' }),
   reorderQuestions: (quizId, orderedIds) =>
-    request(`${BASE_URL}/${quizId}/questions/order`, json('PUT', { orderedIds })),
+    quizRequest(`/${quizId}/questions/order`, json('PUT', { orderedIds })),
 }

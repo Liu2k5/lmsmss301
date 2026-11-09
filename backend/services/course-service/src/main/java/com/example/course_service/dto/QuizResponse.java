@@ -16,6 +16,7 @@ public record QuizResponse(
 		String title,
 		String description,
 		BigDecimal passingScore,
+		Integer maxAttempts,
 		LocalDateTime createdAt,
 		LocalDateTime updatedAt,
 		List<QuestionResponse> questions) {

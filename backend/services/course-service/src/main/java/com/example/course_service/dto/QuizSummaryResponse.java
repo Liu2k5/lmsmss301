@@ -14,6 +14,7 @@ public record QuizSummaryResponse(
 		String courseTitle,
 		String title,
 		BigDecimal passingScore,
+		Integer maxAttempts,
 		int questionCount,
 		LocalDateTime updatedAt) {
 }

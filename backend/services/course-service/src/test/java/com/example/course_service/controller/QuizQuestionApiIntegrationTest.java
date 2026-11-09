@@ -34,7 +34,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false) // test nghiệp vụ: bỏ qua xác thực, phần quyền có test riêng
 @Transactional
 class QuizQuestionApiIntegrationTest {
 

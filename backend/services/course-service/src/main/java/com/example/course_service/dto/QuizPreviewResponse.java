@@ -13,6 +13,7 @@ public record QuizPreviewResponse(
 		String title,
 		String description,
 		BigDecimal passingScore,
+		Integer maxAttempts,
 		String lessonTitle,
 		String sectionTitle,
 		String courseTitle,

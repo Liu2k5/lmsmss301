@@ -58,6 +58,10 @@ public class Quiz {
 	@Column(name = "passing_score", nullable = false, precision = 5, scale = 2)
 	private BigDecimal passingScore;
 
+	/** Số lần làm tối đa (UC-C14); null = không giới hạn. */
+	@Column(name = "max_attempts")
+	private Integer maxAttempts;
+
 	@CreationTimestamp
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;

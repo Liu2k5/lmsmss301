@@ -88,6 +88,7 @@ public class DemoDataSeeder implements ApplicationRunner {
 				.title("Kiểm tra cuối chương 1")
 				.description("Chọn đáp án đúng nhất.")
 				.passingScore(new BigDecimal("70.00"))
+				.maxAttempts(3)
 				.build();
 
 		Question q1 = Question.builder()

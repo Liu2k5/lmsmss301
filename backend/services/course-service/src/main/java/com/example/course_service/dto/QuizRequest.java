@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -30,6 +32,10 @@ public record QuizRequest(
 		@DecimalMax(value = "100.00", message = "Điểm đạt tối đa là 100")
 		@Digits(integer = 3, fraction = 2, message = "Điểm đạt tối đa 2 chữ số thập phân")
 		BigDecimal passingScore,
+
+		@Min(value = 1, message = "Số lần làm tối đa phải từ 1 trở lên")
+		@Max(value = 100, message = "Số lần làm tối đa tối đa là 100")
+		Integer maxAttempts,
 
 		@NotEmpty(message = "Quiz phải có ít nhất 1 câu hỏi")
 		@Valid
