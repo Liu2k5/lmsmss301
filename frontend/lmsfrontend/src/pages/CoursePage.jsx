@@ -92,6 +92,12 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     {},
   )
 
+  // Khoá học nháp chỉ dành cho người soạn: học viên và khách không thấy (UC-C01 → C24).
+  const visibleCourses = canManage ? courses : courses.filter((course) => course.status !== 'DRAFT')
+  const statusOptions = canManage
+    ? STATUS_OPTIONS
+    : STATUS_OPTIONS.filter((option) => option.value !== 'DRAFT')
+
   return (
     <div className="app">
       {courseId != null ? (
@@ -127,9 +133,9 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
             </div>
           </header>
 
-          <section className="stats stats--four" aria-label="Thống kê">
+          <section className={`stats${canManage ? ' stats--four' : ''}`} aria-label="Thống kê">
             <div className="stat">
-              <span className="stat__value">{courses.length}</span>
+              <span className="stat__value">{visibleCourses.length}</span>
               <span className="stat__label">Khoá học{status || appliedKeyword ? ' (đang lọc)' : ''}</span>
             </div>
             <div className="stat">
@@ -140,10 +146,12 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
               <span className="stat__value">{counts.UNPUBLISHED ?? 0}</span>
               <span className="stat__label">Đã ẩn</span>
             </div>
-            <div className="stat">
-              <span className="stat__value">{counts.DRAFT ?? 0}</span>
-              <span className="stat__label">Bản nháp</span>
-            </div>
+            {canManage && (
+              <div className="stat">
+                <span className="stat__value">{counts.DRAFT ?? 0}</span>
+                <span className="stat__label">Bản nháp</span>
+              </div>
+            )}
           </section>
 
           <div className="toolbar" role="search">
@@ -157,7 +165,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
             />
             <select aria-label="Lọc theo trạng thái" value={status} onChange={(event) => setStatus(event.target.value)}>
               <option value="">Tất cả trạng thái</option>
-              {STATUS_OPTIONS.map((option) => (
+              {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -179,7 +187,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
               <span className="spinner" aria-hidden="true" />
               <p>Đang tải danh sách khoá học…</p>
             </div>
-          ) : courses.length === 0 ? (
+          ) : visibleCourses.length === 0 ? (
             !listError && (
               <div className="state-card">
                 <div className="state-card__icon" aria-hidden="true">
@@ -189,7 +197,9 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                 <p>
                   {status || appliedKeyword
                     ? 'Thử đổi từ khoá hoặc bộ lọc trạng thái.'
-                    : 'Tạo khoá học đầu tiên rồi thêm chương, bài học và học liệu.'}
+                    : canManage
+                      ? 'Tạo khoá học đầu tiên rồi thêm chương, bài học và học liệu.'
+                      : 'Hiện chưa có khoá học nào được xuất bản để tham gia.'}
                 </p>
                 {canManage && !status && !appliedKeyword && (
                   <button type="button" className="button button--primary" onClick={openCreate}>
@@ -200,7 +210,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
             )
           ) : (
             <div className="course-grid">
-              {courses.map((course) => (
+              {visibleCourses.map((course) => (
                 <button
                   type="button"
                   className="course-card"

@@ -75,6 +75,11 @@ từng khoá học / chương / bài học / học liệu), và chỉ được g
 { "status": 403, "message": "Chỉ giảng viên phụ trách khoá học mới được sửa khoá học này", "details": [] }
 ```
 
+**Khoá học Bản nháp (`DRAFT`) chỉ dành cho người soạn.** Với học viên đã đăng nhập (không phải Admin và không
+phải giảng viên sở hữu), khoá `DRAFT` bị loại khỏi `GET /courses` và `GET /courses/{id}` trả `404` — coi như
+không tồn tại để không lộ nội dung đang soạn. Giảng viên sở hữu và Admin vẫn thấy bình thường. Giao diện cũng ẩn
+khoá nháp khỏi màn hình học viên/khách cùng thẻ thống kê "Bản nháp" và lựa chọn lọc `DRAFT`.
+
 ### Khoá học
 
 | Method | URL | Body | Trả về |

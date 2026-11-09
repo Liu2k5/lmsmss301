@@ -30,7 +30,8 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
-  const [passwordActionStatus, setPasswordActionStatus] = useState('')
+  // Chỉ cần setter: Keycloak báo trạng thái action (đổi mật khẩu) để JS client xử lý URL.
+  const [, setPasswordActionStatus] = useState('')
 
   useEffect(() => {
     let active = true
@@ -70,8 +71,8 @@ export function AuthProvider({ children }) {
     isAdmin: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
       (role) => role.toUpperCase() === 'ADMIN' || role.toUpperCase() === 'ADMINISTRATOR',
     )),
-    async login() {
-      sessionStorage.setItem('postLoginHash', '#/profile')
+    async login(nextHash = '#/profile') {
+      sessionStorage.setItem('postLoginHash', nextHash)
       try {
         await keycloak.login({ redirectUri: `${window.location.origin}${window.location.pathname}` })
       } catch (error) {

@@ -87,7 +87,7 @@ Chi tiết quiz: [docs/quiz-crud-api.md](docs/quiz-crud-api.md) · Khoá học: 
 
 ```bash
 cd backend
-mvn -f services/course-service/pom.xml test        # 70 test
+mvn -f services/course-service/pom.xml test        # 73 test
 mvn -f services/enrollment-service/pom.xml test    # 60 test
 mvn -f services/progress-service/pom.xml test      # 10 test
 mvn -f services/review-rating-service/pom.xml test # 18 test
@@ -108,6 +108,10 @@ mvn test                                           # toàn bộ 7 module
 - **Enroll tự tạo tiến độ**: `POST /api/v1/enrollments` phát event `student.enrolled` (RabbitMQ) sau khi
   transaction commit; Progress Service tạo `course_progress` + `lesson_progress` từ curriculum đã xuất bản.
   Khoá chưa xuất bản thì chưa tạo tiến độ (không có bài học để theo dõi).
+- **Tham gia khoá học trên UI**: học viên bấm **“＋ Tham gia khoá học”** ở trang chi tiết khoá học
+  (`#/courses/{id}`) khi khoá đang `PUBLISHED`; đã đăng ký thì nút đổi thành nhãn “✓ Đã tham gia khoá học”.
+- **Khoá học Bản nháp bị ẩn khỏi học viên**: `GET /courses` bỏ khoá `DRAFT` và `GET /courses/{id}` trả `404`
+  với học viên; giao diện cũng ẩn thẻ thống kê/lựa chọn lọc “Bản nháp”. Giảng viên sở hữu và Admin vẫn thấy.
 - **Nộp quiz (UC-P04)**: học viên nộp bài ở `#/quiz-attempt?quizId=&courseId=`; Progress Service chấm điểm
   bằng đề + đáp án lấy từ API nội bộ `/internal/quizzes/{id}/answer-key` của Course Service
   (Gateway chặn `/internal/**`), lưu lịch sử lượt làm và chặn khi hết `maxAttempts`.

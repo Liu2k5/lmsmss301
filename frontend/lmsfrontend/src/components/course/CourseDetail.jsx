@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { courseApi } from '../../api/courseApi.js'
+import { enrollmentApi } from '../../api/enrollmentApi.js'
 import { useAuth } from '../../auth/AuthContext.js'
 import StatusBadge from './StatusBadge.jsx'
 import {
@@ -23,7 +24,7 @@ function moved(ids, index, delta) {
 
 export default function CourseDetail({ courseId, onBack, openDialog, closeDialog, notify }) {
   // Chỉ giảng viên/admin được sửa nội dung; học viên và khách chỉ xem.
-  const { authenticated, isInstructor, isAdmin } = useAuth()
+  const { authenticated, isInstructor, isAdmin, login } = useAuth()
   const canManage = authenticated && (isInstructor || isAdmin)
 
   const [course, setCourse] = useState(null)
@@ -32,6 +33,9 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
   const [busy, setBusy] = useState(false)
   const [expanded, setExpanded] = useState(() => new Set())
   const [playingId, setPlayingId] = useState(null)
+  // Học viên: đã tham gia khoá học này chưa (UC-E01).
+  const [enrolled, setEnrolled] = useState(null)
+  const [joining, setJoining] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -49,6 +53,44 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tải chi tiết khi mở khoá học
     load()
   }, [load])
+
+  // Học viên: kiểm tra đã đăng ký khoá học này chưa để hiện đúng nút tham gia.
+  useEffect(() => {
+    if (!authenticated || canManage) return undefined
+    let active = true
+    enrollmentApi
+      .myEnrollments()
+      .then((list) => {
+        if (!active) return
+        setEnrolled(list.some((item) => item.courseId === courseId && item.status === 'ACTIVE'))
+      })
+      .catch(() => {
+        if (active) setEnrolled(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [authenticated, canManage, courseId])
+
+  /** UC-E01 — tham gia khoá học. Progress Service tạo tiến độ từ event StudentEnrolled. */
+  async function joinCourse() {
+    setJoining(true)
+    try {
+      await enrollmentApi.enroll(courseId)
+      setEnrolled(true)
+      notify('success', `Đã tham gia khoá học "${course?.title ?? ''}". Tiến độ học tập đã được khởi tạo.`)
+    } catch (error) {
+      // 409 = đã đăng ký trước đó (ví dụ mở hai tab); coi như đã tham gia.
+      if (error.status === 409) {
+        setEnrolled(true)
+        notify('success', 'Bạn đã tham gia khoá học này rồi.')
+      } else {
+        notify('error', error.message)
+      }
+    } finally {
+      setJoining(false)
+    }
+  }
 
   /** Chạy một thao tác trả về chi tiết khoá học mới; báo lỗi bằng toast. */
   async function run(action, successMessage) {
@@ -370,6 +412,22 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
               <button type="button" className="button button--danger-ghost" onClick={deleteCourse} disabled={busy}>
                 Xoá khoá học
               </button>
+            )}
+            {!canManage && !authenticated && (
+              <button type="button" className="button button--primary" onClick={() => login(`#/courses/${course.id}`)}>
+                ＋ Tham gia khoá học
+              </button>
+            )}
+            {!canManage && authenticated && enrolled === false && course.status === 'PUBLISHED' && (
+              <button type="button" className="button button--primary" onClick={joinCourse} disabled={joining}>
+                {joining ? 'Đang đăng ký…' : '＋ Tham gia khoá học'}
+              </button>
+            )}
+            {!canManage && authenticated && enrolled === true && (
+              <span className="badge badge--joined">✓ Đã tham gia khoá học</span>
+            )}
+            {!canManage && authenticated && enrolled === false && course.status !== 'PUBLISHED' && (
+              <span className="muted small">Khoá học chưa mở đăng ký.</span>
             )}
           </div>
         </div>
