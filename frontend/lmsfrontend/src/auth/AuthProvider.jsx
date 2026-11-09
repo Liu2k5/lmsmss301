@@ -14,6 +14,26 @@ const keycloak = new Keycloak({
 
 let initialization
 
+/**
+ * Token dùng cho các api module (quiz/progress/enrollment/course).
+ * Đăng ký ở cấp module vì effect của component con chạy TRƯỚC effect của AuthProvider:
+ * nếu đăng ký trong useEffect, lần tải trang đầu tiên các request sẽ đi không token (401).
+ */
+async function getAccessToken() {
+  if (!keycloak.authenticated) return null
+  try {
+    await keycloak.updateToken(30)
+  } catch {
+    return null
+  }
+  return keycloak.token ?? null
+}
+
+setQuizTokenProvider(getAccessToken)
+setProgressTokenProvider(getAccessToken)
+setEnrollmentTokenProvider(getAccessToken)
+setCourseTokenProvider(getAccessToken)
+
 function initializeKeycloak() {
   if (!initialization) {
     initialization = keycloak.init({
@@ -105,11 +125,7 @@ export function AuthProvider({ children }) {
         setAuthError('Không thể đăng xuất khỏi Keycloak.')
       }
     },
-    async getToken() {
-      if (!keycloak.authenticated) return null
-      await keycloak.updateToken(30)
-      return keycloak.token ?? null
-    },
+    getToken: getAccessToken,
     isInstructor: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
       (role) => role.toUpperCase() === 'INSTRUCTOR',
     )),
@@ -122,62 +138,6 @@ export function AuthProvider({ children }) {
         }
       : null,
   }), [ready, authenticated, authError])
-
-  // quizApi cần JWT cho mọi request (backend giới hạn quiz cho giảng viên/admin).
-  useEffect(() => {
-    setQuizTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setQuizTokenProvider(null)
-  }, [ready, authenticated])
-
-  // progressApi (nộp bài quiz - UC-P04) cũng cần JWT khi gọi qua Gateway.
-  useEffect(() => {
-    setProgressTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setProgressTokenProvider(null)
-  }, [ready, authenticated])
-
-  // enrollmentApi (đăng ký khoá học - UC-E01) cần JWT khi gọi qua Gateway.
-  useEffect(() => {
-    setEnrollmentTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setEnrollmentTokenProvider(null)
-  }, [ready, authenticated])
-
-  // courseApi (soạn nội dung khoá học - UC-C01…C13) cần JWT cho các thao tác ghi.
-  useEffect(() => {
-    setCourseTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setCourseTokenProvider(null)
-  }, [ready, authenticated])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

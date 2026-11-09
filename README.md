@@ -114,7 +114,8 @@ mvn test                                           # toàn bộ 7 module
   Khoá chưa xuất bản thì chưa tạo tiến độ (không có bài học để theo dõi).
 - **Tham gia khoá học trên UI**: học viên bấm **“＋ Tham gia khoá học”** ở trang chi tiết khoá học
   (`#/courses/{id}`) khi khoá đang `PUBLISHED`; đã đăng ký thì nút đổi thành nhãn “✓ Đã tham gia khoá học”.
-- **Huỷ đăng ký (UC-E02 → UC-P11)**: học viên bấm **“Huỷ đăng ký”** ở trang chi tiết khoá học; Enrollment
+- **Huỷ đăng ký (UC-E02 → UC-P11)**: học viên bấm **“Huỷ đăng ký”** ở **thẻ khoá học trong danh sách**
+  (`#/courses`) hoặc ở trang chi tiết khoá học; Enrollment
   Service chuyển enrollment sang `CANCELLED`, thu hồi quyền truy cập và phát `student.unenrolled` (RabbitMQ) →
   Progress Service lưu trữ tiến độ vào `archived_progress` rồi xoá khỏi bảng hoạt động. Đăng ký lại tạo tiến độ
   mới (mỗi lần kích hoạt có `eventId` riêng nên không bị bỏ qua vì trùng event).
