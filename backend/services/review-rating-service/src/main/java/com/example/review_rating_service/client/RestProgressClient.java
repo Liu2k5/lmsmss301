@@ -26,15 +26,22 @@ public class RestProgressClient implements ProgressClient {
     @Override
     public Optional<ProgressStatusDto> getProgress(UUID studentId, UUID courseId) {
         try {
-            return Optional.ofNullable(
-                    restClient.get()
-                            .uri("/api/v1/progress/{studentId}/{courseId}", studentId, courseId)
-                            .retrieve()
-                            .onStatus(HttpStatusCode::is4xxClientError, (req, resp) -> {
-                                log.warn("Progress service returned 4xx status for studentId={}, courseId={}", studentId, courseId);
-                            })
-                            .body(ProgressStatusDto.class)
-            );
+            ProgressServiceResponse body = restClient.get()
+                    .uri("/api/v1/progress/courses/{courseId}?studentId={studentId}", courseId, studentId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, (req, resp) ->
+                            log.warn("Progress service returned 4xx for studentId={}, courseId={}", studentId, courseId))
+                    .body(ProgressServiceResponse.class);
+
+            if (body == null) {
+                return Optional.empty();
+            }
+            return Optional.of(ProgressStatusDto.builder()
+                    .studentId(studentId)
+                    .courseId(courseId)
+                    .percentComplete(body.completionPercentage())
+                    .courseCompleted("COMPLETED".equalsIgnoreCase(body.status()))
+                    .build());
         } catch (Exception e) {
             log.warn("Failed to check progress via Progress Service: {}", e.getMessage());
             return Optional.empty();

@@ -4,6 +4,7 @@ import { AuthContext } from './AuthContext.js'
 import { setQuizTokenProvider } from '../api/quizApi.js'
 import { setProgressTokenProvider } from '../api/progressApi.js'
 import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
+import { setReviewTokenProvider } from '../api/reviewApi.js'
 import { setCourseTokenProvider } from '../api/courseApi.js'
 
 const keycloak = new Keycloak({
@@ -32,6 +33,7 @@ async function getAccessToken() {
 setQuizTokenProvider(getAccessToken)
 setProgressTokenProvider(getAccessToken)
 setEnrollmentTokenProvider(getAccessToken)
+setReviewTokenProvider(getAccessToken)
 setCourseTokenProvider(getAccessToken)
 
 function initializeKeycloak() {

@@ -17,6 +17,9 @@ async function progressRequest(path, options = {}) {
 
 /** UC-P04 — nộp bài quiz và xem lịch sử làm bài. */
 export const progressApi = {
+  /** UC-P05 — tiến độ học của học viên trong khoá (dùng để biết đã hoàn thành 100% chưa). */
+  courseProgress: (courseId, studentId) =>
+    progressRequest(`/courses/${courseId}?studentId=${encodeURIComponent(studentId)}`),
   submitQuiz: (courseId, quizId, payload) =>
     progressRequest(`/courses/${courseId}/quizzes/${quizId}/submit`, json('POST', payload)),
   quizAttempts: (courseId, quizId, studentId) =>

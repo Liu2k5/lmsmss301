@@ -11,6 +11,7 @@ import com.example.review_rating_service.entity.ReviewStatus;
 import com.example.review_rating_service.exception.ConflictException;
 import com.example.review_rating_service.exception.ForbiddenException;
 import com.example.review_rating_service.exception.ResourceNotFoundException;
+import com.example.review_rating_service.security.SecurityUtils;
 import com.example.review_rating_service.repository.ReviewHelpfulVoteRepository;
 import com.example.review_rating_service.repository.ReviewPermissionRepository;
 import com.example.review_rating_service.repository.ReviewRepository;
@@ -72,7 +73,8 @@ public class ReviewService {
         }
 
         // 3. Guard: kiểm tra đã hoàn thành khóa học chưa (Progress Service / Permission)
-        if (requireCompletedCourse) {
+        // Admin bỏ qua: admin không có tiến độ học nhưng vẫn cần kiểm tra quyền để xử lý kiểm duyệt.
+        if (requireCompletedCourse && !SecurityUtils.isAdmin()) {
             boolean hasPermission = permissionRepository.existsByCourseIdAndStudentId(courseId, studentId);
             if (!hasPermission) {
                 Optional<ProgressStatusDto> progressOpt = progressClient.getProgress(studentId, courseId);

@@ -94,7 +94,7 @@ cd backend
 mvn -f services/course-service/pom.xml test        # 73 test
 mvn -f services/enrollment-service/pom.xml test    # 61 test
 mvn -f services/progress-service/pom.xml test      # 10 test
-mvn -f services/review-rating-service/pom.xml test # 18 test
+mvn -f services/review-rating-service/pom.xml test # 22 test
 mvn -f services/user-service/pom.xml test          # 4 test
 mvn test                                           # toàn bộ 7 module
 ```
@@ -124,6 +124,10 @@ mvn test                                           # toàn bộ 7 module
 - **Trang `/quizzes` theo vai trò**: giảng viên/admin thấy toàn bộ quiz; **học viên chỉ thấy quiz thuộc các
   khoá học mình đã đăng ký** (lọc theo `GET /enrollments/me`, trạng thái `ACTIVE`) — chưa đăng ký khoá nào thì
   hiện lời nhắc kèm nút “Khám phá khoá học”. Đáp án đúng vẫn chỉ nằm ở API nội bộ, không lộ qua danh sách.
+- **Đánh giá khoá học (UC-R01/R02)**: học viên **đã hoàn thành 100%** khoá học thấy nút **“★ Gửi đánh giá”**
+  ở trang chi tiết khoá học (mở form 1–5 sao + nhận xét); đã đánh giá rồi thì nút đổi thành **“★ Sửa đánh giá”**
+  và form được điền sẵn. Review & Rating Service là nơi kiểm tra điều kiện (`app.review.require-completed-course`,
+  admin bỏ qua guard) và tự cập nhật điểm trung bình của khoá học.
 - **Nộp quiz (UC-P04)**: học viên nộp bài ở `#/quiz-attempt?quizId=&courseId=`; Progress Service chấm điểm
   bằng đề + đáp án lấy từ API nội bộ `/internal/quizzes/{id}/answer-key` của Course Service
   (Gateway chặn `/internal/**`), lưu lịch sử lượt làm và chặn khi hết `maxAttempts`.
