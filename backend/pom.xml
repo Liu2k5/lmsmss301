@@ -11,7 +11,17 @@
 	<groupId>com.example</groupId>
 	<artifactId>lms</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
 	<name>lms</name>
+	<modules>
+		<module>infras/api-gateway</module>
+		<module>infras/eureka-server</module>
+		<module>services/course-service</module>
+		<module>services/enrollment-service</module>
+		<module>services/progress-service</module>
+		<module>services/review-rating-service</module>
+		<module>services/user-service</module>
+	</modules>
 	<description/>
 	<url/>
 	<licenses>
