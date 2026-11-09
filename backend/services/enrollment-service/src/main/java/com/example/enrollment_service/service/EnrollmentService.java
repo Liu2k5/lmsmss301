@@ -15,6 +15,7 @@ import com.example.enrollment_service.web.dto.EnrollmentResponse;
 import com.example.enrollment_service.web.exception.ConflictException;
 import com.example.enrollment_service.web.exception.NotFoundException;
 import com.example.enrollment_service.integration.EnrollmentActivatedEvent;
+import com.example.enrollment_service.integration.EnrollmentCancelledEvent;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
@@ -70,7 +71,10 @@ public class EnrollmentService {
 		enrollment.setUpdatedAt(now);
 		enrollments.save(enrollment);
 		recordAccess(enrollment, AccessStatus.REVOKED, now, "CANCELLED");
-		recordEvent(enrollment, EventType.CANCELLED, now);
+		EnrollEvent cancelled = recordEvent(enrollment, EventType.CANCELLED, now);
+		// Báo Progress Service lưu trữ tiến độ (UC-P11) sau khi transaction commit.
+		applicationEvents.publishEvent(
+				new EnrollmentCancelledEvent(cancelled.getId(), studentId, courseId));
 	}
 
 	@Transactional(readOnly = true)
@@ -124,10 +128,11 @@ public class EnrollmentService {
 		enrollment.setUpdatedAt(now);
 		enrollments.save(enrollment);
 		recordAccess(enrollment, AccessStatus.GRANTED, now, eventType.name());
-		recordEvent(enrollment, eventType, now);
+		EnrollEvent activated = recordEvent(enrollment, eventType, now);
 		// Chỉ phát sau khi commit, để Progress Service không tạo tiến độ cho giao dịch bị rollback.
+		// eventId theo từng lần kích hoạt để đăng ký lại sau khi huỷ vẫn tạo lại được tiến độ.
 		applicationEvents.publishEvent(
-				new EnrollmentActivatedEvent(enrollment.getId(), studentId, courseId));
+				new EnrollmentActivatedEvent(activated.getId(), enrollment.getId(), studentId, courseId));
 		return EnrollmentResponse.from(enrollment);
 	}
 
@@ -160,12 +165,13 @@ public class EnrollmentService {
 		accesses.save(access);
 	}
 
-	private void recordEvent(Enrollment enrollment, EventType type, Instant now) {
+	private EnrollEvent recordEvent(Enrollment enrollment, EventType type, Instant now) {
 		EnrollEvent event = new EnrollEvent();
 		event.setId(UUID.randomUUID());
 		event.setEnrollmentId(enrollment.getId());
 		event.setEventType(type);
 		event.setCreatedAt(now);
 		events.save(event);
+		return event;
 	}
 }

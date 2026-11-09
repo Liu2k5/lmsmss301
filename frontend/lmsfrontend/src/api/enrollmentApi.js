@@ -18,5 +18,7 @@ async function enrollmentRequest(path, options = {}) {
 /** UC-E01 — học viên tự đăng ký khoá học. */
 export const enrollmentApi = {
   enroll: (courseId) => enrollmentRequest('', json('POST', { courseId })),
+  /** UC-E02 — huỷ đăng ký khoá học (Progress Service lưu trữ tiến độ đã có). */
+  cancel: (courseId) => enrollmentRequest(`/${courseId}`, { method: 'DELETE' }),
   myEnrollments: () => enrollmentRequest('/me'),
 }

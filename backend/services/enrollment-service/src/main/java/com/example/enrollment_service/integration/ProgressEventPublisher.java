@@ -25,6 +25,8 @@ public class ProgressEventPublisher {
 
 	public static final String STUDENT_ENROLLED_QUEUE = "student.enrolled.queue";
 
+	public static final String STUDENT_UNENROLLED_QUEUE = "student.unenrolled.queue";
+
 	private final RabbitTemplate rabbitTemplate;
 	private final CourseCatalogClient courseCatalog;
 	private final ObjectMapper objectMapper;
@@ -39,8 +41,9 @@ public class ProgressEventPublisher {
 		}
 
 		Map<String, Object> payload = new LinkedHashMap<>();
-		// Dùng enrollmentId làm eventId để Progress Service chống xử lý trùng khi enroll lại.
-		payload.put("eventId", event.enrollmentId().toString());
+		// eventId = id bản ghi enroll_events của lần kích hoạt: chống xử lý trùng, nhưng vẫn tạo lại
+		// được tiến độ khi học viên đăng ký lại sau khi huỷ.
+		payload.put("eventId", event.eventId().toString());
 		payload.put("studentId", event.studentId().toString());
 		payload.put("courseId", event.courseId().toString());
 		payload.put("lessonIds", lessonIds.stream().map(UUID::toString).toList());
@@ -55,6 +58,30 @@ public class ProgressEventPublisher {
 		} catch (RuntimeException e) {
 			// Không để lỗi broker làm hỏng việc đăng ký khoá học đã commit.
 			log.warn("Không gửi được student.enrolled cho khoá {}: {}", event.courseId(), e.getMessage());
+		}
+	}
+
+	/**
+	 * Học viên huỷ đăng ký (UC-E02): báo Progress Service lưu trữ tiến độ hiện có rồi xoá khỏi bảng hoạt động
+	 * (UC-P11). eventId là id bản ghi enroll_events của lần huỷ nên mỗi lần huỷ chỉ xử lý một lần.
+	 */
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void onEnrollmentCancelled(EnrollmentCancelledEvent event) {
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("eventId", event.eventId().toString());
+		payload.put("studentId", event.studentId().toString());
+		payload.put("courseId", event.courseId().toString());
+
+		try {
+			rabbitTemplate.convertAndSend(STUDENT_UNENROLLED_QUEUE, objectMapper.writeValueAsString(payload),
+					message -> {
+						message.getMessageProperties().setContentType(MessageProperties.CONTENT_TYPE_JSON);
+						return message;
+					});
+			log.info("Đã gửi student.unenrolled cho học viên {} / khoá {}", event.studentId(), event.courseId());
+		} catch (RuntimeException e) {
+			// Huỷ đăng ký đã commit; lỗi broker chỉ làm tiến độ chưa được lưu trữ.
+			log.warn("Không gửi được student.unenrolled cho khoá {}: {}", event.courseId(), e.getMessage());
 		}
 	}
 }

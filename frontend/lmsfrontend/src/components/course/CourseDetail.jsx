@@ -92,6 +92,36 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     }
   }
 
+  /** UC-E02 — huỷ đăng ký khoá học. Progress Service lưu trữ (archive) tiến độ đã có. */
+  function cancelEnrollment() {
+    openDialog({
+      kind: 'confirm',
+      title: 'Huỷ đăng ký khoá học?',
+      message: `Bạn sẽ mất quyền truy cập nội dung khoá học "${course?.title ?? ''}". Tiến độ hiện tại được lưu trữ lại, và có thể đăng ký học lại bất cứ lúc nào.`,
+      confirmLabel: 'Huỷ đăng ký',
+      danger: true,
+      onConfirm: async () => {
+        closeDialog()
+        setJoining(true)
+        try {
+          await enrollmentApi.cancel(courseId)
+          setEnrolled(false)
+          notify('success', `Đã huỷ đăng ký khoá học "${course?.title ?? ''}".`)
+        } catch (error) {
+          // 404 = chưa từng đăng ký (ví dụ huỷ ở tab khác); coi như đã huỷ.
+          if (error.status === 404) {
+            setEnrolled(false)
+            notify('success', 'Bạn chưa đăng ký khoá học này.')
+          } else {
+            notify('error', error.message)
+          }
+        } finally {
+          setJoining(false)
+        }
+      },
+    })
+  }
+
   /** Chạy một thao tác trả về chi tiết khoá học mới; báo lỗi bằng toast. */
   async function run(action, successMessage) {
     setBusy(true)
@@ -424,7 +454,17 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
               </button>
             )}
             {!canManage && authenticated && enrolled === true && (
-              <span className="badge badge--joined">✓ Đã tham gia khoá học</span>
+              <>
+                <span className="badge badge--joined">✓ Đã tham gia khoá học</span>
+                <button
+                  type="button"
+                  className="button button--danger-ghost"
+                  onClick={cancelEnrollment}
+                  disabled={joining}
+                >
+                  Huỷ đăng ký
+                </button>
+              </>
             )}
             {!canManage && authenticated && enrolled === false && course.status !== 'PUBLISHED' && (
               <span className="muted small">Khoá học chưa mở đăng ký.</span>
