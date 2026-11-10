@@ -3,6 +3,8 @@ import { courseApi } from '../../api/courseApi.js'
 import { enrollmentApi } from '../../api/enrollmentApi.js'
 import { progressApi } from '../../api/progressApi.js'
 import { reviewApi } from '../../api/reviewApi.js'
+import CourseRatingSummary from './CourseRatingSummary.jsx'
+import CourseReviewsList from './CourseReviewsList.jsx'
 import ReviewModal from './ReviewModal.jsx'
 import { useAuth } from '../../auth/AuthContext.js'
 import StatusBadge from './StatusBadge.jsx'
@@ -44,9 +46,26 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
   const [reviewOpen, setReviewOpen] = useState(false)
   const [existingReview, setExistingReview] = useState(null)
   const [loadingReview, setLoadingReview] = useState(false)
+  // UC-R05: tổng hợp điểm đánh giá & bộ lọc sao
+  const [ratingSummary, setRatingSummary] = useState(null)
+  const [activeRatingFilter, setActiveRatingFilter] = useState(null)
+  const [reviewsKey, setReviewsKey] = useState(0)
   // UC-P02: tiến độ học của học viên trong khoá (để biết bài nào đã hoàn thành).
   const [courseProgress, setCourseProgress] = useState(null)
   const [completingId, setCompletingId] = useState(null)
+
+  const loadRatingSummary = useCallback(async () => {
+    try {
+      const summary = await reviewApi.summary(courseId)
+      setRatingSummary(summary)
+    } catch {
+      setRatingSummary(null)
+    }
+  }, [courseId])
+
+  useEffect(() => {
+    loadRatingSummary()
+  }, [loadRatingSummary])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -514,8 +533,15 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
           <h1>{course.title}</h1>
           {course.description && <p className="detail-hero__desc">{course.description}</p>}
           <p className="muted small">
-            {course.sections.length} chương · {totalLessons} bài học · {totalMaterials} học liệu · Cập nhật{' '}
-            {formatDate(course.updatedAt)}
+            {course.sections.length} chương · {totalLessons} bài học · {totalMaterials} học liệu
+            {ratingSummary && ratingSummary.totalReviews > 0 && (
+              <>
+                {' · '}
+                <strong style={{ color: '#d97706' }}>★ {Number(ratingSummary.averageRating).toFixed(1)}</strong> (
+                {ratingSummary.totalReviews} đánh giá)
+              </>
+            )}
+            {' · '}Cập nhật {formatDate(course.updatedAt)}
           </p>
           <div className="detail-hero__actions">
             {canManage && (
@@ -542,7 +568,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
             {!canManage && authenticated && enrolled === true && (
               <>
                 <span className="badge badge--joined">✓ Đã tham gia khoá học</span>
-                {reviewState?.completed && (
+                {(reviewState?.completed || reviewState?.canReview) && (
                   <button
                     type="button"
                     className="button button--secondary"
@@ -551,7 +577,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                   >
                     {loadingReview
                       ? 'Đang tải…'
-                      : reviewState.existingReviewId
+                      : reviewState?.existingReviewId
                         ? '★ Sửa đánh giá'
                         : '★ Gửi đánh giá'}
                   </button>
@@ -569,7 +595,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
             {!canManage && authenticated && enrolled === false && course.status !== 'PUBLISHED' && (
               <span className="muted small">Khoá học chưa mở đăng ký.</span>
             )}
-            {!canManage && authenticated && enrolled === true && reviewState && !reviewState.completed && (
+            {!canManage && authenticated && enrolled === true && reviewState && !reviewState.completed && !reviewState.canReview && (
               <span className="muted small">
                 Hoàn thành 100% khoá học để gửi đánh giá (hiện {Math.round(reviewState.percent)}%).
               </span>
@@ -845,6 +871,38 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         )}
       </section>
 
+      <section className="reviews-section" aria-label="Đánh giá và nhận xét">
+        <div className="reviews-section__head">
+          <h2>Đánh giá từ học viên</h2>
+          <p className="muted small">Phản hồi thực tế từ những người đã trải nghiệm khoá học.</p>
+        </div>
+
+        <CourseRatingSummary
+          summary={ratingSummary}
+          activeRatingFilter={activeRatingFilter}
+          onSelectRating={setActiveRatingFilter}
+        />
+
+        <CourseReviewsList
+          key={reviewsKey}
+          courseId={course.id}
+          activeRatingFilter={activeRatingFilter}
+          currentUserId={user?.id}
+          canManage={canManage}
+          isAdmin={isAdmin}
+          onEditReview={(review) => {
+            setExistingReview(review)
+            setReviewOpen(true)
+          }}
+          onReviewsChanged={() => {
+            loadRatingSummary()
+            refreshStudentProgress()
+            setReviewsKey((k) => k + 1)
+          }}
+          notify={notify}
+        />
+      </section>
+
       {reviewOpen && (
         <ReviewModal
           courseTitle={course.title}
@@ -856,6 +914,8 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
             setReviewOpen(false)
             setExistingReview(null)
             setReviewState((current) => ({ ...current, existingReviewId: review.id, completed: true }))
+            loadRatingSummary()
+            setReviewsKey((k) => k + 1)
             notify('success', wasEditing ? 'Đã cập nhật đánh giá.' : 'Cảm ơn bạn đã gửi đánh giá!')
           }}
         />

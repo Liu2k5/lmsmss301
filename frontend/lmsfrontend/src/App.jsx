@@ -11,6 +11,7 @@ import RegisterPage from './pages/RegisterPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import AdminUsersPage from './pages/AdminUsersPage.jsx'
 import AdminRequestsPage from './pages/AdminRequestsPage.jsx'
+import AdminReviewsPage from './pages/AdminReviewsPage.jsx'
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import { useAuth } from './auth/AuthContext.js'
 
@@ -49,6 +50,9 @@ function parseHash(hash) {
   }
   if (parts[0] === 'admin' && parts[1] === 'requests') {
     return { page: 'admin-requests' }
+  }
+  if (parts[0] === 'admin' && parts[1] === 'reviews') {
+    return { page: 'admin-reviews' }
   }
   if (!parts.length) return { page: 'home' }
   const id = uuid(parts[1])
@@ -105,6 +109,10 @@ export default function App() {
                     aria-current={route.page === 'admin-requests' ? 'page' : undefined}>
                     Yêu cầu
                   </a>
+                  <a href="#/admin/reviews" className={`top-nav__link${route.page === 'admin-reviews' ? ' is-active' : ''}`}
+                    aria-current={route.page === 'admin-reviews' ? 'page' : undefined}>
+                    Kiểm duyệt đánh giá
+                  </a>
                 </>
               )}
               <button className="top-nav__auth" type="button" onClick={logout}>Đăng xuất</button>
@@ -125,6 +133,7 @@ export default function App() {
           route.page === 'profile' ? <ProfilePage /> :
             route.page === 'admin-users' ? <AdminUsersPage /> :
               route.page === 'admin-requests' ? <AdminRequestsPage /> :
+              route.page === 'admin-reviews' ? <AdminReviewsPage /> :
       route.page === 'quiz-attempt' ? (
         <QuizAttemptPage quizId={route.quizId} courseId={route.quizCourseId} />
       ) :
