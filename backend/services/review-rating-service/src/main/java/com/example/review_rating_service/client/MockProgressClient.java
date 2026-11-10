@@ -20,7 +20,8 @@ public class MockProgressClient implements ProgressClient {
         return Optional.of(ProgressStatusDto.builder()
                 .studentId(studentId)
                 .courseId(courseId)
-                .percentComplete(new BigDecimal("100.00"))
+                .completionPercentage(new BigDecimal("100.00"))
+                .status("COMPLETED")
                 .courseCompleted(true)
                 .build());
     }
