@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import QuizForm from '../components/QuizForm.jsx'
 import QuizPreview from '../components/QuizPreview.jsx'
 import { quizApi } from '../api/quizApi.js'
+import { enrollmentApi } from '../api/enrollmentApi.js'
 import { useAuth } from '../auth/AuthContext.js'
 
 function formatDate(value) {
@@ -47,6 +48,9 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState(null)
   const handledLink = useRef(null)
+  // Học viên chỉ thấy quiz thuộc khoá học đã đăng ký (UC-E01) — danh sách khoá đang ACTIVE.
+  // null = đang tải danh sách đăng ký (dùng luôn làm cờ loading, tránh setState đồng bộ trong effect).
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState(null)
 
   // Quiz là công cụ soạn bài: chỉ giảng viên (hoặc admin) được dùng.
   const { ready, authenticated, isInstructor, isAdmin } = useAuth()
@@ -120,6 +124,30 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
       active = false
     }
   }, [canManage])
+
+  // Học viên: chỉ hiện quiz của khoá học đã đăng ký. Giảng viên/admin xem tất cả.
+  useEffect(() => {
+    if (!authenticated || canManage) {
+      return undefined
+    }
+    let active = true
+    enrollmentApi
+      .myEnrollments()
+      .then((list) => {
+        if (!active) return
+        setEnrolledCourseIds(new Set(
+          list.filter((item) => item.status === 'ACTIVE').map((item) => item.courseId),
+        ))
+      })
+      .catch((error) => {
+        if (!active) return
+        setEnrolledCourseIds(new Set())
+        setToast({ type: 'error', message: error.message })
+      })
+    return () => {
+      active = false
+    }
+  }, [authenticated, canManage])
 
   // Deep-link: #/quizzes?quizId=… hoặc #/quizzes?lessonId=… (hash đổi cũng kích hoạt lại).
   useEffect(() => {
@@ -264,14 +292,21 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     )
   }
 
+  // Học viên: lọc quiz theo khoá học đang đăng ký (null = đang tải danh sách đăng ký).
+  const visibleQuizzes = canManage || enrolledCourseIds == null
+    ? quizzes
+    : quizzes.filter((quiz) => enrolledCourseIds.has(quiz.courseId))
+
   const courseSource = canManage
     ? lessonOptions.map((lesson) => [lesson.courseId, lesson.courseTitle])
-    : quizzes.map((quiz) => [quiz.courseId, quiz.courseTitle])
+    : visibleQuizzes.map((quiz) => [quiz.courseId, quiz.courseTitle])
   const courses = Array.from(new Map(courseSource).entries()).map(([id, title]) => ({ id, title }))
 
   const emptyLessons = lessonOptions.filter((lesson) => lesson.quizId == null)
-  const totalQuestions = quizzes.reduce((sum, quiz) => sum + quiz.questionCount, 0)
+  const totalQuestions = visibleQuizzes.reduce((sum, quiz) => sum + quiz.questionCount, 0)
   const filtering = Boolean(activeKeyword || filters.courseId)
+  const noEnrollment = !canManage && enrolledCourseIds != null && enrolledCourseIds.size === 0
+  const busy = loading || (!canManage && authenticated && enrolledCourseIds == null)
 
   return (
     <div className="app">
@@ -286,7 +321,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
           </div>
         </div>
         <div className="app-header__actions">
-          <button type="button" className="button button--ghost" onClick={refresh} disabled={loading}>
+          <button type="button" className="button button--ghost" onClick={refresh} disabled={busy}>
             ⟳ Làm mới
           </button>
           {canManage && (
@@ -304,7 +339,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
 
       <section className="stats" aria-label="Thống kê">
         <div className="stat">
-          <span className="stat__value">{quizzes.length}</span>
+          <span className="stat__value">{visibleQuizzes.length}</span>
           <span className="stat__label">{filtering ? 'Quiz khớp bộ lọc' : 'Bài quiz'}</span>
         </div>
         <div className="stat">
@@ -363,21 +398,40 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
         </div>
       )}
 
-      {loading ? (
+      {busy ? (
         <div className="state-card">
           <span className="spinner" aria-hidden="true" />
           <p>Đang tải danh sách quiz…</p>
         </div>
-      ) : quizzes.length === 0 ? (
+      ) : noEnrollment && visibleQuizzes.length === 0 ? (
+        <div className="state-card">
+          <div className="state-card__icon" aria-hidden="true">
+            🎓
+          </div>
+          <h2>Bạn chưa đăng ký khoá học nào</h2>
+          <p>Quiz chỉ hiện với những khoá học bạn đã tham gia. Hãy chọn một khoá học để bắt đầu.</p>
+          <a className="button button--primary" href="#/courses">
+            Khám phá khoá học
+          </a>
+        </div>
+      ) : visibleQuizzes.length === 0 ? (
         <div className="state-card">
           <div className="state-card__icon" aria-hidden="true">
             🗒️
           </div>
-          <h2>{filtering ? 'Không có quiz nào khớp bộ lọc' : 'Chưa có bài quiz nào'}</h2>
+          <h2>
+            {filtering
+              ? 'Không có quiz nào khớp bộ lọc'
+              : canManage
+                ? 'Chưa có bài quiz nào'
+                : 'Khoá học của bạn chưa có bài quiz'}
+          </h2>
           <p>
             {filtering
               ? 'Thử từ khoá khác hoặc bỏ bộ lọc.'
-              : 'Tạo quiz đầu tiên cho một bài học loại QUIZ để bắt đầu.'}
+              : canManage
+                ? 'Tạo quiz đầu tiên cho một bài học loại QUIZ để bắt đầu.'
+                : 'Các khoá học bạn đã đăng ký hiện chưa có bài kiểm tra nào.'}
           </p>
           {filtering ? (
             <button
@@ -387,18 +441,21 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
             >
               Xoá bộ lọc
             </button>
-          ) : (
+          ) : canManage ? (
             <button type="button" className="button button--primary" onClick={() => setEditor({ mode: 'create' })}>
               + Tạo quiz đầu tiên
             </button>
+          ) : (
+            <a className="button button--ghost" href="#/courses">
+              Xem khoá học của tôi
+            </a>
           )}
         </div>
       ) : (
         <div className="quiz-grid">
-          {quizzes.map((quiz) => (
+          {visibleQuizzes.map((quiz) => (
             <article className="quiz-card" key={quiz.id}>
               <header className="quiz-card__header">
-                <span className="badge">Quiz #{quiz.id}</span>
                 <span className="quiz-card__score">
                   {Number(quiz.passingScore)}% để đạt
                   {quiz.maxAttempts ? ` · tối đa ${quiz.maxAttempts} lần` : ' · không giới hạn lượt'}

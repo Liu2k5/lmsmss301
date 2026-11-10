@@ -340,6 +340,9 @@ Mở file này và dùng **Markdown Preview** (`Ctrl+Shift+V`) — VS Code rende
 
 | File | Use case |
 |---|---|
+| `drawio/uc-overview.drawio` | **Use case overview** toàn hệ thống — 7 trang: tổng quan nhóm use case, 5 trang theo actor, 7 use case Key Challenge (xem mục 7) |
+| `drawio/uc-flows/flow-01…10-*.drawio` | **Use case tách theo 10 luồng nghiệp vụ** (bản trình bày chính — xem mục 7.3) |
+| `drawio/uc-overview-by-role.drawio` | **Use case overview theo từng role** — 6 trang: ma trận role × service + 5 trang tổng quan (nhóm use case) cho Guest / Student / Instructor / Admin / System (xem mục 7.2) |
 | `drawio/uc-p04-submit-quiz.drawio` | UC-P04 — Submit quiz & record score (7 participant, 19 message, **mức service**) |
 
 > UC-C30 chưa có bản `.drawio` trong repo (vẫn có bản Mermaid ở mục 3.2 và bản PlantUML/ảnh ở mục 6).
@@ -372,3 +375,93 @@ java -jar plantuml.jar -charset UTF-8 -tsvg -o ./rendered docs/diagrams/*.puml
 
 > PlantUML cần **Graphviz** để bố cục sơ đồ object. Nếu máy chưa có, cài `graphviz` hoặc trỏ tới binary bằng
 > `java -DGRAPHVIZ_DOT=/đường/dẫn/dot -jar plantuml.jar …`.
+
+---
+
+## 7. Sơ đồ use case tổng quan (`uc-overview.drawio`)
+
+Toàn bộ **76 use case** trong bảng `Use Case Summary` được vẽ lại thành một file draw.io **7 trang** — mỗi trang
+một mức nhìn khác nhau, để vừa có ảnh tổng quan cho báo cáo vừa tra cứu được chi tiết:
+
+| Trang | Tên | Nội dung |
+|---|---|---|
+| 00 | Use case tổng quan | 5 actor + 5 system boundary, **23 nhóm use case** (gộp các UC liên tiếp cùng nghiệp vụ), đường kết nối tô màu theo actor |
+| 01 | Actor **Guest** | 5 use case (UC-U01, U11, C28, C29, R04) |
+| 02 | Actor **Student** | 24 use case |
+| 03 | Actor **Instructor** | 37 use case |
+| 04 | Actor **Admin** | 20 use case |
+| 05 | Actor **System** | 10 use case (event / scheduled job) |
+| 06 | Key Challenge | 7 use case gắn nhãn *Key Challenge* + quan hệ «include» / «extend» / «event» |
+
+Quy ước vẽ:
+
+- **System boundary** = microservice sở hữu use case (`course-service`, `user-service`, `enrollment-service`,
+  `progress-service`, `review-rating-service`) — khớp cột `Service` của bảng tính.
+- **Ellipse vàng** = use case thuộc *Key Challenge* (access control / progress tracking), **ellipse xanh** = nghiệp vụ
+  thường.
+- Đường **liền** = association actor ↔ use case (chỉ vẽ một chiều actor → use case, đúng UML).
+- Đường **nét đứt** ở trang 06: `«include»` (bắt buộc gọi), `«extend»` (mở rộng có điều kiện: đạt 100% → cấp
+  chứng chỉ), `«event»` (thông báo bất đồng bộ qua RabbitMQ).
+- Mỗi trang có ô **note**: chú thích màu + danh sách mã use case của trang đó, tiện đối chiếu với bảng tính.
+
+Tổng số cặp *actor–use case* = 96 trên 5 trang actor (một use case có nhiều actor được vẽ nhiều lần, đúng như cột
+`Actor` của bảng tính); số use case duy nhất vẫn là **76**.
+
+### 7.2. Sơ đồ use case tổng quan theo từng role (`uc-overview-by-role.drawio`)
+
+Bản **tổng quan theo role**: các use case được **gộp thành nhóm nghiệp vụ** (thay vì liệt kê từng UC), để trả lời
+nhanh câu hỏi *"role này làm được gì, ở service nào"*. File gồm 6 trang:
+
+| Trang | Nội dung |
+|---|---|
+| 00 | **Ma trận role × service** — mỗi hàng một role, mỗi cột một microservice; ô giao ghi số use case, các nhóm và mã UC (ô vàng = có *Key Challenge*) |
+| 01 | Role **Guest** — 5 UC / 4 nhóm / 3 service |
+| 02 | Role **Student** — 24 UC / 10 nhóm / 5 service |
+| 03 | Role **Instructor** — 37 UC / 13 nhóm / 5 service |
+| 04 | Role **Admin** — 20 UC / 8 nhóm / 4 service |
+| 05 | Role **System** — 10 UC / 6 nhóm / 3 service |
+
+Mỗi trang role gồm: actor ở bên trái, các **system boundary** của những service có use case cho role đó, bên trong là
+các ellipse nhóm nghiệp vụ kèm **số lượng + mã UC thực tế của role**. Ví dụ nhóm *"Xuất bản, ẩn/lưu trữ & danh mục"*
+(Instructor) chỉ hiện `UC-C20, C21, C23, C24` vì `C22 / C25 / C26 / C27` là quyền Admin — số liệu lấy trực tiếp từ cột
+`Actor` của bảng tính nên luôn khớp.
+
+Phân bố use case theo role (một UC có nhiều role nên tổng > 76):
+
+| Role | Course | User | Enrollment | Progress | Review & Rating | Tổng |
+|---|---|---|---|---|---|---|
+| Guest | 2 | 2 | – | – | 1 | **5** |
+| Student | 3 | 9 | 3 | 4 | 5 | **24** |
+| Instructor | 24 | 7 | 1 | 1 | 4 | **37** |
+| Admin | 7 | 9 | 2 | – | 2 | **20** |
+| System | – | – | 2 | 7 | 1 | **10** |
+
+### 7.3. Sơ đồ use case tách theo từng luồng nghiệp vụ (`drawio/uc-flows/`)
+
+Bản **trình bày chính**: 76 use case được chia thành **10 sơ đồ riêng** theo luồng nghiệp vụ, mỗi luồng một file
+`.drawio` độc lập (mở/nhúng/chèn vào báo cáo riêng được). Mỗi file gồm: actor liên quan, các **system boundary** của
+service tham gia luồng, **use case chi tiết** (mã + tên lấy từ bảng tính) và quan hệ `«include»` / `«extend»`.
+
+| # | File | Luồng nghiệp vụ | Use case | Service | Actor |
+|---|---|---|---|---|---|
+| 01 | `uc-flows/flow-01-auth-account.drawio` | Đăng ký, đăng nhập & tài khoản | UC-U01…U05 (5) | user | Guest, Student, Instructor, Admin |
+| 02 | `uc-flows/flow-02-profile-instructor-role.drawio` | Hồ sơ cá nhân & trở thành giảng viên | UC-U06…U11 (6) | user | Guest, Student, Instructor, Admin |
+| 03 | `uc-flows/flow-03-admin-user-management.drawio` | Quản trị người dùng | UC-U12…U16 (5) | user | Admin |
+| 04 | `uc-flows/flow-04-course-authoring.drawio` | Soạn nội dung khoá học | UC-C01…C13 (13) | course | Instructor, Admin |
+| 05 | `uc-flows/flow-05-quiz-authoring-and-submission.drawio` | Quiz: soạn đề & nộp bài | UC-C14…C19, UC-P04, UC-E04 (8) | course, progress, enrollment | Student, Instructor, System |
+| 06 | `uc-flows/flow-06-publishing-and-category.drawio` | Xuất bản, kiểm duyệt & danh mục | UC-C20…C27 (8) | course | Instructor, Admin |
+| 07 | `uc-flows/flow-07-browse-and-access-content.drawio` | Khám phá khoá học & truy cập nội dung | UC-C28…C30, UC-E04 (4) | course, enrollment | Guest, Student, Instructor, System |
+| 08 | `uc-flows/flow-08-enrollment.drawio` | Đăng ký học & sự kiện enrollment | UC-E01…E08 (8) | enrollment | Student, Instructor, Admin, System |
+| 09 | `uc-flows/flow-09-learning-progress.drawio` | Theo dõi tiến độ & chứng chỉ | UC-P01…P03, P05…P11 (10) | progress | Student, Instructor, System |
+| 10 | `uc-flows/flow-10-review-rating.drawio` | Đánh giá & kiểm duyệt đánh giá | UC-R01…R11 (11) | review-rating | Guest, Student, Instructor, Admin, System |
+
+Ghi chú khi đọc:
+
+- **UC-E04** (Check enrollment status) xuất hiện ở cả luồng 05 và 07 vì là use case `«include»` bắt buộc — đây là
+  điểm giao của *Key Challenge access control*; các use case còn lại mỗi cái chỉ nằm trong đúng một luồng.
+- UC-P04 nằm ở luồng 05 (chấm điểm đầy đủ) và chỉ được nhắc ở luồng 09 qua quan hệ `«include» → UC-P07`.
+- Luồng 08 phát event `StudentEnrolled` / `StudentUnenrolled` (RabbitMQ) → kích hoạt UC-P01 / UC-P11 ở luồng 09.
+- Quan hệ `«include»` chỉ vẽ khi nằm giữa hai use case **cùng luồng** (P04→E04, C30→E04, C21→C22, P07→P08«extend»);
+  các phụ thuộc cùng service nhưng khác dòng (P02→P07, R01→R11…) được ghi trong ô *note* của từng sơ đồ để không rối hình.
+- Hai bản tổng quan (`uc-overview.drawio`, `uc-overview-by-role.drawio`) vẫn giữ để làm **trang mục lục**: xem nhanh
+  76 use case và ma trận role × service.

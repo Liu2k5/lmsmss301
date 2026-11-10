@@ -4,6 +4,7 @@ import { AuthContext } from './AuthContext.js'
 import { setQuizTokenProvider } from '../api/quizApi.js'
 import { setProgressTokenProvider } from '../api/progressApi.js'
 import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
+import { setReviewTokenProvider } from '../api/reviewApi.js'
 import { setCourseTokenProvider } from '../api/courseApi.js'
 
 const keycloak = new Keycloak({
@@ -13,6 +14,27 @@ const keycloak = new Keycloak({
 })
 
 let initialization
+
+/**
+ * Token dùng cho các api module (quiz/progress/enrollment/course).
+ * Đăng ký ở cấp module vì effect của component con chạy TRƯỚC effect của AuthProvider:
+ * nếu đăng ký trong useEffect, lần tải trang đầu tiên các request sẽ đi không token (401).
+ */
+async function getAccessToken() {
+  if (!keycloak.authenticated) return null
+  try {
+    await keycloak.updateToken(30)
+  } catch {
+    return null
+  }
+  return keycloak.token ?? null
+}
+
+setQuizTokenProvider(getAccessToken)
+setProgressTokenProvider(getAccessToken)
+setEnrollmentTokenProvider(getAccessToken)
+setReviewTokenProvider(getAccessToken)
+setCourseTokenProvider(getAccessToken)
 
 function initializeKeycloak() {
   if (!initialization) {
@@ -30,9 +52,17 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
+  // Chỉ cần setter: Keycloak báo trạng thái action (đổi mật khẩu) để JS client xử lý URL.
+  const [, setPasswordActionStatus] = useState('')
 
   useEffect(() => {
     let active = true
+    keycloak.onActionUpdate = (status, action) => {
+      if (action === 'UPDATE_PASSWORD' && active) {
+        setPasswordActionStatus(status)
+      }
+    }
+
     initializeKeycloak()
       .then((isAuthenticated) => {
         if (!active) return
@@ -63,14 +93,29 @@ export function AuthProvider({ children }) {
     isAdmin: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
       (role) => role.toUpperCase() === 'ADMIN' || role.toUpperCase() === 'ADMINISTRATOR',
     )),
-    async login() {
-      sessionStorage.setItem('postLoginHash', '#/profile')
+    async login(nextHash = '#/profile') {
+      sessionStorage.setItem('postLoginHash', nextHash)
       try {
         await keycloak.login({ redirectUri: `${window.location.origin}${window.location.pathname}` })
       } catch (error) {
         sessionStorage.removeItem('postLoginHash')
         console.error('Không thể bắt đầu đăng nhập Keycloak', error)
         setAuthError('Không thể bắt đầu đăng nhập. Kiểm tra cấu hình Keycloak client.')
+      }
+    },
+    async updatePassword() {
+      sessionStorage.setItem('postLoginHash', '#/profile')
+      setPasswordActionStatus('')
+      try {
+        await keycloak.login({
+          action: 'UPDATE_PASSWORD',
+          prompt: 'login',
+          redirectUri: `${window.location.origin}${window.location.pathname}`,
+        })
+      } catch (error) {
+        sessionStorage.removeItem('postLoginHash')
+        console.error('Không thể bắt đầu đổi mật khẩu trên Keycloak', error)
+        setAuthError('Không thể mở trang đổi mật khẩu của Keycloak.')
       }
     },
     async logout() {
@@ -82,11 +127,7 @@ export function AuthProvider({ children }) {
         setAuthError('Không thể đăng xuất khỏi Keycloak.')
       }
     },
-    async getToken() {
-      if (!keycloak.authenticated) return null
-      await keycloak.updateToken(30)
-      return keycloak.token ?? null
-    },
+    getToken: getAccessToken,
     isInstructor: Boolean(keycloak.tokenParsed?.realm_access?.roles?.some(
       (role) => role.toUpperCase() === 'INSTRUCTOR',
     )),
@@ -99,62 +140,6 @@ export function AuthProvider({ children }) {
         }
       : null,
   }), [ready, authenticated, authError])
-
-  // quizApi cần JWT cho mọi request (backend giới hạn quiz cho giảng viên/admin).
-  useEffect(() => {
-    setQuizTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setQuizTokenProvider(null)
-  }, [ready, authenticated])
-
-  // progressApi (nộp bài quiz - UC-P04) cũng cần JWT khi gọi qua Gateway.
-  useEffect(() => {
-    setProgressTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setProgressTokenProvider(null)
-  }, [ready, authenticated])
-
-  // enrollmentApi (đăng ký khoá học - UC-E01) cần JWT khi gọi qua Gateway.
-  useEffect(() => {
-    setEnrollmentTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setEnrollmentTokenProvider(null)
-  }, [ready, authenticated])
-
-  // courseApi (soạn nội dung khoá học - UC-C01…C13) cần JWT cho các thao tác ghi.
-  useEffect(() => {
-    setCourseTokenProvider(async () => {
-      if (!keycloak.authenticated) return null
-      try {
-        await keycloak.updateToken(30)
-      } catch {
-        return null
-      }
-      return keycloak.token ?? null
-    })
-    return () => setCourseTokenProvider(null)
-  }, [ready, authenticated])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

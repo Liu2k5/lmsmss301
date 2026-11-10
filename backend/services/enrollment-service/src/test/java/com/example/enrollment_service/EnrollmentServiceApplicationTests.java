@@ -2,6 +2,7 @@ package com.example.enrollment_service;
 
 import com.example.enrollment_service.domain.*;
 import com.example.enrollment_service.integration.EnrollmentActivatedEvent;
+import com.example.enrollment_service.integration.EnrollmentCancelledEvent;
 import com.example.enrollment_service.repository.*;
 import com.example.enrollment_service.service.EnrollmentService;
 import com.example.enrollment_service.web.dto.EnrollmentResponse;
@@ -68,6 +69,7 @@ class EnrollmentServiceApplicationTests {
         var captor = ArgumentCaptor.forClass(EnrollmentActivatedEvent.class);
         verify(applicationEvents, atLeastOnce()).publishEvent(captor.capture());
         EnrollmentActivatedEvent published = captor.getValue();
+        assertNotNull(published.eventId(), "eventId phải là id của bản ghi enroll_events");
         assertEquals(e.getId(), published.enrollmentId());
         assertEquals(student, published.studentId());
         assertEquals(course, published.courseId());
@@ -163,6 +165,19 @@ class EnrollmentServiceApplicationTests {
         assertNotNull(e.getCancelledAt());
         assertEquals(e.getCancelledAt(), e.getUpdatedAt());
         assertAccessAndEvent(e, AccessStatus.REVOKED, EventType.CANCELLED);
+    }
+
+    @Test
+    void cancelPublishesUnenrolledEventForProgressArchive() {
+        existing(Status.ACTIVE);
+        service.cancel(student, course);
+
+        var captor = ArgumentCaptor.forClass(EnrollmentCancelledEvent.class);
+        verify(applicationEvents).publishEvent(captor.capture());
+        EnrollmentCancelledEvent published = captor.getValue();
+        assertNotNull(published.eventId(), "eventId phải là id của bản ghi enroll_events");
+        assertEquals(student, published.studentId());
+        assertEquals(course, published.courseId());
     }
 
     @Test

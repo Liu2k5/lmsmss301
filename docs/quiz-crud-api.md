@@ -30,7 +30,7 @@ Biến môi trường của course-service:
 | `DB_USER` / `DB_PASSWORD` | `postgres` / `postgres` | Tài khoản DB |
 | `DDL_AUTO` | `update` | Chiến lược schema Hibernate |
 | `SERVER_PORT` | `8081` | Cổng service |
-| `SEED_DEMO_DATA` | `true` | Seed dữ liệu mẫu (gồm 1 quiz demo + 1 bài QUIZ chưa có quiz) |
+| `SEED_DEMO_DATA` | `true` | Seed dữ liệu mẫu: khoá Spring Boot với **3 quiz mẫu** (2 câu / 3 câu / 3 câu, gồm SINGLE_CHOICE, MULTIPLE_CHOICE và TRUE_FALSE) |
 | `EUREKA_ENABLED` | `true` | Đăng ký Eureka (đặt `false` khi chạy một mình) |
 
 Nếu chưa có PostgreSQL, có thể chạy tạm bằng H2 trên classpath test:

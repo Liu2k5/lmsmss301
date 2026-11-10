@@ -31,6 +31,10 @@ public class CurrentUser {
 		return hasRole("ROLE_ADMIN") || hasRole("ROLE_ADMINISTRATOR");
 	}
 
+	public boolean isInstructor() {
+		return hasRole("ROLE_INSTRUCTOR");
+	}
+
 	private boolean hasRole(String role) {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth == null) {

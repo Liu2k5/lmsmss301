@@ -119,6 +119,88 @@
   font-size: 13px;
 }
 
+/* Nút phụ màu vàng hổ phách: dùng cho đánh giá (UC-R01). */
+.button--secondary {
+  background: var(--color-warning-soft, #fffbeb);
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.button--secondary:hover:not(:disabled) {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+/* ------------------------------------------------------------------ đánh giá khoá học */
+.review-stars {
+  margin: 0 0 16px;
+  padding: 0;
+  border: none;
+}
+
+.review-stars legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.review-stars__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.review-stars__star {
+  padding: 0 2px;
+  border: none;
+  background: none;
+  font-size: 30px;
+  line-height: 1;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.review-stars__star.is-active {
+  color: #f59e0b;
+}
+
+.review-stars__star:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.review-stars__label {
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.review-comment {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.review-comment textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 10px);
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+
+.review-comment textarea:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary-soft);
+}
+
 .icon-button {
   display: grid;
   place-items: center;
@@ -214,6 +296,15 @@
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 600;
+}
+
+/* Học viên đã tham gia khoá học (UC-E01). */
+.badge--joined {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 13px;
 }
 
 .quiz-card__score {

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.hasSize;
 
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,34 @@ class CourseSecurityIntegrationTest {
 	void khachVanXemDuocCatalog() throws Exception {
 		mockMvc.perform(get("/api/v1/courses")).andExpect(status().isOk());
 		mockMvc.perform(get("/api/v1/courses/" + courseId)).andExpect(status().isOk());
+	}
+
+	// ------------------------------------------------------------- khoá học nháp
+
+	@Test
+	void hocVienKhongThayKhoaHocNhap() throws Exception {
+		mockMvc.perform(as(get("/api/v1/courses"), STUDENT, "student"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id == '%s')]".formatted(courseId), hasSize(0)));
+		mockMvc.perform(as(get("/api/v1/courses/" + courseId), STUDENT, "student"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void giangVienSoHuuVaAdminVanThayKhoaHocNhap() throws Exception {
+		mockMvc.perform(as(get("/api/v1/courses"), INSTRUCTOR, "instructor"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id == '%s')]".formatted(courseId), hasSize(1)));
+		mockMvc.perform(as(get("/api/v1/courses/" + courseId), INSTRUCTOR, "instructor"))
+				.andExpect(status().isOk());
+		mockMvc.perform(as(get("/api/v1/courses/" + courseId), ADMIN, "admin"))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void giangVienKhacKhongThayKhoaHocNhapCuaDongNghiep() throws Exception {
+		mockMvc.perform(as(get("/api/v1/courses/" + courseId), OTHER_INSTRUCTOR, "instructor"))
+				.andExpect(status().isNotFound());
 	}
 
 	// ------------------------------------------------------------- chưa đăng nhập

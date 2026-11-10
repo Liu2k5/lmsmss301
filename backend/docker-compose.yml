@@ -297,8 +297,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      JWT_ISSUER: http://localhost:8180/realms/lms
-      JWT_JWK_SET_URI: http://keycloak:8080/realms/lms/protocol/openid-connect/certs
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_JWK_SET_URI: ${JWT_JWK_SET_URI}
       EUREKA_URL: http://eureka-server:8761/eureka
     depends_on:
       eureka-server:

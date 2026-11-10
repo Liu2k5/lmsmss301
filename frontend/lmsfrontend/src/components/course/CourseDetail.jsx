@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { courseApi } from '../../api/courseApi.js'
+import { enrollmentApi } from '../../api/enrollmentApi.js'
+import { progressApi } from '../../api/progressApi.js'
+import { reviewApi } from '../../api/reviewApi.js'
+import ReviewModal from './ReviewModal.jsx'
 import { useAuth } from '../../auth/AuthContext.js'
 import StatusBadge from './StatusBadge.jsx'
 import {
@@ -23,7 +27,7 @@ function moved(ids, index, delta) {
 
 export default function CourseDetail({ courseId, onBack, openDialog, closeDialog, notify }) {
   // Chỉ giảng viên/admin được sửa nội dung; học viên và khách chỉ xem.
-  const { authenticated, isInstructor, isAdmin } = useAuth()
+  const { authenticated, isInstructor, isAdmin, login, user } = useAuth()
   const canManage = authenticated && (isInstructor || isAdmin)
 
   const [course, setCourse] = useState(null)
@@ -32,6 +36,17 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
   const [busy, setBusy] = useState(false)
   const [expanded, setExpanded] = useState(() => new Set())
   const [playingId, setPlayingId] = useState(null)
+  // Học viên: đã tham gia khoá học này chưa (UC-E01).
+  const [enrolled, setEnrolled] = useState(null)
+  const [joining, setJoining] = useState(false)
+  // UC-R01: đánh giá khoá học — chỉ mở khi đã hoàn thành (100%) hoặc đã có đánh giá trước đó.
+  const [reviewState, setReviewState] = useState(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [existingReview, setExistingReview] = useState(null)
+  const [loadingReview, setLoadingReview] = useState(false)
+  // UC-P02: tiến độ học của học viên trong khoá (để biết bài nào đã hoàn thành).
+  const [courseProgress, setCourseProgress] = useState(null)
+  const [completingId, setCompletingId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -49,6 +64,142 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tải chi tiết khi mở khoá học
     load()
   }, [load])
+
+  // Học viên: kiểm tra đã đăng ký khoá học này chưa để hiện đúng nút tham gia.
+  useEffect(() => {
+    if (!authenticated || canManage) return undefined
+    let active = true
+    enrollmentApi
+      .myEnrollments()
+      .then((list) => {
+        if (!active) return
+        setEnrolled(list.some((item) => item.courseId === courseId && item.status === 'ACTIVE'))
+      })
+      .catch(() => {
+        if (active) setEnrolled(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [authenticated, canManage, courseId])
+
+  /**
+   * Nạp tiến độ học của học viên trong khoá: dùng cho nút "Đánh dấu đã hoàn thành" (UC-P02)
+   * và điều kiện gửi đánh giá (UC-R01 — cần hoàn thành 100%).
+   */
+  const studentId = user?.id ?? null
+  const refreshStudentProgress = useCallback(async () => {
+    if (!authenticated || canManage || !enrolled || !studentId) {
+      return
+    }
+    const [progress, eligibility] = await Promise.all([
+      progressApi.courseProgress(courseId, studentId).catch(() => null),
+      reviewApi.eligibility(courseId).catch(() => null),
+    ])
+    setCourseProgress(progress)
+    const percent = Number(progress?.completionPercentage ?? 0)
+    setReviewState({
+      completed: Boolean(progress) && (percent >= 100 || progress?.status === 'COMPLETED'),
+      percent,
+      // Đã đánh giá rồi thì hiện đánh giá hiện tại để sửa (UC-R02).
+      existingReviewId: eligibility?.existingReviewId ?? null,
+      canReview: Boolean(eligibility?.canReview),
+      reason: eligibility?.reason ?? null,
+    })
+  }, [authenticated, canManage, enrolled, courseId, studentId])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tải tiến độ khi mở khoá học
+    refreshStudentProgress()
+  }, [refreshStudentProgress])
+
+  /** UC-P02 — học viên tự đánh dấu bài Video / Bài đọc đã hoàn thành. */
+  async function markLessonCompleted(lesson) {
+    if (!studentId) {
+      return
+    }
+    setCompletingId(lesson.id)
+    try {
+      await progressApi.markLessonCompleted(courseId, lesson.id, studentId)
+      await refreshStudentProgress()
+      notify('success', `Đã đánh dấu "${lesson.title}" hoàn thành.`)
+    } catch (error) {
+      notify('error', error.message)
+    } finally {
+      setCompletingId(null)
+    }
+  }
+
+  /** Mở modal đánh giá; nếu đã có đánh giá thì nạp lại nội dung để điền sẵn (UC-R02). */
+  async function openReviewModal() {
+    if (!reviewState?.existingReviewId) {
+      setExistingReview(null)
+      setReviewOpen(true)
+      return
+    }
+    setLoadingReview(true)
+    try {
+      const mine = await reviewApi.myReviews()
+      setExistingReview(
+        mine.find((item) => item.id === reviewState.existingReviewId) ?? { id: reviewState.existingReviewId },
+      )
+    } catch {
+      setExistingReview({ id: reviewState.existingReviewId })
+    } finally {
+      setLoadingReview(false)
+      setReviewOpen(true)
+    }
+  }
+
+  /** UC-E01 — tham gia khoá học. Progress Service tạo tiến độ từ event StudentEnrolled. */
+  async function joinCourse() {
+    setJoining(true)
+    try {
+      await enrollmentApi.enroll(courseId)
+      setEnrolled(true)
+      notify('success', `Đã tham gia khoá học "${course?.title ?? ''}". Tiến độ học tập đã được khởi tạo.`)
+    } catch (error) {
+      // 409 = đã đăng ký trước đó (ví dụ mở hai tab); coi như đã tham gia.
+      if (error.status === 409) {
+        setEnrolled(true)
+        notify('success', 'Bạn đã tham gia khoá học này rồi.')
+      } else {
+        notify('error', error.message)
+      }
+    } finally {
+      setJoining(false)
+    }
+  }
+
+  /** UC-E02 — huỷ đăng ký khoá học. Progress Service lưu trữ (archive) tiến độ đã có. */
+  function cancelEnrollment() {
+    openDialog({
+      kind: 'confirm',
+      title: 'Huỷ đăng ký khoá học?',
+      message: `Bạn sẽ mất quyền truy cập nội dung khoá học "${course?.title ?? ''}". Tiến độ hiện tại được lưu trữ lại, và có thể đăng ký học lại bất cứ lúc nào.`,
+      confirmLabel: 'Huỷ đăng ký',
+      danger: true,
+      onConfirm: async () => {
+        closeDialog()
+        setJoining(true)
+        try {
+          await enrollmentApi.cancel(courseId)
+          setEnrolled(false)
+          notify('success', `Đã huỷ đăng ký khoá học "${course?.title ?? ''}".`)
+        } catch (error) {
+          // 404 = chưa từng đăng ký (ví dụ huỷ ở tab khác); coi như đã huỷ.
+          if (error.status === 404) {
+            setEnrolled(false)
+            notify('success', 'Bạn chưa đăng ký khoá học này.')
+          } else {
+            notify('error', error.message)
+          }
+        } finally {
+          setJoining(false)
+        }
+      },
+    })
+  }
 
   /** Chạy một thao tác trả về chi tiết khoá học mới; báo lỗi bằng toast. */
   async function run(action, successMessage) {
@@ -332,6 +483,13 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     })
   }
 
+  // Bài học đã hoàn thành (từ tiến độ của học viên) — dùng cho nhãn "Đã hoàn thành".
+  const completedLessonIds = new Set(
+    (courseProgress?.lessons ?? []).filter((item) => item.completed).map((item) => item.lessonId),
+  )
+  // Video và Bài đọc do học viên tự đánh dấu hoàn thành (UC-P02); Quiz hoàn thành khi đạt điểm.
+  const canSelfComplete = (lesson) => !canManage && enrolled && (lesson.type === 'VIDEO' || lesson.type === 'ARTICLE')
+
   // ------------------------------------------------------------------ view
 
   return (
@@ -370,6 +528,51 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
               <button type="button" className="button button--danger-ghost" onClick={deleteCourse} disabled={busy}>
                 Xoá khoá học
               </button>
+            )}
+            {!canManage && !authenticated && (
+              <button type="button" className="button button--primary" onClick={() => login(`#/courses/${course.id}`)}>
+                ＋ Tham gia khoá học
+              </button>
+            )}
+            {!canManage && authenticated && enrolled === false && course.status === 'PUBLISHED' && (
+              <button type="button" className="button button--primary" onClick={joinCourse} disabled={joining}>
+                {joining ? 'Đang đăng ký…' : '＋ Tham gia khoá học'}
+              </button>
+            )}
+            {!canManage && authenticated && enrolled === true && (
+              <>
+                <span className="badge badge--joined">✓ Đã tham gia khoá học</span>
+                {reviewState?.completed && (
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    onClick={openReviewModal}
+                    disabled={loadingReview}
+                  >
+                    {loadingReview
+                      ? 'Đang tải…'
+                      : reviewState.existingReviewId
+                        ? '★ Sửa đánh giá'
+                        : '★ Gửi đánh giá'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button button--danger-ghost"
+                  onClick={cancelEnrollment}
+                  disabled={joining}
+                >
+                  Huỷ đăng ký
+                </button>
+              </>
+            )}
+            {!canManage && authenticated && enrolled === false && course.status !== 'PUBLISHED' && (
+              <span className="muted small">Khoá học chưa mở đăng ký.</span>
+            )}
+            {!canManage && authenticated && enrolled === true && reviewState && !reviewState.completed && (
+              <span className="muted small">
+                Hoàn thành 100% khoá học để gửi đánh giá (hiện {Math.round(reviewState.percent)}%).
+              </span>
             )}
           </div>
         </div>
@@ -481,6 +684,19 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                           <span className="lesson__tags">
                             <span className="tag">{meta.label}</span>
                             {lesson.preview && <span className="tag tag--info">Xem thử</span>}
+                            {canSelfComplete(lesson) &&
+                              (completedLessonIds.has(lesson.id) ? (
+                                <span className="tag tag--success">✓ Đã hoàn thành</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="tag tag--button tag--complete"
+                                  onClick={() => markLessonCompleted(lesson)}
+                                  disabled={completingId === lesson.id}
+                                >
+                                  {completingId === lesson.id ? 'Đang lưu…' : '✓ Đánh dấu đã hoàn thành'}
+                                </button>
+                              ))}
                             {lesson.type === 'QUIZ' &&
                               (lesson.quizId ? (
                                 canManage ? (
@@ -628,6 +844,22 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
           ))
         )}
       </section>
+
+      {reviewOpen && (
+        <ReviewModal
+          courseTitle={course.title}
+          courseId={course.id}
+          existingReview={existingReview}
+          onCancel={() => setReviewOpen(false)}
+          onSaved={(review) => {
+            const wasEditing = Boolean(existingReview?.id)
+            setReviewOpen(false)
+            setExistingReview(null)
+            setReviewState((current) => ({ ...current, existingReviewId: review.id, completed: true }))
+            notify('success', wasEditing ? 'Đã cập nhật đánh giá.' : 'Cảm ơn bạn đã gửi đánh giá!')
+          }}
+        />
+      )}
     </div>
   )
 }

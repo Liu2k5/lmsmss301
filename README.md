@@ -83,14 +83,18 @@ npm run dev        # http://localhost:5173
 
 Chi tiết quiz: [docs/quiz-crud-api.md](docs/quiz-crud-api.md) · Khoá học: [docs/course-management-api.md](docs/course-management-api.md)
 
+**Dữ liệu mẫu** (`SEED_DEMO_DATA=true`): khoá *Lập trình Java Spring Boot* có 2 chương / 4 bài học, trong đó
+**3 quiz mẫu** — *Kiểm tra cuối chương 1* (2 câu), *Kiểm tra cuối chương 2* (3 câu) và *Kiểm tra tổng hợp
+Spring Boot* (3 câu, có câu đúng/sai và câu nhiều đáp án).
+
 ## Kiểm thử
 
 ```bash
 cd backend
-mvn -f services/course-service/pom.xml test        # 70 test
-mvn -f services/enrollment-service/pom.xml test    # 60 test
+mvn -f services/course-service/pom.xml test        # 73 test
+mvn -f services/enrollment-service/pom.xml test    # 61 test
 mvn -f services/progress-service/pom.xml test      # 10 test
-mvn -f services/review-rating-service/pom.xml test # 18 test
+mvn -f services/review-rating-service/pom.xml test # 22 test
 mvn -f services/user-service/pom.xml test          # 4 test
 mvn test                                           # toàn bộ 7 module
 ```
@@ -108,6 +112,27 @@ mvn test                                           # toàn bộ 7 module
 - **Enroll tự tạo tiến độ**: `POST /api/v1/enrollments` phát event `student.enrolled` (RabbitMQ) sau khi
   transaction commit; Progress Service tạo `course_progress` + `lesson_progress` từ curriculum đã xuất bản.
   Khoá chưa xuất bản thì chưa tạo tiến độ (không có bài học để theo dõi).
+- **Tham gia khoá học trên UI**: học viên bấm **“＋ Tham gia khoá học”** ở trang chi tiết khoá học
+  (`#/courses/{id}`) khi khoá đang `PUBLISHED`; đã đăng ký thì nút đổi thành nhãn “✓ Đã tham gia khoá học”.
+- **Huỷ đăng ký (UC-E02 → UC-P11)**: học viên bấm **“Huỷ đăng ký”** ở **thẻ khoá học trong danh sách**
+  (`#/courses`) hoặc ở trang chi tiết khoá học; Enrollment
+  Service chuyển enrollment sang `CANCELLED`, thu hồi quyền truy cập và phát `student.unenrolled` (RabbitMQ) →
+  Progress Service lưu trữ tiến độ vào `archived_progress` rồi xoá khỏi bảng hoạt động. Đăng ký lại tạo tiến độ
+  mới (mỗi lần kích hoạt có `eventId` riêng nên không bị bỏ qua vì trùng event).
+- **Khoá học Bản nháp bị ẩn khỏi học viên**: `GET /courses` bỏ khoá `DRAFT` và `GET /courses/{id}` trả `404`
+  với học viên; giao diện cũng ẩn thẻ thống kê/lựa chọn lọc “Bản nháp”. Giảng viên sở hữu và Admin vẫn thấy.
+- **Trang `/quizzes` theo vai trò**: giảng viên/admin thấy toàn bộ quiz; **học viên chỉ thấy quiz thuộc các
+  khoá học mình đã đăng ký** (lọc theo `GET /enrollments/me`, trạng thái `ACTIVE`) — chưa đăng ký khoá nào thì
+  hiện lời nhắc kèm nút “Khám phá khoá học”. Đáp án đúng vẫn chỉ nằm ở API nội bộ, không lộ qua danh sách.
+- **Đánh dấu hoàn thành bài học (UC-P02)**: ở trang chi tiết khoá học, học viên đã đăng ký thấy nút
+  **“✓ Đánh dấu đã hoàn thành”** trên các bài **Video** và **Bài đọc** (Quiz tự hoàn thành khi đạt điểm);
+  đã xong thì nút đổi thành nhãn “✓ Đã hoàn thành” và % khoá học cập nhật ngay. Bài học được thêm vào
+  curriculum *sau khi* học viên đăng ký vẫn đánh dấu được — Progress Service tự tạo dòng tiến độ nếu bài
+  thuộc curriculum đã xuất bản.
+- **Đánh giá khoá học (UC-R01/R02)**: học viên **đã hoàn thành 100%** khoá học thấy nút **“★ Gửi đánh giá”**
+  ở trang chi tiết khoá học (mở form 1–5 sao + nhận xét); đã đánh giá rồi thì nút đổi thành **“★ Sửa đánh giá”**
+  và form được điền sẵn. Review & Rating Service là nơi kiểm tra điều kiện (`app.review.require-completed-course`,
+  admin bỏ qua guard) và tự cập nhật điểm trung bình của khoá học.
 - **Nộp quiz (UC-P04)**: học viên nộp bài ở `#/quiz-attempt?quizId=&courseId=`; Progress Service chấm điểm
   bằng đề + đáp án lấy từ API nội bộ `/internal/quizzes/{id}/answer-key` của Course Service
   (Gateway chặn `/internal/**`), lưu lịch sử lượt làm và chặn khi hết `maxAttempts`.

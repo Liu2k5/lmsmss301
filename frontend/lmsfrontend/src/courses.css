@@ -113,6 +113,25 @@
   color: var(--color-primary);
 }
 
+/* UC-P02: nút học viên tự đánh dấu bài Video / Bài đọc đã hoàn thành. */
+.tag--complete {
+  background: var(--color-success-soft);
+  border-color: #86efac;
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.tag--complete:hover:not(:disabled) {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background: #dcfce7;
+}
+
+.tag--complete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .icon-button--neutral:hover:not(:disabled) {
   background: var(--color-primary-soft);
   border-color: #c7d2fe;
@@ -201,6 +220,30 @@
   box-shadow: var(--shadow-card);
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+/* Thẻ khoá học + hàng thao tác của học viên (huỷ đăng ký — UC-E02). */
+.course-card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.course-card-item .course-card {
+  flex: 1;
+}
+
+.course-card-item__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.course-card-item__actions .badge--joined {
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .course-card:hover,

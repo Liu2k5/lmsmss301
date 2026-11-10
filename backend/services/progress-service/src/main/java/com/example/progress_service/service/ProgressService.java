@@ -56,6 +56,13 @@ public class ProgressService {
             return;
         }
 
+        // Đã có tiến độ cho khoá học này (admin grant lại sau khi revoke, hoặc service đã tự khởi tạo
+        // khi học viên nộp bài): chỉ ghi nhận event, không tạo bản ghi trùng.
+        if (progressRepository.findByStudentIdAndCourseId(event.getStudentId(), event.getCourseId()).isPresent()) {
+            saveEvent(event.getEventId(), "StudentEnrolled");
+            return;
+        }
+
         // Tạo CourseProgress
         CourseProgress progress = CourseProgress.builder()
                 .studentId(event.getStudentId())

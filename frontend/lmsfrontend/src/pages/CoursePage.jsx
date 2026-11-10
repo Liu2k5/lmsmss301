@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { courseApi } from '../api/courseApi.js'
+import { enrollmentApi } from '../api/enrollmentApi.js'
 import ConfirmDialog from '../components/course/ConfirmDialog.jsx'
 import CourseDetail from '../components/course/CourseDetail.jsx'
 import FormModal from '../components/course/FormModal.jsx'
@@ -22,6 +23,9 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
   const [status, setStatus] = useState('')
   const [dialog, setDialog] = useState(null)
   const [toast, setToast] = useState(null)
+  // Học viên: id các khoá học đang đăng ký (UC-E01) để hiện nút huỷ (UC-E02) ngay trên thẻ.
+  const [enrolledIds, setEnrolledIds] = useState(() => new Set())
+  const [cancellingId, setCancellingId] = useState(null)
 
   const loadCourses = useCallback(async () => {
     setLoading(true)
@@ -41,6 +45,24 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
       loadCourses()
     }
   }, [courseId, loadCourses])
+
+  // Học viên: biết khoá nào đã đăng ký để hiện nút "Huỷ đăng ký" trên thẻ khoá học.
+  useEffect(() => {
+    if (courseId != null || !authenticated || canManage) return undefined
+    let active = true
+    enrollmentApi
+      .myEnrollments()
+      .then((list) => {
+        if (!active) return
+        setEnrolledIds(new Set(list.filter((item) => item.status === 'ACTIVE').map((item) => item.courseId)))
+      })
+      .catch(() => {
+        if (active) setEnrolledIds(new Set())
+      })
+    return () => {
+      active = false
+    }
+  }, [courseId, authenticated, canManage])
 
   // Tìm kiếm khi người dùng ngừng gõ 350ms.
   useEffect(() => {
@@ -84,6 +106,44 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     })
   }
 
+  /** UC-E02 — huỷ đăng ký khoá học ngay từ danh sách (Progress Service lưu trữ tiến độ). */
+  function cancelEnrollment(course) {
+    setDialog({
+      kind: 'confirm',
+      title: 'Huỷ đăng ký khoá học?',
+      message: `Bạn sẽ mất quyền truy cập nội dung khoá học "${course.title}". Tiến độ hiện tại được lưu trữ lại, và có thể đăng ký học lại bất cứ lúc nào.`,
+      confirmLabel: 'Huỷ đăng ký',
+      danger: true,
+      onConfirm: async () => {
+        setDialog(null)
+        setCancellingId(course.id)
+        try {
+          await enrollmentApi.cancel(course.id)
+          setEnrolledIds((current) => {
+            const next = new Set(current)
+            next.delete(course.id)
+            return next
+          })
+          notify('success', `Đã huỷ đăng ký khoá học "${course.title}".`)
+        } catch (error) {
+          // 404 = chưa từng đăng ký (ví dụ huỷ ở tab khác); coi như đã huỷ.
+          if (error.status === 404) {
+            setEnrolledIds((current) => {
+              const next = new Set(current)
+              next.delete(course.id)
+              return next
+            })
+            notify('success', 'Bạn chưa đăng ký khoá học này.')
+          } else {
+            notify('error', error.message)
+          }
+        } finally {
+          setCancellingId(null)
+        }
+      },
+    })
+  }
+
   const counts = courses.reduce(
     (acc, course) => {
       acc[course.status] = (acc[course.status] ?? 0) + 1
@@ -91,6 +151,12 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     },
     {},
   )
+
+  // Khoá học nháp chỉ dành cho người soạn: học viên và khách không thấy (UC-C01 → C24).
+  const visibleCourses = canManage ? courses : courses.filter((course) => course.status !== 'DRAFT')
+  const statusOptions = canManage
+    ? STATUS_OPTIONS
+    : STATUS_OPTIONS.filter((option) => option.value !== 'DRAFT')
 
   return (
     <div className="app">
@@ -127,9 +193,9 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
             </div>
           </header>
 
-          <section className="stats stats--four" aria-label="Thống kê">
+          <section className={`stats${canManage ? ' stats--four' : ''}`} aria-label="Thống kê">
             <div className="stat">
-              <span className="stat__value">{courses.length}</span>
+              <span className="stat__value">{visibleCourses.length}</span>
               <span className="stat__label">Khoá học{status || appliedKeyword ? ' (đang lọc)' : ''}</span>
             </div>
             <div className="stat">
@@ -140,10 +206,12 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
               <span className="stat__value">{counts.UNPUBLISHED ?? 0}</span>
               <span className="stat__label">Đã ẩn</span>
             </div>
-            <div className="stat">
-              <span className="stat__value">{counts.DRAFT ?? 0}</span>
-              <span className="stat__label">Bản nháp</span>
-            </div>
+            {canManage && (
+              <div className="stat">
+                <span className="stat__value">{counts.DRAFT ?? 0}</span>
+                <span className="stat__label">Bản nháp</span>
+              </div>
+            )}
           </section>
 
           <div className="toolbar" role="search">
@@ -157,7 +225,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
             />
             <select aria-label="Lọc theo trạng thái" value={status} onChange={(event) => setStatus(event.target.value)}>
               <option value="">Tất cả trạng thái</option>
-              {STATUS_OPTIONS.map((option) => (
+              {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -179,7 +247,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
               <span className="spinner" aria-hidden="true" />
               <p>Đang tải danh sách khoá học…</p>
             </div>
-          ) : courses.length === 0 ? (
+          ) : visibleCourses.length === 0 ? (
             !listError && (
               <div className="state-card">
                 <div className="state-card__icon" aria-hidden="true">
@@ -189,7 +257,9 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                 <p>
                   {status || appliedKeyword
                     ? 'Thử đổi từ khoá hoặc bộ lọc trạng thái.'
-                    : 'Tạo khoá học đầu tiên rồi thêm chương, bài học và học liệu.'}
+                    : canManage
+                      ? 'Tạo khoá học đầu tiên rồi thêm chương, bài học và học liệu.'
+                      : 'Hiện chưa có khoá học nào được xuất bản để tham gia.'}
                 </p>
                 {canManage && !status && !appliedKeyword && (
                   <button type="button" className="button button--primary" onClick={openCreate}>
@@ -200,11 +270,11 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
             )
           ) : (
             <div className="course-grid">
-              {courses.map((course) => (
+              {visibleCourses.map((course) => (
+                <div className="course-card-item" key={course.id}>
                 <button
                   type="button"
                   className="course-card"
-                  key={course.id}
                   onClick={() => onOpenCourse(course.id)}
                 >
                   <div className="course-card__thumb">
@@ -237,6 +307,20 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                     </dl>
                   </div>
                 </button>
+                {!canManage && authenticated && enrolledIds.has(course.id) && (
+                  <div className="course-card-item__actions">
+                    <span className="badge badge--joined">✓ Đã tham gia</span>
+                    <button
+                      type="button"
+                      className="button button--danger-ghost button--small"
+                      onClick={() => cancelEnrollment(course)}
+                      disabled={cancellingId === course.id}
+                    >
+                      {cancellingId === course.id ? 'Đang huỷ…' : 'Huỷ đăng ký'}
+                    </button>
+                  </div>
+                )}
+                </div>
               ))}
             </div>
           )}
