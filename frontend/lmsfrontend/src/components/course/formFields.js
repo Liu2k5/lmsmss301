@@ -51,7 +51,7 @@ export const NEW_LESSON_FIELDS = [
 export const UPLOADED_MATERIAL_FIELDS = [
   { name: 'name', label: 'Tên học liệu', type: 'text', required: true, maxLength: 255, wide: true },
   { name: 'type', label: 'Loại', type: 'select', required: true, options: MATERIAL_TYPES,
-    hint: 'File đã upload được giữ nguyên. Muốn thay file hãy xoá rồi upload lại.' },
+    hint: 'File đã upload được giữ nguyên. Muốn đổi file, bấm nút ⇪ “Thay file” cạnh học liệu.' },
 ]
 
 export const MATERIAL_FIELDS = [

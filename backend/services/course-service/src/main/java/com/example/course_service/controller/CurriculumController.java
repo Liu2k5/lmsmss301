@@ -4,8 +4,6 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.annotation.CurrentSecurityContext;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,71 +39,87 @@ public class CurriculumController {
 
 	private final CourseService courseService;
 
-	// ================================================================ chương
 
 	@PutMapping("/sections/{sectionId}")
-	public CourseDetailResponse updateSection(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID sectionId,
+	public CourseDetailResponse updateSection(@PathVariable UUID sectionId,
 			@Valid @RequestBody SectionRequest request) {
-		return courseService.updateSection(LoginUser.from(auth), sectionId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.updateSection(loginUser, sectionId, request);
 	}
 
 	@DeleteMapping("/sections/{sectionId}")
-	public CourseDetailResponse deleteSection(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID sectionId) {
-		return courseService.deleteSection(LoginUser.from(auth), sectionId);
+	public CourseDetailResponse deleteSection(@PathVariable UUID sectionId) {
+		LoginUser loginUser = LoginUser.current();
+		return courseService.deleteSection(loginUser, sectionId);
 	}
 
 	@PostMapping("/sections/{sectionId}/lessons")
 	@ResponseStatus(HttpStatus.CREATED)
-	public CourseDetailResponse addLesson(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID sectionId,
+	public CourseDetailResponse addLesson(@PathVariable UUID sectionId,
 			@Valid @RequestBody LessonRequest request) {
-		return courseService.addLesson(LoginUser.from(auth), sectionId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.addLesson(loginUser, sectionId, request);
 	}
 
 	@PutMapping("/sections/{sectionId}/lessons/order")
-	public CourseDetailResponse reorderLessons(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID sectionId,
+	public CourseDetailResponse reorderLessons(@PathVariable UUID sectionId,
 			@Valid @RequestBody ReorderRequest request) {
-		return courseService.reorderLessons(LoginUser.from(auth), sectionId, request.orderedIds());
+		LoginUser loginUser = LoginUser.current();
+		return courseService.reorderLessons(loginUser, sectionId, request.orderedIds());
 	}
 
 
 	@PutMapping("/lessons/{lessonId}")
-	public CourseDetailResponse updateLesson(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID lessonId,
+	public CourseDetailResponse updateLesson(@PathVariable UUID lessonId,
 			@Valid @RequestBody LessonRequest request) {
-		return courseService.updateLesson(LoginUser.from(auth), lessonId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.updateLesson(loginUser, lessonId, request);
 	}
 
 	@DeleteMapping("/lessons/{lessonId}")
-	public CourseDetailResponse deleteLesson(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID lessonId) {
-		return courseService.deleteLesson(LoginUser.from(auth), lessonId);
+	public CourseDetailResponse deleteLesson(@PathVariable UUID lessonId) {
+		LoginUser loginUser = LoginUser.current();
+		return courseService.deleteLesson(loginUser, lessonId);
 	}
 
 	@PostMapping("/lessons/{lessonId}/materials")
 	@ResponseStatus(HttpStatus.CREATED)
-	public CourseDetailResponse addMaterial(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID lessonId,
+	public CourseDetailResponse addMaterial(@PathVariable UUID lessonId,
 			@Valid @RequestBody MaterialRequest request) {
-		return courseService.addMaterial(LoginUser.from(auth), lessonId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.addMaterial(loginUser, lessonId, request);
 	}
 
-	/** Upload video / tài liệu lên MinIO (multipart/form-data: file, name?, type?). */
 	@PostMapping(value = "/lessons/{lessonId}/materials/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
-	public CourseDetailResponse uploadMaterial(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID lessonId,
+	public CourseDetailResponse uploadMaterial(@PathVariable UUID lessonId,
 			@RequestPart("file") MultipartFile file,
 			@RequestParam(required = false) String name,
 			@RequestParam(required = false) MaterialType type) {
-		return courseService.uploadMaterial(LoginUser.from(auth), lessonId, file, name, type);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.uploadMaterial(loginUser, lessonId, file, name, type);
 	}
 
-	// ================================================================ học liệu
 
 	@PutMapping("/materials/{materialId}")
-	public CourseDetailResponse updateMaterial(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID materialId,
+	public CourseDetailResponse updateMaterial(@PathVariable UUID materialId,
 			@Valid @RequestBody MaterialRequest request) {
-		return courseService.updateMaterial(LoginUser.from(auth), materialId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.updateMaterial(loginUser, materialId, request);
+	}
+
+	@PostMapping(value = "/materials/{materialId}/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public CourseDetailResponse replaceMaterialFile(@PathVariable UUID materialId,
+			@RequestPart("file") MultipartFile file,
+			@RequestParam(required = false) String name,
+			@RequestParam(required = false) MaterialType type) {
+		LoginUser loginUser = LoginUser.current();
+		return courseService.replaceMaterialFile(loginUser, materialId, file, name, type);
 	}
 
 	@DeleteMapping("/materials/{materialId}")
-	public CourseDetailResponse deleteMaterial(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID materialId) {
-		return courseService.deleteMaterial(LoginUser.from(auth), materialId);
+	public CourseDetailResponse deleteMaterial(@PathVariable UUID materialId) {
+		LoginUser loginUser = LoginUser.current();
+		return courseService.deleteMaterial(loginUser, materialId);
 	}
 }

@@ -70,12 +70,22 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     } finally {
       setLoading(false)
     }
-  }, [courseId, canManage])
+  // authenticated nằm trong deps: đăng nhập / hết phiên thì tải lại để bài học được mở / khoá đúng.
+  }, [courseId, canManage, authenticated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tải chi tiết khi mở khoá học
     load()
   }, [load])
+
+  /** Tải lại chi tiết khoá học không hiện loading (sau khi tham gia / huỷ: bài học được mở / khoá lại). */
+  async function reloadCourse() {
+    try {
+      setCourse(await (canManage ? courseApi.getMine(courseId) : courseApi.get(courseId)))
+    } catch {
+      // Giữ nội dung đang hiện; lần mở lại trang sẽ tải lại.
+    }
+  }
 
   // Học viên: kiểm tra đã đăng ký khoá học này chưa để hiện đúng nút tham gia.
   useEffect(() => {
@@ -169,11 +179,13 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     try {
       await enrollmentApi.enroll(courseId)
       setEnrolled(true)
+      await reloadCourse()
       notify('success', `Đã tham gia khoá học "${course?.title ?? ''}". Tiến độ học tập đã được khởi tạo.`)
     } catch (error) {
       // 409 = đã đăng ký trước đó (ví dụ mở hai tab); coi như đã tham gia.
       if (error.status === 409) {
         setEnrolled(true)
+        await reloadCourse()
         notify('success', 'Bạn đã tham gia khoá học này rồi.')
       } else {
         notify('error', error.message)
@@ -197,6 +209,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         try {
           await enrollmentApi.cancel(courseId)
           setEnrolled(false)
+          await reloadCourse()
           notify('success', `Đã huỷ đăng ký khoá học "${course?.title ?? ''}".`)
         } catch (error) {
           // 404 = chưa từng đăng ký (ví dụ huỷ ở tab khác); coi như đã huỷ.
@@ -519,6 +532,32 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
       fields: material.uploaded ? UPLOADED_MATERIAL_FIELDS : MATERIAL_FIELDS,
       initialValues: material,
       onSubmit: formSubmit((payload) => courseApi.updateMaterial(material.id, payload), 'Đã cập nhật học liệu.'),
+    })
+  }
+
+  /** Thay file của học liệu (kể cả học liệu dạng link): upload file mới, file cũ trên MinIO bị xoá. */
+  function replaceMaterialFile(material) {
+    openDialog({
+      kind: 'upload',
+      title: 'Thay file học liệu',
+      subtitle: material.name,
+      notice: material.uploaded
+        ? 'File hiện tại trên MinIO sẽ bị xoá sau khi file mới được lưu.'
+        : 'Học liệu đang là link. Sau khi thay, học liệu sẽ dùng file bạn upload lên MinIO.',
+      initialName: material.name,
+      defaultType: material.type,
+      submitLabel: 'Thay file',
+      onUpload: (file, meta, onProgress) => {
+        const upload = courseApi.replaceMaterialFile(material.id, file, meta, onProgress)
+        return {
+          abort: upload.abort,
+          promise: upload.promise.then((detail) => {
+            setCourse(detail)
+            closeDialog()
+            notify('success', `Đã thay file cho "${material.name}".`)
+          }),
+        }
+      },
     })
   }
 
@@ -867,6 +906,11 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                                       <button type="button" className="icon-button icon-button--neutral icon-button--small"
                                         aria-label="Sửa học liệu" onClick={() => editMaterial(material)} disabled={busy}>
                                         ✎
+                                      </button>
+                                      <button type="button" className="icon-button icon-button--neutral icon-button--small"
+                                        aria-label="Thay file học liệu" title="Thay file"
+                                        onClick={() => replaceMaterialFile(material)} disabled={busy}>
+                                        ⇪
                                       </button>
                                       <button type="button" className="icon-button icon-button--small"
                                         aria-label="Xoá học liệu" onClick={() => deleteMaterial(material)} disabled={busy}>

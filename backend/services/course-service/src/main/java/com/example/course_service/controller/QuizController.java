@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.CurrentSecurityContext;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -78,56 +76,64 @@ public class QuizController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public QuizResponse create(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @Valid @RequestBody QuizRequest request) {
-		return quizService.create(LoginUser.from(auth), request);
+	public QuizResponse create(@Valid @RequestBody QuizRequest request) {
+		LoginUser loginUser = LoginUser.current();
+		return quizService.create(loginUser, request);
 	}
 
 	@PutMapping("/{id}")
-	public QuizResponse update(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID id,
+	public QuizResponse update(@PathVariable UUID id,
 			@Valid @RequestBody QuizRequest request) {
-		return quizService.update(LoginUser.from(auth), id, request);
+		LoginUser loginUser = LoginUser.current();
+		return quizService.update(loginUser, id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void delete(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID id) {
-		quizService.delete(LoginUser.from(auth), id);
+	public void delete(@PathVariable UUID id) {
+		LoginUser loginUser = LoginUser.current();
+		quizService.delete(loginUser, id);
 	}
 
 	/** Nhân bản quiz sang bài học khác chưa có quiz. */
 	@PostMapping("/{id}/duplicate")
 	@ResponseStatus(HttpStatus.CREATED)
-	public QuizResponse duplicate(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID id,
+	public QuizResponse duplicate(@PathVariable UUID id,
 			@Valid @RequestBody DuplicateQuizRequest request) {
-		return quizService.duplicate(LoginUser.from(auth), id, request.lessonId());
+		LoginUser loginUser = LoginUser.current();
+		return quizService.duplicate(loginUser, id, request.lessonId());
 	}
 
 	// ================================================================ câu hỏi
 
 	@PostMapping("/{quizId}/questions")
 	@ResponseStatus(HttpStatus.CREATED)
-	public QuestionResponse addQuestion(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
+	public QuestionResponse addQuestion(@PathVariable UUID quizId,
 			@Valid @RequestBody QuestionRequest request) {
-		return quizService.addQuestion(LoginUser.from(auth), quizId, request);
+		LoginUser loginUser = LoginUser.current();
+		return quizService.addQuestion(loginUser, quizId, request);
 	}
 
 	@PutMapping("/{quizId}/questions/{questionId}")
-	public QuestionResponse updateQuestion(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
+	public QuestionResponse updateQuestion(@PathVariable UUID quizId,
 			@PathVariable UUID questionId, @Valid @RequestBody QuestionRequest request) {
-		return quizService.updateQuestion(LoginUser.from(auth), quizId, questionId, request);
+		LoginUser loginUser = LoginUser.current();
+		return quizService.updateQuestion(loginUser, quizId, questionId, request);
 	}
 
 	@DeleteMapping("/{quizId}/questions/{questionId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteQuestion(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
+	public void deleteQuestion(@PathVariable UUID quizId,
 			@PathVariable UUID questionId) {
-		quizService.deleteQuestion(LoginUser.from(auth), quizId, questionId);
+		LoginUser loginUser = LoginUser.current();
+		quizService.deleteQuestion(loginUser, quizId, questionId);
 	}
 
 	/** Sắp xếp lại câu hỏi: danh sách id đầy đủ theo thứ tự mong muốn. */
 	@PutMapping("/{quizId}/questions/order")
-	public List<QuestionResponse> reorderQuestions(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
+	public List<QuestionResponse> reorderQuestions(@PathVariable UUID quizId,
 			@Valid @RequestBody ReorderRequest request) {
-		return quizService.reorderQuestions(LoginUser.from(auth), quizId, request.orderedIds());
+		LoginUser loginUser = LoginUser.current();
+		return quizService.reorderQuestions(loginUser, quizId, request.orderedIds());
 	}
 }

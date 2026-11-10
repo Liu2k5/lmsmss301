@@ -24,8 +24,7 @@ public interface CourseService {
 
 	// ---------------------------------------------------------------- khoá học
 
-	/** Tìm khoá học công khai (không có bản nháp); mọi tham số đều tuỳ chọn (UC-C28). */
-	List<CourseSummaryResponse> search(String keyword, CourseStatus status, UUID instructorId, UUID categoryId);
+	List<CourseSummaryResponse>  search(String keyword, CourseStatus status, UUID instructorId, UUID categoryId);
 
 	/** Chi tiết khoá học công khai kèm curriculum (UC-C29); khoá nháp → 404. */
 	CourseDetailResponse getDetail(LoginUser user, UUID id);
@@ -41,13 +40,10 @@ public interface CourseService {
 
 	CourseDetailResponse create(LoginUser user, CourseRequest request);
 
-	/** Sửa thông tin; {@code thumbnailUrl} để trống = giữ nguyên ảnh bìa hiện tại. */
 	CourseDetailResponse update(LoginUser user, UUID id, CourseRequest request);
 
-	/** Upload ảnh bìa (image/*, tối đa 5 MB) lên MinIO, thay ảnh cũ nếu có. */
 	CourseDetailResponse uploadThumbnail(LoginUser user, UUID id, MultipartFile file);
 
-	/** Bỏ ảnh bìa; ảnh trên MinIO bị xoá theo. */
 	CourseDetailResponse removeThumbnail(LoginUser user, UUID id);
 
 	/** Xuất bản / ẩn / lưu trữ / khôi phục (UC-C21 → UC-C24). */
@@ -88,6 +84,14 @@ public interface CourseService {
 	CourseDetailResponse uploadMaterial(LoginUser user, UUID lessonId, MultipartFile file, String name, MaterialType type);
 
 	CourseDetailResponse updateMaterial(LoginUser user, UUID materialId, MaterialRequest request);
+
+	/**
+	 * Thay file của một học liệu: upload file mới lên MinIO, cập nhật học liệu, rồi xoá file cũ (nếu có)
+	 * sau khi lưu thành công. Học liệu dạng link cũng thay được, khi đó nó trở thành học liệu file.
+	 * {@code name} / {@code type} null thì giữ nguyên tên và loại hiện tại.
+	 */
+	CourseDetailResponse replaceMaterialFile(LoginUser user, UUID materialId, MultipartFile file, String name,
+			MaterialType type);
 
 	CourseDetailResponse deleteMaterial(LoginUser user, UUID materialId);
 }

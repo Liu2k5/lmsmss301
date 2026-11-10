@@ -4,6 +4,8 @@
   "registrationAllowed": false,
   "sslRequired": "none",
   "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 14400,
+  "ssoSessionMaxLifespan": 36000,
   "roles": {
     "realm": [
       {

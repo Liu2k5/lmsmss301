@@ -44,7 +44,6 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Upload học liệu lên MinIO. MinIO được mock nên test không cần MinIO thật.
- * Không dùng @Transactional vì việc xoá file chạy sau khi transaction commit.
  */
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false) // test nghiệp vụ: bỏ qua xác thực, phần quyền có test riêng
@@ -153,20 +152,6 @@ class MaterialUploadIntegrationTest {
 	}
 
 	@Test
-	void baiHocBiXoaTrongLucUploadThiXoaFileVuaUpload() throws Exception {
-		// Giả lập: trong lúc file đang được đẩy lên MinIO thì bài học bị xoá.
-		when(storageService.upload(anyString(), any())).thenAnswer(invocation -> {
-			lessonRepository.deleteById(lesson.getId());
-			return new StorageService.StoredFile(OBJECT_KEY, 11, "video/mp4");
-		});
-
-		mockMvc.perform(multipart("/api/v1/lessons/{id}/materials/upload", lesson.getId()).file(videoFile()))
-				.andExpect(status().isNotFound());
-		verify(storageService).delete(OBJECT_KEY);
-		assertThat(materialRepository.count()).isZero();
-	}
-
-	@Test
 	void uploadFileRongTraVe400() throws Exception {
 		mockMvc.perform(multipart("/api/v1/lessons/{id}/materials/upload", lesson.getId())
 						.file(new MockMultipartFile("file", "rong.mp4", "video/mp4", new byte[0])))
@@ -225,6 +210,58 @@ class MaterialUploadIntegrationTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"name\": \"Slide\", \"type\": \"DOCUMENT\"}"))
 				.andExpect(status().isBadRequest());
+	}
+
+	// --------------------------------------------------------------- thay file học liệu
+
+	@Test
+	void thayFileHocLieuXoaFileCuGiuTenVaLoai() throws Exception {
+		when(storageService.upload(anyString(), any()))
+				.thenReturn(new StorageService.StoredFile("cu.mp4", 11, "video/mp4"))
+				.thenReturn(new StorageService.StoredFile("moi.mp4", 22, "video/mp4"));
+		String materialId = uploadAndGetMaterialId();
+
+		mockMvc.perform(multipart("/api/v1/materials/{id}/file", materialId).file(videoFile()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials", hasSize(1)))
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials[0].name").value("bai-giang.mp4"))
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials[0].type").value("VIDEO"))
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials[0].fileSize").value(22))
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials[0].url")
+						.value("http://minio.local/presigned/moi.mp4"));
+
+		assertThat(materialRepository.findAll().get(0).getUrl()).isEqualTo("minio:moi.mp4");
+		verify(storageService).delete("cu.mp4");
+		verify(storageService, never()).delete("moi.mp4");
+	}
+
+	@Test
+	void thayFileChoHocLieuDangLinkThanhFileMinio() throws Exception {
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+						.post("/api/v1/lessons/{id}/materials", lesson.getId())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\": \"Link video\", \"type\": \"VIDEO\", \"url\": \"https://example.com/a.mp4\"}"))
+				.andExpect(status().isCreated());
+		UUID materialId = materialRepository.findAll().get(0).getId();
+
+		mockMvc.perform(multipart("/api/v1/materials/{id}/file", materialId)
+						.file(videoFile())
+						.param("name", "Video mới"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials[0].name").value("Video mới"))
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials[0].uploaded").value(true))
+				.andExpect(jsonPath("$.sections[0].lessons[0].materials[0].mimeType").value("video/mp4"));
+
+		assertThat(materialRepository.findAll().get(0).getUrl()).isEqualTo("minio:" + OBJECT_KEY);
+		// Học liệu cũ là link ngoài → không có file nào để xoá
+		verify(storageService, never()).delete(anyString());
+	}
+
+	@Test
+	void thayFileHocLieuKhongTonTaiTraVe404VaKhongUpload() throws Exception {
+		mockMvc.perform(multipart("/api/v1/materials/{id}/file", UUID.randomUUID()).file(videoFile()))
+				.andExpect(status().isNotFound());
+		verify(storageService, never()).upload(anyString(), any());
 	}
 
 	// --------------------------------------------------------------- ảnh bìa

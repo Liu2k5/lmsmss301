@@ -31,6 +31,8 @@ public interface MaterialRepository extends JpaRepository<Material, UUID> {
 
 	List<Material> findByLessonIdIn(Collection<UUID> lessonIds);
 
+	List<Material> findByLessonIdOrderByPositionAscIdAsc(UUID lessonId);
+
 	@Query("select coalesce(max(m.position), 0) from Material m where m.lesson.id = :lessonId")
 	int findMaxPosition(@Param("lessonId") UUID lessonId);
 }

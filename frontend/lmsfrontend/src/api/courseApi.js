@@ -37,7 +37,16 @@ function query(params) {
  * Upload file lên MinIO qua course-service. Dùng XMLHttpRequest để báo tiến độ (fetch không hỗ trợ).
  * Trả về { promise, abort }; promise resolve chi tiết khoá học sau khi thêm học liệu.
  */
-function uploadMaterial(lessonId, file, { name, type } = {}, onProgress) {
+function uploadMaterial(lessonId, file, meta, onProgress) {
+  return uploadWithProgress(`${V1}/lessons/${lessonId}/materials/upload`, file, meta, onProgress)
+}
+
+/** Thay file của học liệu đã có: file cũ trên MinIO bị xoá sau khi lưu thành công. */
+function replaceMaterialFile(materialId, file, meta, onProgress) {
+  return uploadWithProgress(`${V1}/materials/${materialId}/file`, file, meta, onProgress)
+}
+
+function uploadWithProgress(url, file, { name, type } = {}, onProgress) {
   const form = new FormData()
   form.append('file', file)
   if (name) form.append('name', name)
@@ -46,7 +55,7 @@ function uploadMaterial(lessonId, file, { name, type } = {}, onProgress) {
   const xhr = new XMLHttpRequest()
   // Giữ hàm đồng bộ (trả { promise, abort } ngay) nhưng chỉ mở request sau khi có token.
   const promise = authHeader().then((headers) => new Promise((resolve, reject) => {
-    xhr.open('POST', `${V1}/lessons/${lessonId}/materials/upload`)
+    xhr.open('POST', url)
     Object.entries(headers).forEach(([header, value]) => xhr.setRequestHeader(header, value))
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
@@ -78,7 +87,9 @@ function uploadMaterial(lessonId, file, { name, type } = {}, onProgress) {
 export const courseApi = {
   // Công khai (khách, học viên): chỉ khoá không phải bản nháp.
   list: (filters = {}) => request(`${V1}/courses${query(filters)}`),
-  get: (id) => request(`${V1}/courses/${id}`),
+  // Gửi kèm token nếu đã đăng nhập: backend dựa vào đó để mở khoá bài học cho học viên đã đăng ký
+  // (không có token → bị coi là khách, chỉ xem được bài "Xem thử").
+  get: (id) => courseRequest(`/courses/${id}`),
   // Giảng viên: "Khoá học của tôi", gồm cả bản nháp (cần JWT, chỉ INSTRUCTOR).
   listMine: (filters = {}) => courseRequest(`/instructor/courses${query(filters)}`),
   getMine: (id) => courseRequest(`/instructor/courses/${id}`),
@@ -107,6 +118,7 @@ export const courseApi = {
 
   addMaterial: (lessonId, payload) => courseRequest(`/lessons/${lessonId}/materials`, json('POST', payload)),
   uploadMaterial,
+  replaceMaterialFile,
   updateMaterial: (id, payload) => courseRequest(`/materials/${id}`, json('PUT', payload)),
   removeMaterial: (id) => courseRequest(`/materials/${id}`, { method: 'DELETE' }),
 }

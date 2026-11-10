@@ -36,7 +36,8 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     setLoading(true)
     setListError(null)
     try {
-      const filters = { keyword: appliedKeyword, status, categoryId }
+      // Lọc trạng thái chỉ dành cho giảng viên; danh sách công khai luôn là khoá đã xuất bản.
+      const filters = { keyword: appliedKeyword, status: canManage ? status : '', categoryId }
       // Giảng viên: chỉ khoá của mình (gồm bản nháp). Khách / học viên: khoá công khai.
       setCourses(await (canManage ? courseApi.listMine(filters) : courseApi.list(filters)))
     } catch (error) {
@@ -172,11 +173,8 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     {},
   )
 
-  // Khoá học nháp chỉ dành cho người soạn: học viên và khách không thấy (UC-C01 → C24).
-  const visibleCourses = canManage ? courses : courses.filter((course) => course.status !== 'DRAFT')
-  const statusOptions = canManage
-    ? STATUS_OPTIONS
-    : STATUS_OPTIONS.filter((option) => option.value !== 'DRAFT')
+  // Học viên và khách chỉ thấy khoá đang xuất bản (backend đã lọc; lọc lại phòng dữ liệu cũ).
+  const visibleCourses = canManage ? courses : courses.filter((course) => course.status === 'PUBLISHED')
 
   return (
     <div className="app">
@@ -251,14 +249,16 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                 </option>
               ))}
             </select>
-            <select aria-label="Lọc theo trạng thái" value={status} onChange={(event) => setStatus(event.target.value)}>
-              <option value="">Tất cả trạng thái</option>
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            {canManage && (
+              <select aria-label="Lọc theo trạng thái" value={status} onChange={(event) => setStatus(event.target.value)}>
+                <option value="">Tất cả trạng thái</option>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {listError && (
@@ -365,8 +365,12 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
 
       {dialog?.kind === 'upload' && (
         <UploadModal
+          title={dialog.title}
           subtitle={dialog.subtitle}
           defaultType={dialog.defaultType}
+          initialName={dialog.initialName}
+          submitLabel={dialog.submitLabel}
+          notice={dialog.notice}
           onUpload={dialog.onUpload}
           onCancel={closeDialog}
         />

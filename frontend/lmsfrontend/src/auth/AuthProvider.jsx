@@ -7,13 +7,15 @@ import { setEnrollmentTokenProvider } from '../api/enrollmentApi.js'
 import { setReviewTokenProvider } from '../api/reviewApi.js'
 import { setCourseTokenProvider } from '../api/courseApi.js'
 
-const keycloak = new Keycloak({
+// Giữ MỘT instance Keycloak cho cả trang, kể cả khi Vite hot-reload chạy lại module này.
+// Nếu tạo mới mỗi lần hot-reload, instance mới chưa init → authenticated = undefined: mọi API báo
+// "Phiên đăng nhập hết hạn" và nút Đăng xuất lỗi ngầm (keycloak.logout ném TypeError).
+const shared = (globalThis.__lmsAuth ??= {})
+const keycloak = (shared.keycloak ??= new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
   realm: import.meta.env.VITE_KEYCLOAK_REALM || 'lms',
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'lms-web',
-})
-
-let initialization
+}))
 
 /**
  * Token dùng cho các api module (quiz/progress/enrollment/course).
@@ -37,15 +39,15 @@ setReviewTokenProvider(getAccessToken)
 setCourseTokenProvider(getAccessToken)
 
 function initializeKeycloak() {
-  if (!initialization) {
-    initialization = keycloak.init({
+  if (!shared.initialization) {
+    shared.initialization = keycloak.init({
       onLoad: 'check-sso',
       pkceMethod: 'S256',
       checkLoginIframe: false,
       silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
     })
   }
-  return initialization
+  return shared.initialization
 }
 
 export function AuthProvider({ children }) {
@@ -62,6 +64,21 @@ export function AuthProvider({ children }) {
         setPasswordActionStatus(status)
       }
     }
+
+    // Phiên Keycloak hết hạn (làm mới token bị từ chối) → keycloak-js tự xoá token và gọi onAuthLogout.
+    // Đồng bộ lại state để giao diện chuyển về trạng thái "chưa đăng nhập" thay vì kẹt nửa vời.
+    keycloak.onAuthLogout = () => {
+      if (active) setAuthenticated(false)
+    }
+
+    // Giữ phiên sống khi tab đang mở: làm mới token trước khi hết hạn, kể cả khi người dùng
+    // chỉ đọc trang mà không gọi API (nếu không, phiên Keycloak sẽ hết hạn do "idle").
+    const refreshTimer = window.setInterval(() => {
+      if (!keycloak.authenticated) return
+      keycloak.updateToken(60).catch(() => {
+        // Lỗi mạng tạm thời: thử lại ở lần sau. Lỗi 400 (phiên hết hạn) đã được xử lý qua onAuthLogout.
+      })
+    }, 60_000)
 
     initializeKeycloak()
       .then((isAuthenticated) => {
@@ -83,6 +100,8 @@ export function AuthProvider({ children }) {
 
     return () => {
       active = false
+      window.clearInterval(refreshTimer)
+      keycloak.onAuthLogout = undefined
     }
   }, [])
 
@@ -120,6 +139,12 @@ export function AuthProvider({ children }) {
     },
     async logout() {
       sessionStorage.removeItem('postLoginHash')
+      // Phiên đã hết hạn (không còn token): không cần qua Keycloak, chỉ cần về trạng thái chưa đăng nhập.
+      if (!keycloak.authenticated) {
+        setAuthenticated(false)
+        window.location.hash = '#/'
+        return
+      }
       try {
         await keycloak.logout({ redirectUri: `${window.location.origin}${window.location.pathname}` })
       } catch (error) {

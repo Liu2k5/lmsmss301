@@ -235,6 +235,10 @@ class CourseControllerIntegrationTest {
 		changeStatus(courseId, "PUBLISHED").andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("PUBLISHED"));
 
+		// Đã xuất bản → có trong danh sách công khai
+		mockMvc.perform(get("/api/v1/courses").param("keyword", "Khoá vòng đời"))
+				.andExpect(jsonPath("$", hasSize(1)));
+
 		mockMvc.perform(get("/api/v1/courses/{id}/curriculum/published", courseId))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.totalLessons").value(1))
@@ -247,8 +251,20 @@ class CourseControllerIntegrationTest {
 		mockMvc.perform(get("/api/v1/courses/{id}/curriculum/published", courseId))
 				.andExpect(status().isNotFound());
 
+		// Đã ẩn → không còn trong danh sách công khai, kể cả khi lọc đúng trạng thái
+		mockMvc.perform(get("/api/v1/courses").param("keyword", "Khoá vòng đời"))
+				.andExpect(jsonPath("$", hasSize(0)));
+		mockMvc.perform(get("/api/v1/courses").param("status", "UNPUBLISHED"))
+				.andExpect(jsonPath("$", hasSize(0)));
+
 		changeStatus(courseId, "ARCHIVED").andExpect(status().isOk())
 				.andExpect(jsonPath("$.editable").value(false));
+
+		// Đã lưu trữ → cũng không hiện công khai; giảng viên vẫn thấy trong "Khoá học của tôi"
+		mockMvc.perform(get("/api/v1/courses").param("status", "ARCHIVED"))
+				.andExpect(jsonPath("$", hasSize(0)));
+		mockMvc.perform(get("/api/v1/instructor/courses").param("status", "ARCHIVED").param("keyword", "Khoá vòng đời"))
+				.andExpect(jsonPath("$", hasSize(1)));
 
 		// Đã lưu trữ → không sửa được curriculum
 		send(post("/api/v1/courses/{id}/sections", courseId), "{\"title\": \"Chương mới\"}")

@@ -2,7 +2,10 @@ package com.example.course_service.security;
 
 import java.util.UUID;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +22,29 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public record LoginUser(UUID id, boolean admin, boolean instructor) {
+
+	/**
+	 * Lấy người đang gọi API của request hiện tại.
+	 * <p>
+	 * Các bước:
+	 * <ol>
+	 *   <li>Filter của Spring Security đã kiểm tra JWT trong header {@code Authorization: Bearer ...}
+	 *       và lưu kết quả vào {@link SecurityContextHolder} (gắn với thread đang xử lý request).</li>
+	 *   <li>Lấy {@link SecurityContext} rồi lấy {@link Authentication} từ đó.</li>
+	 *   <li>Nếu request có JWT hợp lệ thì {@code Authentication} là {@link JwtAuthenticationToken}.
+	 *       Nếu không có token (endpoint {@code permitAll}) thì là {@code AnonymousAuthenticationToken}
+	 *       hoặc {@code null} → coi là khách.</li>
+	 * </ol>
+	 */
+	public static LoginUser current() {
+		SecurityContext context = SecurityContextHolder.getContext();
+		Authentication authentication = context.getAuthentication();
+
+		if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+			return from(jwtAuth);
+		}
+		return from(null);
+	}
 
 	public static LoginUser from(JwtAuthenticationToken auth) {
 		if (auth == null) {
