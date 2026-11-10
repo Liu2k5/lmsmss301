@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -26,6 +25,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.course_service.client.EnrollmentClient;
 import com.example.course_service.dto.CourseDetailResponse;
 import com.example.course_service.dto.CourseRequest;
 import com.example.course_service.dto.CourseSummaryResponse;
@@ -80,6 +80,7 @@ public class CourseServiceImpl implements CourseService {
 	}
 
 	private final CourseRepository courseRepository;
+	private final EnrollmentClient enrollmentClient;
 	private final CategoryRepository categoryRepository;
 	private final SectionRepository sectionRepository;
 	private final LessonRepository lessonRepository;
@@ -112,13 +113,31 @@ public class CourseServiceImpl implements CourseService {
 	}
 
 	@Override
-	public CourseDetailResponse getDetail(UUID id) {
+	public CourseDetailResponse getDetail(LoginUser user, UUID id) {
 		Course course = requireCourse(id);
 		// Khoá nháp: coi như không tồn tại với API công khai.
 		if (course.getStatus() == CourseStatus.DRAFT) {
 			throw new ResourceNotFoundException("Không tìm thấy khoá học id=" + id);
 		}
-		return toDetail(course);
+		return toDetail(course, canViewAllContent(user, course));
+	}
+
+	/**
+	 * UC-C30: ai được xem nội dung (học liệu) của mọi bài học.
+	 * <ul>
+	 *   <li>Giảng viên phụ trách khoá học</li>
+	 *   <li>Học viên đã đăng ký khoá học và còn quyền truy cập (hỏi Enrollment Service)</li>
+	 * </ul>
+	 * Những người khác (khách, chưa đăng ký, admin) chỉ xem được bài học "Xem thử".
+	 */
+	private boolean canViewAllContent(LoginUser user, Course course) {
+		if (user.isGuest()) {
+			return false;
+		}
+		if (user.canManage(course.getInstructorId())) {
+			return true;
+		}
+		return enrollmentClient.hasAccess(user.id(), course.getId());
 	}
 
 	@Override
@@ -140,7 +159,7 @@ public class CourseServiceImpl implements CourseService {
 		if (!course.getInstructorId().equals(user.id())) {
 			throw new ResourceNotFoundException("Không tìm thấy khoá học id=" + id);
 		}
-		return toDetail(course);
+		return toDetail(course, true);
 	}
 
 	/** Từ khoá tìm kiếm → mẫu LIKE; để trống → null (không lọc). */
@@ -200,16 +219,24 @@ public class CourseServiceImpl implements CourseService {
 	@Override
 	@Transactional
 	public CourseDetailResponse create(LoginUser user, CourseRequest request) {
-		checkCanAssignInstructor(user, request.instructorId());
+		// Khoá học luôn đứng tên giảng viên đang đăng nhập (lấy từ JWT, không nhận từ client)
+		UUID instructorId = user.id();
+		String title = request.title().trim();
+
+		// Một giảng viên không được có 2 khoá học trùng tên
+		if (courseRepository.existsByInstructorIdAndTitleIgnoreCase(instructorId, title)) {
+			throw new ConflictException("Bạn đã có khoá học tên '" + title + "'. Hãy đặt tên khác.");
+		}
+
 		Course course = Course.builder()
-				.instructorId(request.instructorId())
-				.title(request.title().trim())
+				.instructorId(instructorId)
+				.title(title)
 				.description(trimToNull(request.description()))
 				.thumbnailUrl(trimToNull(request.thumbnailUrl()))
 				.category(findCategoryOrNull(request.categoryId()))
 				.status(CourseStatus.DRAFT)
 				.build();
-		return toDetail(courseRepository.saveAndFlush(course));
+		return toDetail(courseRepository.saveAndFlush(course), true);
 	}
 
 	@Override
@@ -217,9 +244,14 @@ public class CourseServiceImpl implements CourseService {
 	public CourseDetailResponse update(LoginUser user, UUID id, CourseRequest request) {
 		Course course = requireManageableCourse(user, id);
 		ensureEditable(course);
-		checkCanAssignInstructor(user, request.instructorId());
-		course.setInstructorId(request.instructorId());
-		course.setTitle(request.title().trim());
+		String title = request.title().trim();
+
+		// Trùng tên với khoá học KHÁC của cùng giảng viên thì không cho sửa (giữ nguyên tên của chính nó thì được)
+		if (courseRepository.existsByInstructorIdAndTitleIgnoreCaseAndIdNot(course.getInstructorId(), title, id)) {
+			throw new ConflictException("Bạn đã có khoá học tên '" + title + "'. Hãy đặt tên khác.");
+		}
+
+		course.setTitle(title);
 		course.setDescription(trimToNull(request.description()));
 		course.setCategory(findCategoryOrNull(request.categoryId()));
 
@@ -227,7 +259,7 @@ public class CourseServiceImpl implements CourseService {
 		if (newThumbnail != null) {
 			replaceThumbnail(course, newThumbnail);
 		}
-		return toDetail(courseRepository.saveAndFlush(course));
+		return toDetail(courseRepository.saveAndFlush(course), true);
 	}
 
 	@Override
@@ -250,7 +282,7 @@ public class CourseServiceImpl implements CourseService {
 			Course course = requireCourse(id);
 			ensureEditable(course);
 			replaceThumbnail(course, STORED_PREFIX + stored.objectKey());
-			return toDetail(courseRepository.saveAndFlush(course));
+			return toDetail(courseRepository.saveAndFlush(course), true);
 		});
 	}
 
@@ -281,7 +313,7 @@ public class CourseServiceImpl implements CourseService {
 		Course course = requireManageableCourse(user, id);
 		ensureEditable(course);
 		replaceThumbnail(course, null);
-		return toDetail(courseRepository.saveAndFlush(course));
+		return toDetail(courseRepository.saveAndFlush(course), true);
 	}
 
 	/** Đổi ảnh bìa; nếu ảnh cũ nằm trên MinIO thì xoá file cũ sau khi commit. */
@@ -322,7 +354,7 @@ public class CourseServiceImpl implements CourseService {
 		}
 
 		course.setStatus(target);
-		return toDetail(courseRepository.saveAndFlush(course));
+		return toDetail(courseRepository.saveAndFlush(course), true);
 	}
 
 	@Override
@@ -348,10 +380,16 @@ public class CourseServiceImpl implements CourseService {
 	public CourseDetailResponse addSection(LoginUser user, UUID courseId, SectionRequest request) {
 		Course course = requireManageableCourse(user, courseId);
 		ensureEditable(course);
+		String title = request.title().trim();
+
+		// Trong một khoá học, các chương không được trùng tên
+		if (sectionRepository.existsByCourseIdAndTitleIgnoreCase(courseId, title)) {
+			throw new ConflictException("Khoá học đã có chương tên '" + title + "'. Hãy đặt tên khác.");
+		}
 
 		sectionRepository.save(Section.builder()
 				.course(course)
-				.title(request.title().trim())
+				.title(title)
 				.description(trimToNull(request.description()))
 				.position(sectionRepository.findMaxPosition(courseId) + 1)
 				.build());
@@ -362,7 +400,15 @@ public class CourseServiceImpl implements CourseService {
 	@Transactional
 	public CourseDetailResponse updateSection(LoginUser user, UUID sectionId, SectionRequest request) {
 		Section section = requireEditableSection(user, sectionId);
-		section.setTitle(request.title().trim());
+		String title = request.title().trim();
+
+		// Trùng tên với chương KHÁC trong cùng khoá học thì không cho sửa
+		UUID courseId = section.getCourse().getId();
+		if (sectionRepository.existsByCourseIdAndTitleIgnoreCaseAndIdNot(courseId, title, sectionId)) {
+			throw new ConflictException("Khoá học đã có chương tên '" + title + "'. Hãy đặt tên khác.");
+		}
+
+		section.setTitle(title);
 		section.setDescription(trimToNull(request.description()));
 		return refreshed(section.getCourse().getId());
 	}
@@ -398,10 +444,16 @@ public class CourseServiceImpl implements CourseService {
 	@Transactional
 	public CourseDetailResponse addLesson(LoginUser user, UUID sectionId, LessonRequest request) {
 		Section section = requireEditableSection(user, sectionId);
+		String title = request.title().trim();
+
+		// Trong một chương, các bài học không được trùng tên
+		if (lessonRepository.existsBySectionIdAndTitleIgnoreCase(sectionId, title)) {
+			throw new ConflictException("Chương đã có bài học tên '" + title + "'. Hãy đặt tên khác.");
+		}
 
 		lessonRepository.save(Lesson.builder()
 				.section(section)
-				.title(request.title().trim())
+				.title(title)
 				.description(trimToNull(request.description()))
 				.type(request.type())
 				.isPreview(Boolean.TRUE.equals(request.preview()))
@@ -420,7 +472,14 @@ public class CourseServiceImpl implements CourseService {
 			throw new ConflictException("Bài học đang có quiz. Hãy xoá quiz trước khi đổi loại bài học.");
 		}
 
-		lesson.setTitle(request.title().trim());
+		// Trùng tên với bài học KHÁC trong cùng chương thì không cho sửa (giữ nguyên tên của chính nó thì được)
+		String title = request.title().trim();
+		UUID sectionId = lesson.getSection().getId();
+		if (lessonRepository.existsBySectionIdAndTitleIgnoreCaseAndIdNot(sectionId, title, lessonId)) {
+			throw new ConflictException("Chương đã có bài học tên '" + title + "'. Hãy đặt tên khác.");
+		}
+
+		lesson.setTitle(title);
 		lesson.setDescription(trimToNull(request.description()));
 		lesson.setType(request.type());
 		lesson.setPreview(Boolean.TRUE.equals(request.preview()));
@@ -613,12 +672,6 @@ public class CourseServiceImpl implements CourseService {
 		}
 	}
 
-	/** Giảng viên chỉ được tạo / sửa khoá học đứng tên chính mình. */
-	private static void checkCanAssignInstructor(LoginUser user, UUID instructorId) {
-		if (!instructorId.equals(user.id())) {
-			throw new AccessDeniedException("Mã giảng viên phải là tài khoản đang đăng nhập");
-		}
-	}
 
 	// ============================================================ tìm & kiểm tra
 
@@ -819,28 +872,41 @@ public class CourseServiceImpl implements CourseService {
 	private CourseDetailResponse refreshed(UUID courseId) {
 		sectionRepository.flush();
 		// Người gọi đã qua kiểm tra quyền sửa nên không cần kiểm tra quyền xem nháp nữa
-		return toDetail(requireCourse(courseId));
+		return toDetail(requireCourse(courseId), true);
 	}
 
-	private CourseDetailResponse toDetail(Course course) {
+	/**
+	 * @param fullAccess true = người xem được xem học liệu của mọi bài học;
+	 *                   false = chỉ bài "Xem thử" có link, các bài khác bị khoá (url = null)
+	 */
+	private CourseDetailResponse toDetail(Course course, boolean fullAccess) {
 		UUID courseId = course.getId();
 		List<Section> sections = sectionRepository.findByCourseIdOrderByPositionAscIdAsc(courseId);
 		List<Lesson> lessons = lessonRepository.findByCourseIdOrdered(courseId);
 		Map<UUID, UUID> quizIdByLesson = quizIdsByLesson(lessons);
 
-		Map<UUID, List<MaterialResponse>> materialsByLesson = materialRepository.findByCourseIdOrdered(courseId)
-				.stream()
-				.collect(Collectors.groupingBy(material -> material.getLesson().getId(),
-						Collectors.mapping(this::toMaterialResponse, Collectors.toList())));
+		// Gom học liệu theo bài học
+		Map<UUID, List<Material>> materialsByLesson = new HashMap<>();
+		for (Material material : materialRepository.findByCourseIdOrdered(courseId)) {
+			materialsByLesson.computeIfAbsent(material.getLesson().getId(), key -> new ArrayList<>()).add(material);
+		}
 
 		Map<UUID, List<LessonResponse>> lessonsBySection = new HashMap<>();
 		for (Lesson lesson : lessons) {
+			// Bài bị khoá: không đủ quyền xem và bài không cho xem thử
+			boolean locked = !fullAccess && !lesson.isPreview();
+
+			List<MaterialResponse> materials = new ArrayList<>();
+			for (Material material : materialsByLesson.getOrDefault(lesson.getId(), List.of())) {
+				materials.add(toMaterialResponse(material, locked));
+			}
+
 			lessonsBySection.computeIfAbsent(lesson.getSection().getId(), key -> new ArrayList<>())
 					.add(new LessonResponse(
 							lesson.getId(), lesson.getSection().getId(), lesson.getTitle(), lesson.getDescription(),
-							lesson.getType(), lesson.getPosition(), lesson.isPreview(),
+							lesson.getType(), lesson.getPosition(), lesson.isPreview(), locked,
 							quizIdByLesson.get(lesson.getId()),
-							materialsByLesson.getOrDefault(lesson.getId(), List.of())));
+							materials));
 		}
 
 		List<SectionResponse> sectionResponses = sections.stream()
@@ -874,10 +940,15 @@ public class CourseServiceImpl implements CourseService {
 		material.setMimeType(trimToNull(request.mimeType()));
 	}
 
-	private MaterialResponse toMaterialResponse(Material material) {
+	/** locked = true → không trả link xem (chỉ còn tên / loại để học viên biết bài có gì). */
+	private MaterialResponse toMaterialResponse(Material material, boolean locked) {
+		String url = null;
+		if (!locked) {
+			url = viewUrl(material);
+		}
 		return new MaterialResponse(
 				material.getId(), material.getLesson().getId(), material.getName(), material.getType(),
-				viewUrl(material), storedKey(material) != null,
+				url, storedKey(material) != null,
 				material.getFileSize(), material.getMimeType(), material.getPosition());
 	}
 

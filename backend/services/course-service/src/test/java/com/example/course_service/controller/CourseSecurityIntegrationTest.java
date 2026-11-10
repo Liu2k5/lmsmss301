@@ -201,13 +201,10 @@ class CourseSecurityIntegrationTest {
 
 	@Test
 	void giangVienChiTaoDuocKhoaHocChoChinhMinh() throws Exception {
+		// Client cố gửi instructorId của người khác → bị bỏ qua, khoá học vẫn đứng tên người đang đăng nhập
 		mockMvc.perform(as(post("/api/v1/courses"), INSTRUCTOR, "instructor")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(courseJson(OTHER_INSTRUCTOR)))
-				.andExpect(status().isForbidden());
-
-		mockMvc.perform(as(post("/api/v1/courses"), INSTRUCTOR, "instructor")
-						.contentType(MediaType.APPLICATION_JSON).content(courseJson(INSTRUCTOR)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.instructorId").value(INSTRUCTOR));
 	}

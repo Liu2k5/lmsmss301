@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.CurrentSecurityContext;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -61,8 +62,15 @@ public class CourseController {
 	}
 
 	@GetMapping("/{id}")
-	public CourseDetailResponse findById(@PathVariable UUID id) {
-		return courseService.getDetail(id);
+	public CourseDetailResponse findById(
+			@CurrentSecurityContext(expression = "authentication") Authentication authentication,
+			@PathVariable UUID id) {
+		// Khách chưa đăng nhập: authentication là AnonymousAuthenticationToken → LoginUser rỗng
+		JwtAuthenticationToken auth = null;
+		if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+			auth = jwtAuth;
+		}
+		return courseService.getDetail(LoginUser.from(auth), id);
 	}
 
 	@GetMapping("/{id}/curriculum/published")

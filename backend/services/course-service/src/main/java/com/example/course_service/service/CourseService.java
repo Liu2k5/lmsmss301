@@ -28,7 +28,7 @@ public interface CourseService {
 	List<CourseSummaryResponse> search(String keyword, CourseStatus status, UUID instructorId, UUID categoryId);
 
 	/** Chi tiết khoá học công khai kèm curriculum (UC-C29); khoá nháp → 404. */
-	CourseDetailResponse getDetail(UUID id);
+	CourseDetailResponse getDetail(LoginUser user, UUID id);
 
 	/** Khoá học của chính giảng viên đang đăng nhập, gồm cả bản nháp. */
 	List<CourseSummaryResponse> searchMine(LoginUser user, String keyword, CourseStatus status, UUID categoryId);

@@ -486,12 +486,14 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
               </dl>
 
               <footer className="quiz-card__actions">
-                <a
-                  className="button button--primary"
-                  href={`#/quiz-attempt?quizId=${quiz.id}&courseId=${quiz.courseId}`}
-                >
-                  Làm bài
-                </a>
+                {!canManage && (
+                  <a
+                    className="button button--primary"
+                    href={`#/quiz-attempt?quizId=${quiz.id}&courseId=${quiz.courseId}`}
+                  >
+                    Làm bài
+                  </a>
+                )}
                 {canManage && (
                 <button
                   type="button"

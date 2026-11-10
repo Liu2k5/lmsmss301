@@ -13,8 +13,10 @@ import { useAuth } from '../auth/AuthContext.js'
 export default function CoursePage({ courseId, onOpenCourse, onBack }) {
   // Chỉ giảng viên được tạo & sửa nội dung khoá học. Admin chỉ quản lý hệ thống (danh mục, người dùng);
   // học viên / khách chỉ xem.
-  const { authenticated, isInstructor, user } = useAuth()
+  const { authenticated, isInstructor, isAdmin } = useAuth()
   const canManage = authenticated && isInstructor
+  // Học viên: được đăng ký / huỷ đăng ký khoá học. Admin chỉ quản lý hệ thống nên không đăng ký học.
+  const isLearner = authenticated && !isInstructor && !isAdmin
 
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +55,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
 
   // Học viên: biết khoá nào đã đăng ký để hiện nút "Huỷ đăng ký" trên thẻ khoá học.
   useEffect(() => {
-    if (courseId != null || !authenticated || canManage) return undefined
+    if (courseId != null || !isLearner) return undefined
     let active = true
     enrollmentApi
       .myEnrollments()
@@ -67,7 +69,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     return () => {
       active = false
     }
-  }, [courseId, authenticated, canManage])
+  }, [courseId, isLearner])
 
   // Danh mục cho ô lọc và form tạo khoá học (đọc công khai). Lỗi thì để trống, không chặn trang.
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
       submitLabel: 'Tạo khoá học',
       onSubmit: async ({ thumbnail, ...info }) => {
         // Khoá học luôn đứng tên giảng viên đang đăng nhập (sub trong JWT)
-        const created = await courseApi.create({ ...info, instructorId: user?.id })
+        const created = await courseApi.create(info)
         setDialog(null)
         // Khoá học đã tạo; ảnh bìa upload sau vì cần id khoá học. Lỗi ảnh không làm mất khoá học.
         if (thumbnail?.file) {
@@ -329,7 +331,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                     </dl>
                   </div>
                 </button>
-                {!canManage && authenticated && enrolledIds.has(course.id) && (
+                {isLearner && enrolledIds.has(course.id) && (
                   <div className="course-card-item__actions">
                     <span className="badge badge--joined">✓ Đã tham gia</span>
                     <button

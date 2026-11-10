@@ -19,4 +19,10 @@ public interface SectionRepository extends JpaRepository<Section, UUID> {
 
 	@Query("select coalesce(max(s.position), 0) from Section s where s.course.id = :courseId")
 	int findMaxPosition(@Param("courseId") UUID courseId);
+
+	/** Khoá học đã có chương trùng tên chưa (không phân biệt hoa thường) — dùng khi thêm chương. */
+	boolean existsByCourseIdAndTitleIgnoreCase(UUID courseId, String title);
+
+	/** Như trên nhưng bỏ qua chính chương đang sửa. */
+	boolean existsByCourseIdAndTitleIgnoreCaseAndIdNot(UUID courseId, String title, UUID id);
 }

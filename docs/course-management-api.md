@@ -56,36 +56,49 @@ Response chi tiết có sẵn `allowedTransitions` và `editable` để client t
 Lỗi dùng chung format `ApiError` như phần Quiz (`message`, `details[]` theo field). Gọi sai method trả `405`,
 sai `Content-Type` trả `415` (không còn bị gộp thành `500`).
 
-### 3.0. Phân quyền (UC-C01…C13)
+### 3.0. Phân quyền
 
-Course Service tự xác thực JWT của Keycloak (`jwk-set-uri`, không gọi discovery lúc khởi động).
+Course Service tự xác thực JWT của Keycloak (`jwk-set-uri`). Quyền theo **vai trò** chặn trong `SecurityConfig`;
+quyền theo **chủ khoá học** kiểm tra trong service (controller lấy `LoginUser` từ JWT, service so `instructorId`).
 
 | Nhóm API | Ai được gọi |
 |---|---|
-| `GET` `/courses/**`, `/sections/**`, `/lessons/**`, `/materials/**` | công khai (không cần token) |
-| `POST` / `PUT` / `PATCH` / `DELETE` `/courses/**`, `/sections/**`, `/lessons/**`, `/materials/**` | `INSTRUCTOR`, `ADMIN` |
-| Không có token ở API ghi | `401` |
-| Có token nhưng là `STUDENT`, **hoặc** giảng viên không phụ trách khoá học | `403` |
+| `GET` `/courses/**`, `/categories/**` | công khai (không cần token) |
+| `GET` `/instructor/courses/**` ("Khoá học của tôi", gồm cả bản nháp) | `INSTRUCTOR` |
+| `POST` / `PUT` / `PATCH` / `DELETE` `/courses/**`, `/sections/**`, `/lessons/**`, `/materials/**`, `/quizzes/**` | `INSTRUCTOR` **và** phải là giảng viên phụ trách khoá học |
+| `POST` / `PUT` / `DELETE` `/categories/**` | `ADMIN` |
+| Không có token ở API cần đăng nhập | `401` |
+| Có token nhưng sai vai trò, hoặc giảng viên không phụ trách khoá học | `403` |
 
-Giảng viên chỉ thao tác trên khoá học có `instructorId` trùng `sub` trong JWT (kiểm tra ở tầng service cho
-từng khoá học / chương / bài học / học liệu), và chỉ được gán `instructorId` là chính mình khi tạo/sửa.
-`ADMIN` bỏ qua kiểm tra sở hữu. Ví dụ `403`:
+**Admin chỉ quản lý hệ thống** (danh mục, người dùng): không tạo / sửa / xoá khoá học, quiz và không xem khoá nháp.
 
-```json
-{ "status": 403, "message": "Chỉ giảng viên phụ trách khoá học mới được sửa khoá học này", "details": [] }
-```
+**Người phụ trách khoá học lấy từ JWT** (`sub`), không nhận từ request: `CourseRequest` không có `instructorId`.
 
-**Khoá học Bản nháp (`DRAFT`) chỉ dành cho người soạn.** Với học viên đã đăng nhập (không phải Admin và không
-phải giảng viên sở hữu), khoá `DRAFT` bị loại khỏi `GET /courses` và `GET /courses/{id}` trả `404` — coi như
-không tồn tại để không lộ nội dung đang soạn. Giảng viên sở hữu và Admin vẫn thấy bình thường. Giao diện cũng ẩn
-khoá nháp khỏi màn hình học viên/khách cùng thẻ thống kê "Bản nháp" và lựa chọn lọc `DRAFT`.
+**Khoá học Bản nháp (`DRAFT`)** không xuất hiện ở `GET /courses` và `GET /courses/{id}` trả `404`. Giảng viên xem
+khoá của mình (cả bản nháp) qua `GET /instructor/courses` và `GET /instructor/courses/{id}`.
+
+**Xem nội dung bài học (UC-C30).** `GET /courses/{id}` trả mỗi bài học kèm `locked`:
+
+| Người xem | Bài "Xem thử" (`preview = true`) | Bài khác |
+|---|---|---|
+| Khách, học viên chưa đăng ký, Admin | mở | `locked = true`: học liệu chỉ có tên / loại, `url = null` |
+| Học viên đã đăng ký (Enrollment Service trả `accessGranted = true`) | mở | mở |
+| Giảng viên phụ trách | mở | mở |
+
+Course Service gọi `GET {ENROLLMENT_SERVICE_URL}/api/v1/enrollments/check?studentId=&courseId=`
+(mặc định `http://localhost:8083`). Không gọi được Enrollment Service ⇒ coi như chưa đăng ký (khoá nội dung).
+
+**Không trùng tên** (so sánh không phân biệt hoa thường, bỏ khoảng trắng đầu / cuối) ⇒ `409`:
+danh mục trong toàn hệ thống; khoá học của cùng một giảng viên; chương trong cùng khoá học; bài học trong cùng chương.
 
 ### Khoá học
 
 | Method | URL | Body | Trả về |
 |---|---|---|---|
-| GET | `/api/v1/courses?keyword=&status=&instructorId=` | — | `CourseSummaryResponse[]` (có `sectionCount`, `lessonCount`) |
-| GET | `/api/v1/courses/{id}` | — | `CourseDetailResponse` |
+| GET | `/api/v1/courses?keyword=&status=&instructorId=&categoryId=` | — | `CourseSummaryResponse[]` (có `categoryId`, `categoryName`; không gồm bản nháp) |
+| GET | `/api/v1/courses/{id}` | — | `CourseDetailResponse` (bài học có `locked`, xem mục 3.0) |
+| GET | `/api/v1/instructor/courses?keyword=&status=&categoryId=` | — | Khoá học của giảng viên đang đăng nhập (cả bản nháp) |
+| GET | `/api/v1/instructor/courses/{id}` | — | Chi tiết khoá học của mình (khoá của người khác ⇒ `404`) |
 | POST | `/api/v1/courses` | `CourseRequest` | `201` + `CourseDetailResponse` |
 | PUT | `/api/v1/courses/{id}` | `CourseRequest` | `CourseDetailResponse` |
 | PATCH | `/api/v1/courses/{id}/status` | `{ "status": "PUBLISHED" }` | `CourseDetailResponse` |
@@ -94,7 +107,7 @@ khoá nháp khỏi màn hình học viên/khách cùng thẻ thống kê "Bản 
 
 ```json
 // CourseRequest
-{ "instructorId": "22222222-2222-2222-2222-222222222222", "title": "ReactJS", "description": "…", "thumbnailUrl": "https://…" }
+{ "title": "ReactJS", "description": "…", "thumbnailUrl": "https://…", "categoryId": "…" /* tuỳ chọn */ }
 ```
 
 ### Chương, bài học, học liệu
@@ -118,6 +131,18 @@ client vẽ lại cả cây curriculum bằng một response.
 | DELETE | `/api/v1/materials/{id}` | — (file trên MinIO bị xoá theo) |
 
 `orderedIds` phải chứa **đúng và đủ** id hiện có của khoá học / chương, không trùng ⇒ sai thì `400`.
+
+### Danh mục (UC-C25…C27)
+
+| Method | URL | Body | Trả về |
+|---|---|---|---|
+| GET | `/api/v1/categories` | — | `CategoryResponse[]` sắp theo tên, kèm `courseCount` |
+| GET | `/api/v1/categories/{id}` | — | `CategoryResponse` |
+| POST | `/api/v1/categories` | `{ "name", "description" }` | `201` + `CategoryResponse` (trùng tên ⇒ `409`) |
+| PUT | `/api/v1/categories/{id}` | `{ "name", "description" }` | `CategoryResponse` |
+| DELETE | `/api/v1/categories/{id}` | — | `204`; danh mục còn khoá học ⇒ `409` |
+
+`name` bắt buộc, tối đa 100 ký tự; `description` tuỳ chọn. Gateway định tuyến `/api/v1/categories/**` tới course-service.
 
 ### Ảnh bìa
 
@@ -156,9 +181,7 @@ GA thì đổi `spring-cloud.version` trong `pom.xml`.
 
 ## 6. Việc còn lại / giới hạn
 
-- Chưa có auth: `instructorId` (UUID = `sub` trong JWT) đang nhập tay, chưa kiểm tra giảng viên có sở hữu khoá học không. Khi Gateway
-  bơm `X-User-Id` / `X-User-Role`, cần lấy `instructorId` từ header và chỉ cho giảng viên sửa khoá của mình.
-- Chưa có category.
+- Kiểm tra trùng tên nằm ở tầng service, chưa có ràng buộc `unique` trong DB (2 request cùng lúc vẫn có thể lọt).
 - Chưa phát event `CurriculumUpdated` cho Progress (UC-P10).
 
 ## 7. Test

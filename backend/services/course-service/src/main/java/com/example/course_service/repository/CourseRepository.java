@@ -35,6 +35,12 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
 
 	boolean existsByTitle(String title);
 
+	/** Giảng viên đã có khoá học trùng tên chưa (không phân biệt hoa thường) — dùng khi tạo mới. */
+	boolean existsByInstructorIdAndTitleIgnoreCase(UUID instructorId, String title);
+
+	/** Như trên nhưng bỏ qua chính khoá học đang sửa. */
+	boolean existsByInstructorIdAndTitleIgnoreCaseAndIdNot(UUID instructorId, String title, UUID id);
+
 	/** Số khoá học của từng category (category không có khoá nào sẽ không xuất hiện). */
 	@Query("""
 			select new com.example.course_service.dto.CategoryCountDto(c.category.id, count(c))

@@ -90,10 +90,13 @@ export default function App() {
             aria-current={route.page === 'courses' ? 'page' : undefined}>
             Khoá học
           </a>
-          <a href="#/quizzes" className={`top-nav__link${route.page === 'quizzes' ? ' is-active' : ''}`}
-            aria-current={route.page === 'quizzes' ? 'page' : undefined}>
-            Quiz
-          </a>
+          {/* Admin chỉ quản lý hệ thống: không học, không soạn quiz */}
+          {!isAdmin && (
+            <a href="#/quizzes" className={`top-nav__link${route.page === 'quizzes' ? ' is-active' : ''}`}
+              aria-current={route.page === 'quizzes' ? 'page' : undefined}>
+              Quiz
+            </a>
+          )}
           {authenticated ? (
             <>
               <a href="#/profile" className={`top-nav__link${route.page === 'profile' ? ' is-active' : ''}`}
