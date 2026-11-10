@@ -27,4 +27,19 @@ public class ProgressStatusDto {
         }
         return completionPercentage != null && completionPercentage.compareTo(new BigDecimal("100.00")) >= 0;
     }
+
+    public BigDecimal getPercentComplete() {
+        return this.completionPercentage;
+    }
+
+    public void setPercentComplete(BigDecimal percentComplete) {
+        this.completionPercentage = percentComplete;
+    }
+
+    public static class ProgressStatusDtoBuilder {
+        public ProgressStatusDtoBuilder percentComplete(BigDecimal percentComplete) {
+            this.completionPercentage = percentComplete;
+            return this;
+        }
+    }
 }
