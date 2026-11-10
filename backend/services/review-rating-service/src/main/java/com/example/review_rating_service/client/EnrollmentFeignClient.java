@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.UUID;
 
-@FeignClient(name = "enrollment-service", fallback = EnrollmentFeignFallback.class)
+@FeignClient(name = "enrollment-service", url = "${app.services.enrollment.url:}", fallback = EnrollmentFeignFallback.class)
 public interface EnrollmentFeignClient {
 
     @GetMapping("/api/v1/enrollments/check")

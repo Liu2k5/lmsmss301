@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.UUID;
 
-@FeignClient(name = "progress-service", fallback = ProgressFeignFallback.class)
+@FeignClient(name = "progress-service", url = "${app.services.progress.url:}", fallback = ProgressFeignFallback.class)
 public interface ProgressFeignClient {
 
     @GetMapping("/api/v1/progress/courses/{courseId}")
