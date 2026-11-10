@@ -3,8 +3,8 @@ import { ApiError, json, request } from './http.js'
 const V1 = '/api/v1'
 
 /**
- * Thao tác ghi nội dung khoá học cần JWT (backend chỉ cho INSTRUCTOR/ADMIN).
- * AuthProvider đăng ký hàm lấy token; request đọc (danh sách/chi tiết) vẫn gọi công khai.
+ * Thao tác ghi nội dung khoá học và "Khoá học của tôi" cần JWT (backend chỉ cho INSTRUCTOR).
+ * AuthProvider đăng ký hàm lấy token; request đọc công khai (danh sách/chi tiết) không gửi token.
  */
 let tokenProvider = async () => null
 
@@ -76,8 +76,12 @@ function uploadMaterial(lessonId, file, { name, type } = {}, onProgress) {
 
 /** Mọi thao tác ghi trên curriculum đều trả về chi tiết khoá học sau khi thay đổi. */
 export const courseApi = {
+  // Công khai (khách, học viên): chỉ khoá không phải bản nháp.
   list: (filters = {}) => request(`${V1}/courses${query(filters)}`),
   get: (id) => request(`${V1}/courses/${id}`),
+  // Giảng viên: "Khoá học của tôi", gồm cả bản nháp (cần JWT, chỉ INSTRUCTOR).
+  listMine: (filters = {}) => courseRequest(`/instructor/courses${query(filters)}`),
+  getMine: (id) => courseRequest(`/instructor/courses/${id}`),
   create: (payload) => courseRequest(`/courses`, json('POST', payload)),
   update: (id, payload) => courseRequest(`/courses/${id}`, json('PUT', payload)),
   uploadThumbnail: (id, file) => {
@@ -105,4 +109,17 @@ export const courseApi = {
   uploadMaterial,
   updateMaterial: (id, payload) => courseRequest(`/materials/${id}`, json('PUT', payload)),
   removeMaterial: (id) => courseRequest(`/materials/${id}`, { method: 'DELETE' }),
+}
+
+/**
+ * Danh mục khoá học (course-service /api/v1/categories).
+ * Xem: công khai. Tạo / sửa / xoá: chỉ ADMIN (backend trả 403 nếu không phải admin).
+ * Mỗi danh mục có dạng { id, name, description, courseCount, createdAt, updatedAt }.
+ */
+export const categoryApi = {
+  list: () => request(`${V1}/categories`),
+  get: (id) => request(`${V1}/categories/${id}`),
+  create: (payload) => courseRequest(`/categories`, json('POST', payload)),
+  update: (id, payload) => courseRequest(`/categories/${id}`, json('PUT', payload)),
+  remove: (id) => courseRequest(`/categories/${id}`, { method: 'DELETE' }),
 }

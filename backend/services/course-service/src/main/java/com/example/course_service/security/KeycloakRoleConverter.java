@@ -12,21 +12,52 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
-/** Đổi realm role của Keycloak (student / instructor / admin) thành ROLE_STUDENT… */
 @Component
 public class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
 
 	@Override
 	public Collection<GrantedAuthority> convert(Jwt jwt) {
 		List<GrantedAuthority> authorities = new ArrayList<>();
-		if (jwt.getClaims().get("realm_access") instanceof Map<?, ?> realmAccess
-				&& realmAccess.get("roles") instanceof Collection<?> roles) {
-			for (Object role : roles) {
-				if (role instanceof String name && !name.isBlank()) {
-					authorities.add(new SimpleGrantedAuthority("ROLE_" + name.toUpperCase(Locale.ROOT)));
-				}
-			}
+
+		Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+		if (realmAccess == null) {
+			return authorities;
 		}
+
+		Object rolesObject = realmAccess.get("roles");
+		if (rolesObject == null) {
+			return authorities;
+		}
+		if (!(rolesObject instanceof List)) {
+			return authorities;
+		}
+		List<?> roles = (List<?>) rolesObject;
+
+		for (Object role : roles) {
+
+			if (role == null) {
+				continue;
+			}
+
+			if (!(role instanceof String)) {
+				continue;
+			}
+
+			String roleName = (String) role;
+
+			if (roleName.isBlank()) {
+				continue;
+			}
+
+			String upperRoleName = roleName.toUpperCase(Locale.ROOT);
+
+			String authorityName = "ROLE_" + upperRoleName;
+
+			GrantedAuthority authority = new SimpleGrantedAuthority(authorityName);
+			authorities.add(authority);
+		}
+
 		return authorities;
 	}
 }
+

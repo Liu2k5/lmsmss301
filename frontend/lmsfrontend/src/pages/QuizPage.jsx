@@ -52,9 +52,10 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
   // null = đang tải danh sách đăng ký (dùng luôn làm cờ loading, tránh setState đồng bộ trong effect).
   const [enrolledCourseIds, setEnrolledCourseIds] = useState(null)
 
-  // Quiz là công cụ soạn bài: chỉ giảng viên (hoặc admin) được dùng.
-  const { ready, authenticated, isInstructor, isAdmin } = useAuth()
-  const canManage = authenticated && (isInstructor || isAdmin)
+  // Quiz là công cụ soạn bài: chỉ giảng viên dùng, và chỉ với khoá học của chính mình.
+  // Admin chỉ quản lý hệ thống nên không soạn quiz.
+  const { ready, authenticated, isInstructor, user } = useAuth()
+  const canManage = authenticated && isInstructor
 
   useEffect(() => {
     const timer = setTimeout(() => setActiveKeyword(filters.keyword.trim()), 300)
@@ -125,7 +126,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     }
   }, [canManage])
 
-  // Học viên: chỉ hiện quiz của khoá học đã đăng ký. Giảng viên/admin xem tất cả.
+  // Học viên: chỉ hiện quiz của khoá học đã đăng ký. Giảng viên xem tất cả.
   useEffect(() => {
     if (!authenticated || canManage) {
       return undefined
@@ -173,7 +174,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
             return
           }
           setLessonOptions(lessons)
-          const lesson = lessons.find((item) => item.id === initialLessonId)
+          const lesson = lessons.find((item) => item.id === initialLessonId && item.instructorId === user?.id)
           if (!lesson) {
             done()
             return
@@ -198,7 +199,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     return () => {
       active = false
     }
-  }, [initialLessonId, initialQuizId, canManage])
+  }, [initialLessonId, initialQuizId, canManage, user?.id])
 
   function applyFilters(patch) {
     setLoading(true)
@@ -292,17 +293,22 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
     )
   }
 
-  // Học viên: lọc quiz theo khoá học đang đăng ký (null = đang tải danh sách đăng ký).
-  const visibleQuizzes = canManage || enrolledCourseIds == null
-    ? quizzes
-    : quizzes.filter((quiz) => enrolledCourseIds.has(quiz.courseId))
+  // Giảng viên: chỉ quản lý quiz / bài học thuộc khoá học của chính mình.
+  const myLessonOptions = lessonOptions.filter((lesson) => lesson.instructorId === user?.id)
+
+  // Giảng viên: chỉ thấy quiz của khoá mình. Học viên: quiz của khoá đang đăng ký (null = đang tải).
+  const visibleQuizzes = canManage
+    ? quizzes.filter((quiz) => quiz.instructorId === user?.id)
+    : enrolledCourseIds == null
+      ? quizzes
+      : quizzes.filter((quiz) => enrolledCourseIds.has(quiz.courseId))
 
   const courseSource = canManage
-    ? lessonOptions.map((lesson) => [lesson.courseId, lesson.courseTitle])
+    ? myLessonOptions.map((lesson) => [lesson.courseId, lesson.courseTitle])
     : visibleQuizzes.map((quiz) => [quiz.courseId, quiz.courseTitle])
   const courses = Array.from(new Map(courseSource).entries()).map(([id, title]) => ({ id, title }))
 
-  const emptyLessons = lessonOptions.filter((lesson) => lesson.quizId == null)
+  const emptyLessons = myLessonOptions.filter((lesson) => lesson.quizId == null)
   const totalQuestions = visibleQuizzes.reduce((sum, quiz) => sum + quiz.questionCount, 0)
   const filtering = Boolean(activeKeyword || filters.courseId)
   const noEnrollment = !canManage && enrolledCourseIds != null && enrolledCourseIds.size === 0
@@ -531,7 +537,7 @@ export default function QuizPage({ initialLessonId, initialQuizId }) {
           key={editor.mode === 'edit' ? `edit-${editor.quiz.id}` : `create-${editor.lessonId ?? 'any'}`}
           quiz={editor.mode === 'edit' ? editor.quiz : null}
           initialLessonId={editor.mode === 'create' ? editor.lessonId : null}
-          lessonOptions={lessonOptions}
+          lessonOptions={myLessonOptions}
           onSubmit={saveQuiz}
           onCancel={() => setEditor(null)}
         />

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.CurrentSecurityContext;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,11 +26,20 @@ import com.example.course_service.dto.QuizRequest;
 import com.example.course_service.dto.QuizResponse;
 import com.example.course_service.dto.QuizSummaryResponse;
 import com.example.course_service.dto.ReorderRequest;
+import com.example.course_service.security.LoginUser;
 import com.example.course_service.service.QuizService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Quiz (UC-C14…C19). Quyền theo vai trò được chặn trong SecurityConfig:
+ * <ul>
+ *   <li>Danh sách quiz, bản xem trước (không có đáp án): mọi người đã đăng nhập</li>
+ *   <li>Chi tiết quiz (có đáp án đúng), danh sách bài học để gắn quiz, tạo / sửa / xoá: INSTRUCTOR và ADMIN;
+ *       khi sửa, service kiểm tra thêm có phải giảng viên phụ trách khoá học không</li>
+ * </ul>
+ */
 @RestController
 @RequestMapping("/api/v1/quizzes")
 @RequiredArgsConstructor
@@ -53,6 +64,7 @@ public class QuizController {
 		return quizService.findLessonOptions();
 	}
 
+	/** Chi tiết quiz kèm đáp án đúng: chỉ người soạn quiz được xem. */
 	@GetMapping("/{id}")
 	public QuizResponse findById(@PathVariable UUID id) {
 		return quizService.findById(id);
@@ -66,53 +78,56 @@ public class QuizController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public QuizResponse create(@Valid @RequestBody QuizRequest request) {
-		return quizService.create(request);
+	public QuizResponse create(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @Valid @RequestBody QuizRequest request) {
+		return quizService.create(LoginUser.from(auth), request);
 	}
 
 	@PutMapping("/{id}")
-	public QuizResponse update(@PathVariable UUID id, @Valid @RequestBody QuizRequest request) {
-		return quizService.update(id, request);
+	public QuizResponse update(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID id,
+			@Valid @RequestBody QuizRequest request) {
+		return quizService.update(LoginUser.from(auth), id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void delete(@PathVariable UUID id) {
-		quizService.delete(id);
+	public void delete(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID id) {
+		quizService.delete(LoginUser.from(auth), id);
 	}
 
 	/** Nhân bản quiz sang bài học khác chưa có quiz. */
 	@PostMapping("/{id}/duplicate")
 	@ResponseStatus(HttpStatus.CREATED)
-	public QuizResponse duplicate(@PathVariable UUID id, @Valid @RequestBody DuplicateQuizRequest request) {
-		return quizService.duplicate(id, request.lessonId());
+	public QuizResponse duplicate(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID id,
+			@Valid @RequestBody DuplicateQuizRequest request) {
+		return quizService.duplicate(LoginUser.from(auth), id, request.lessonId());
 	}
 
 	// ================================================================ câu hỏi
 
 	@PostMapping("/{quizId}/questions")
 	@ResponseStatus(HttpStatus.CREATED)
-	public QuestionResponse addQuestion(@PathVariable UUID quizId,
+	public QuestionResponse addQuestion(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
 			@Valid @RequestBody QuestionRequest request) {
-		return quizService.addQuestion(quizId, request);
+		return quizService.addQuestion(LoginUser.from(auth), quizId, request);
 	}
 
 	@PutMapping("/{quizId}/questions/{questionId}")
-	public QuestionResponse updateQuestion(@PathVariable UUID quizId, @PathVariable UUID questionId,
-			@Valid @RequestBody QuestionRequest request) {
-		return quizService.updateQuestion(quizId, questionId, request);
+	public QuestionResponse updateQuestion(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
+			@PathVariable UUID questionId, @Valid @RequestBody QuestionRequest request) {
+		return quizService.updateQuestion(LoginUser.from(auth), quizId, questionId, request);
 	}
 
 	@DeleteMapping("/{quizId}/questions/{questionId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteQuestion(@PathVariable UUID quizId, @PathVariable UUID questionId) {
-		quizService.deleteQuestion(quizId, questionId);
+	public void deleteQuestion(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
+			@PathVariable UUID questionId) {
+		quizService.deleteQuestion(LoginUser.from(auth), quizId, questionId);
 	}
 
 	/** Sắp xếp lại câu hỏi: danh sách id đầy đủ theo thứ tự mong muốn. */
 	@PutMapping("/{quizId}/questions/order")
-	public List<QuestionResponse> reorderQuestions(@PathVariable UUID quizId,
+	public List<QuestionResponse> reorderQuestions(@CurrentSecurityContext(expression = "authentication") JwtAuthenticationToken auth, @PathVariable UUID quizId,
 			@Valid @RequestBody ReorderRequest request) {
-		return quizService.reorderQuestions(quizId, request.orderedIds());
+		return quizService.reorderQuestions(LoginUser.from(auth), quizId, request.orderedIds());
 	}
 }

@@ -9,6 +9,8 @@ public record LessonOptionResponse(
 		String sectionTitle,
 		UUID courseId,
 		String courseTitle,
+		/** Giảng viên phụ trách khoá học (frontend chỉ cho chủ khoá học tạo quiz). */
+		UUID instructorId,
 		UUID quizId,
 		String quizTitle) {
 }

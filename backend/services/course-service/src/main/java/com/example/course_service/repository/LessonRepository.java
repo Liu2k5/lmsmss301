@@ -42,7 +42,4 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
 	@Query("select coalesce(max(l.position), 0) from Lesson l where l.section.id = :sectionId")
 	int findMaxPosition(@Param("sectionId") UUID sectionId);
-
-	@Query("select l.section.course.id as courseId, count(l) as total from Lesson l group by l.section.course.id")
-	List<CourseCount> countByCourse();
 }

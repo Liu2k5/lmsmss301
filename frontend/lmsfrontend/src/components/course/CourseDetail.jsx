@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { courseApi } from '../../api/courseApi.js'
+import { categoryApi, courseApi } from '../../api/courseApi.js'
 import { enrollmentApi } from '../../api/enrollmentApi.js'
 import { progressApi } from '../../api/progressApi.js'
 import { reviewApi } from '../../api/reviewApi.js'
@@ -16,7 +16,7 @@ import {
   lessonTypeMeta,
   transitionLabel,
 } from './courseMeta.js'
-import { COURSE_FIELDS, LESSON_FIELDS, MATERIAL_FIELDS, SECTION_FIELDS, UPLOADED_MATERIAL_FIELDS } from './formFields.js'
+import { LESSON_FIELDS, MATERIAL_FIELDS, SECTION_FIELDS, UPLOADED_MATERIAL_FIELDS, courseFields } from './formFields.js'
 
 function moved(ids, index, delta) {
   const next = [...ids]
@@ -26,9 +26,11 @@ function moved(ids, index, delta) {
 }
 
 export default function CourseDetail({ courseId, onBack, openDialog, closeDialog, notify }) {
-  // Chỉ giảng viên/admin được sửa nội dung; học viên và khách chỉ xem.
-  const { authenticated, isInstructor, isAdmin, login, user } = useAuth()
-  const canManage = authenticated && (isInstructor || isAdmin)
+  // canManage: người đăng nhập là giảng viên (không đăng ký học như học viên).
+  // isOwner (tính sau khi tải khoá học): chính giảng viên phụ trách → mới được sửa nội dung.
+  // Admin chỉ quản lý hệ thống nên không sửa khoá học.
+  const { authenticated, isInstructor, login, user } = useAuth()
+  const canManage = authenticated && isInstructor
 
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -52,13 +54,14 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     setLoading(true)
     setLoadError(null)
     try {
-      setCourse(await courseApi.get(courseId))
+      // Giảng viên: xem khoá của mình ở mọi trạng thái. Khách / học viên: chỉ khoá công khai.
+      setCourse(await (canManage ? courseApi.getMine(courseId) : courseApi.get(courseId)))
     } catch (error) {
       setLoadError(error)
     } finally {
       setLoading(false)
     }
-  }, [courseId])
+  }, [courseId, canManage])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tải chi tiết khi mở khoá học
@@ -259,7 +262,8 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     )
   }
 
-  const editable = course.editable && canManage
+  const isOwner = canManage && course.instructorId === user?.id
+  const editable = course.editable && isOwner
   const totalLessons = course.sections.reduce((sum, section) => sum + section.lessons.length, 0)
   const totalMaterials = course.sections.reduce(
     (sum, section) => sum + section.lessons.reduce((acc, lesson) => acc + lesson.materials.length, 0),
@@ -271,15 +275,27 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
 
   // ---------------------------------------------------------------- course
 
-  function editCourse() {
+  async function editCourse() {
+    // Tải danh mục mới nhất cho ô chọn; lỗi thì vẫn mở form (chỉ giữ danh mục hiện tại).
+    let categories = []
+    try {
+      categories = await categoryApi.list()
+    } catch {
+      if (course.categoryId) categories = [{ id: course.categoryId, name: course.categoryName }]
+    }
     openDialog({
       kind: 'form',
       title: 'Sửa thông tin khoá học',
-      fields: COURSE_FIELDS,
-      initialValues: { ...course, thumbnail: course.thumbnailUrl },
+      fields: courseFields(categories),
+      initialValues: { ...course, categoryId: course.categoryId ?? '', thumbnail: course.thumbnailUrl },
       onSubmit: formSubmit(async ({ thumbnail, ...info }) => {
+        // Giữ nguyên giảng viên phụ trách (backend bắt buộc instructorId).
         // thumbnailUrl để trống = backend giữ nguyên ảnh bìa; đổi / bỏ ảnh đi qua endpoint riêng.
-        let detail = await courseApi.update(course.id, { ...info, thumbnailUrl: null })
+        let detail = await courseApi.update(course.id, {
+          ...info,
+          instructorId: course.instructorId,
+          thumbnailUrl: null,
+        })
         if (thumbnail?.file) {
           detail = await courseApi.uploadThumbnail(course.id, thumbnail.file)
         } else if (thumbnail?.removed) {
@@ -509,7 +525,10 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         <div className="detail-hero__info">
           <div className="detail-hero__top">
             <StatusBadge status={course.status} />
-            <span className="muted">#{course.id.slice(0, 8)} · Giảng viên #{course.instructorId.slice(0, 8)}</span>
+            <span className="muted">
+              #{course.id.slice(0, 8)} · Giảng viên #{course.instructorId.slice(0, 8)} · Danh mục:{' '}
+              {course.categoryName ?? 'Chưa có'}
+            </span>
           </div>
           <h1>{course.title}</h1>
           {course.description && <p className="detail-hero__desc">{course.description}</p>}
@@ -518,13 +537,13 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
             {formatDate(course.updatedAt)}
           </p>
           <div className="detail-hero__actions">
-            {canManage && (
+            {isOwner && (
               <button type="button" className="button button--ghost" onClick={editCourse}
                 disabled={!editable || busy}>
                 ✎ Sửa thông tin
               </button>
             )}
-            {canManage && DELETABLE_STATUSES.has(course.status) && (
+            {isOwner && DELETABLE_STATUSES.has(course.status) && (
               <button type="button" className="button button--danger-ghost" onClick={deleteCourse} disabled={busy}>
                 Xoá khoá học
               </button>
@@ -578,7 +597,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         </div>
       </section>
 
-      {canManage && (
+      {isOwner && (
       <section className="workflow" aria-label="Trạng thái khoá học">
         <div>
           <h2>Quy trình xuất bản</h2>
@@ -608,12 +627,12 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
       </section>
       )}
 
-      {!editable && canManage && (
+      {!editable && isOwner && (
         <div className="alert alert--warning" role="note">
           Khoá học đang lưu trữ nên chỉ xem được. Bấm <strong>Khôi phục</strong> để chỉnh sửa tiếp.
         </div>
       )}
-      {canManage && editable && missingQuiz.length > 0 && (
+      {isOwner && editable && missingQuiz.length > 0 && (
         <div className="alert alert--warning" role="note">
           {missingQuiz.length} bài học loại Quiz chưa có quiz:{' '}
           {missingQuiz.map((lesson) => lesson.title).join(', ')}.{' '}
@@ -699,7 +718,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                               ))}
                             {lesson.type === 'QUIZ' &&
                               (lesson.quizId ? (
-                                canManage ? (
+                                isOwner ? (
                                   <a
                                     className="tag tag--success tag--link"
                                     href={`#/quizzes?quizId=${lesson.quizId}`}
@@ -716,7 +735,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                                     Đã có quiz · Làm bài →
                                   </a>
                                 )
-                              ) : canManage ? (
+                              ) : isOwner ? (
                                 <a
                                   className="tag tag--warning tag--link"
                                   href={`#/quizzes?lessonId=${lesson.id}`}

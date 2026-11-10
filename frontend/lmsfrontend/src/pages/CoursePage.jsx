@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { courseApi } from '../api/courseApi.js'
+import { categoryApi, courseApi } from '../api/courseApi.js'
 import { enrollmentApi } from '../api/enrollmentApi.js'
 import ConfirmDialog from '../components/course/ConfirmDialog.jsx'
 import CourseDetail from '../components/course/CourseDetail.jsx'
 import FormModal from '../components/course/FormModal.jsx'
-import { COURSE_FIELDS } from '../components/course/formFields.js'
+import { courseFields } from '../components/course/formFields.js'
 import StatusBadge from '../components/course/StatusBadge.jsx'
 import UploadModal from '../components/course/UploadModal.jsx'
 import { STATUS_OPTIONS, formatDate } from '../components/course/courseMeta.js'
 import { useAuth } from '../auth/AuthContext.js'
 
 export default function CoursePage({ courseId, onOpenCourse, onBack }) {
-  // Chỉ giảng viên/admin được tạo & sửa nội dung khoá học; học viên/khách chỉ xem.
-  const { authenticated, isInstructor, isAdmin } = useAuth()
-  const canManage = authenticated && (isInstructor || isAdmin)
+  // Chỉ giảng viên được tạo & sửa nội dung khoá học. Admin chỉ quản lý hệ thống (danh mục, người dùng);
+  // học viên / khách chỉ xem.
+  const { authenticated, isInstructor, user } = useAuth()
+  const canManage = authenticated && isInstructor
 
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -21,6 +22,8 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
   const [keyword, setKeyword] = useState('')
   const [appliedKeyword, setAppliedKeyword] = useState('')
   const [status, setStatus] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [categories, setCategories] = useState([])
   const [dialog, setDialog] = useState(null)
   const [toast, setToast] = useState(null)
   // Học viên: id các khoá học đang đăng ký (UC-E01) để hiện nút huỷ (UC-E02) ngay trên thẻ.
@@ -31,13 +34,15 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     setLoading(true)
     setListError(null)
     try {
-      setCourses(await courseApi.list({ keyword: appliedKeyword, status }))
+      const filters = { keyword: appliedKeyword, status, categoryId }
+      // Giảng viên: chỉ khoá của mình (gồm bản nháp). Khách / học viên: khoá công khai.
+      setCourses(await (canManage ? courseApi.listMine(filters) : courseApi.list(filters)))
     } catch (error) {
       setListError(error)
     } finally {
       setLoading(false)
     }
-  }, [appliedKeyword, status])
+  }, [appliedKeyword, status, categoryId, canManage])
 
   useEffect(() => {
     if (courseId == null) {
@@ -64,6 +69,18 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
     }
   }, [courseId, authenticated, canManage])
 
+  // Danh mục cho ô lọc và form tạo khoá học (đọc công khai). Lỗi thì để trống, không chặn trang.
+  useEffect(() => {
+    let active = true
+    categoryApi
+      .list()
+      .then((list) => active && setCategories(list))
+      .catch(() => active && setCategories([]))
+    return () => {
+      active = false
+    }
+  }, [])
+
   // Tìm kiếm khi người dùng ngừng gõ 350ms.
   useEffect(() => {
     const timer = setTimeout(() => setAppliedKeyword(keyword.trim()), 350)
@@ -84,11 +101,12 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
       kind: 'form',
       title: 'Tạo khoá học mới',
       subtitle: 'Khoá học mới luôn ở trạng thái Bản nháp cho tới khi bạn xuất bản.',
-      fields: COURSE_FIELDS,
-      initialValues: { instructorId: '22222222-2222-2222-2222-222222222222' },
+      fields: courseFields(categories),
+      initialValues: {},
       submitLabel: 'Tạo khoá học',
       onSubmit: async ({ thumbnail, ...info }) => {
-        const created = await courseApi.create(info)
+        // Khoá học luôn đứng tên giảng viên đang đăng nhập (sub trong JWT)
+        const created = await courseApi.create({ ...info, instructorId: user?.id })
         setDialog(null)
         // Khoá học đã tạo; ảnh bìa upload sau vì cần id khoá học. Lỗi ảnh không làm mất khoá học.
         if (thumbnail?.file) {
@@ -177,7 +195,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                 C
               </div>
               <div>
-                <h1>{canManage ? 'Quản lý khoá học' : 'Khoá học'}</h1>
+                <h1>{canManage ? 'Khoá học của tôi' : 'Khoá học'}</h1>
                 <p>LearnHub LMS · Course Service</p>
               </div>
             </div>
@@ -196,7 +214,7 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
           <section className={`stats${canManage ? ' stats--four' : ''}`} aria-label="Thống kê">
             <div className="stat">
               <span className="stat__value">{visibleCourses.length}</span>
-              <span className="stat__label">Khoá học{status || appliedKeyword ? ' (đang lọc)' : ''}</span>
+              <span className="stat__label">Khoá học{status || appliedKeyword || categoryId ? ' (đang lọc)' : ''}</span>
             </div>
             <div className="stat">
               <span className="stat__value">{counts.PUBLISHED ?? 0}</span>
@@ -223,6 +241,14 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
             />
+            <select aria-label="Lọc theo danh mục" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+              <option value="">Tất cả danh mục</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
             <select aria-label="Lọc theo trạng thái" value={status} onChange={(event) => setStatus(event.target.value)}>
               <option value="">Tất cả trạng thái</option>
               {statusOptions.map((option) => (
@@ -253,15 +279,15 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                 <div className="state-card__icon" aria-hidden="true">
                   📚
                 </div>
-                <h2>{status || appliedKeyword ? 'Không có khoá học phù hợp' : 'Chưa có khoá học nào'}</h2>
+                <h2>{status || appliedKeyword || categoryId ? 'Không có khoá học phù hợp' : 'Chưa có khoá học nào'}</h2>
                 <p>
-                  {status || appliedKeyword
+                  {status || appliedKeyword || categoryId
                     ? 'Thử đổi từ khoá hoặc bộ lọc trạng thái.'
                     : canManage
                       ? 'Tạo khoá học đầu tiên rồi thêm chương, bài học và học liệu.'
                       : 'Hiện chưa có khoá học nào được xuất bản để tham gia.'}
                 </p>
-                {canManage && !status && !appliedKeyword && (
+                {canManage && !status && !appliedKeyword && !categoryId && (
                   <button type="button" className="button button--primary" onClick={openCreate}>
                     + Tạo khoá học đầu tiên
                   </button>
@@ -293,12 +319,8 @@ export default function CoursePage({ courseId, onOpenCourse, onBack }) {
                     {course.description && <p className="course-card__desc">{course.description}</p>}
                     <dl className="course-card__meta">
                       <div>
-                        <dt>Chương</dt>
-                        <dd>{course.sectionCount}</dd>
-                      </div>
-                      <div>
-                        <dt>Bài học</dt>
-                        <dd>{course.lessonCount}</dd>
+                        <dt>Danh mục</dt>
+                        <dd>{course.categoryName || 'Chưa có'}</dd>
                       </div>
                       <div>
                         <dt>Cập nhật</dt>

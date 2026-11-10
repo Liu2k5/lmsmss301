@@ -1,5 +1,6 @@
 package com.example.course_service.config;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.course_service.entity.Category;
 import com.example.course_service.entity.Course;
 import com.example.course_service.entity.CourseStatus;
 import com.example.course_service.entity.Lesson;
@@ -17,6 +19,7 @@ import com.example.course_service.entity.LessonType;
 import com.example.course_service.entity.Material;
 import com.example.course_service.entity.MaterialType;
 import com.example.course_service.entity.Section;
+import com.example.course_service.repository.CategoryRepository;
 import com.example.course_service.repository.CourseRepository;
 import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.MaterialRepository;
@@ -37,6 +40,7 @@ public class CourseDemoDataSeeder implements ApplicationRunner {
 	private static final Logger log = LoggerFactory.getLogger(CourseDemoDataSeeder.class);
 
 	private final CourseRepository courseRepository;
+	private final CategoryRepository categoryRepository;
 	private final SectionRepository sectionRepository;
 	private final LessonRepository lessonRepository;
 	private final MaterialRepository materialRepository;
@@ -64,6 +68,7 @@ public class CourseDemoDataSeeder implements ApplicationRunner {
 				.title(REACT_TITLE)
 				.description("Xây dựng giao diện web hiện đại với React, Hooks và Vite.")
 				.thumbnailUrl("https://placehold.co/600x340?text=ReactJS")
+				.category(category("Lập trình Frontend", "Giao diện web: HTML, CSS, JavaScript, React…"))
 				.status(CourseStatus.DRAFT)
 				.build());
 
@@ -88,6 +93,7 @@ public class CourseDemoDataSeeder implements ApplicationRunner {
 				.title(DOCKER_TITLE)
 				.description("Đóng gói và triển khai ứng dụng bằng Docker và Docker Compose.")
 				.thumbnailUrl("https://placehold.co/600x340?text=Docker")
+				.category(category("DevOps", "Đóng gói, triển khai và vận hành ứng dụng"))
 				.status(CourseStatus.PUBLISHED)
 				.build());
 		Section basics = section(docker, "Chương 1: Container là gì?", 1);
@@ -110,5 +116,14 @@ public class CourseDemoDataSeeder implements ApplicationRunner {
 		materialRepository.save(Material.builder()
 				.lesson(lesson).name(name).type(type).url(url).fileSize(size).mimeType(mime).position(position)
 				.build());
+	}
+
+	/** Lấy danh mục mẫu theo tên, chưa có thì tạo mới (chạy lại nhiều lần không bị trùng). */
+	private Category category(String name, String description) {
+		Optional<Category> existing = categoryRepository.findByNameIgnoreCase(name);
+		if (existing.isPresent()) {
+			return existing.get();
+		}
+		return categoryRepository.save(Category.builder().name(name).description(description).build());
 	}
 }

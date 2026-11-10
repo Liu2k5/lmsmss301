@@ -12,6 +12,8 @@ public record QuizSummaryResponse(
 		String sectionTitle,
 		UUID courseId,
 		String courseTitle,
+		/** Giảng viên phụ trách khoá học (frontend chỉ hiện nút sửa cho chủ khoá học). */
+		UUID instructorId,
 		String title,
 		BigDecimal passingScore,
 		Integer maxAttempts,

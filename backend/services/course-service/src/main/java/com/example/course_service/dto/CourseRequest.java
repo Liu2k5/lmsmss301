@@ -22,5 +22,8 @@ public record CourseRequest(
 
 		@Size(max = 500, message = "URL ảnh bìa tối đa 500 ký tự")
 		@Pattern(regexp = "^$|^https?://.+", message = "URL ảnh bìa phải bắt đầu bằng http:// hoặc https://")
-		String thumbnailUrl) {
+		String thumbnailUrl,
+
+		/** Danh mục của khoá học; để trống (null) = khoá học chưa có danh mục. */
+		UUID categoryId) {
 }

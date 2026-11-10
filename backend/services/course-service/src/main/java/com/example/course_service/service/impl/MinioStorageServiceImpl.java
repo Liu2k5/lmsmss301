@@ -34,7 +34,14 @@ public class MinioStorageServiceImpl implements StorageService {
 	@Override
 	public StoredFile upload(String folder, MultipartFile file) {
 		ensureBucket();
-		String contentType = file.getContentType() == null ? DEFAULT_CONTENT_TYPE : file.getContentType();
+		// Kiểu file (MIME type): trình duyệt không gửi thì dùng kiểu mặc định "file nhị phân"
+		String contentType;
+		if (file.getContentType() == null) {
+			contentType = DEFAULT_CONTENT_TYPE;
+		}
+		else {
+			contentType = file.getContentType();
+		}
 		String objectKey = folder + "/" + UUID.randomUUID() + "-" + safeFileName(file.getOriginalFilename());
 
 		try (InputStream input = file.getInputStream()) {
@@ -105,10 +112,27 @@ public class MinioStorageServiceImpl implements StorageService {
 
 	/** Giữ tên file dễ đọc nhưng chỉ gồm ký tự an toàn cho object key. */
 	private static String safeFileName(String originalName) {
-		String name = originalName == null || originalName.isBlank() ? "file" : originalName;
+		// 1. Không có tên → dùng "file"
+		String name;
+		if (originalName == null || originalName.isBlank()) {
+			name = "file";
+		}
+		else {
+			name = originalName;
+		}
+
+		// 2. Bỏ phần thư mục nếu trình duyệt gửi cả đường dẫn: "C:\docs\bai1.pdf" → "bai1.pdf"
 		name = name.replace('\\', '/');
-		name = name.substring(name.lastIndexOf('/') + 1);
+		int lastSlash = name.lastIndexOf('/');
+		name = name.substring(lastSlash + 1);
+
+		// 3. Thay ký tự lạ (dấu tiếng Việt, khoảng trắng…) bằng "_": "Bài 1.pdf" → "B_i_1.pdf"
 		name = name.replaceAll("[^A-Za-z0-9._-]", "_");
-		return name.length() > 100 ? name.substring(name.length() - 100) : name;
+
+		// 4. Tên quá 100 ký tự → giữ 100 ký tự cuối (để không mất phần đuôi .pdf, .mp4)
+		if (name.length() > 100) {
+			name = name.substring(name.length() - 100);
+		}
+		return name;
 	}
 }

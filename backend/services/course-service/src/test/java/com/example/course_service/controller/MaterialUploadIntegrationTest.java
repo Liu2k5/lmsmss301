@@ -1,5 +1,6 @@
 package com.example.course_service.controller;
 
+import com.example.course_service.support.TestLogin;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
@@ -49,6 +50,17 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc(addFilters = false) // test nghiệp vụ: bỏ qua xác thực, phần quyền có test riêng
 class MaterialUploadIntegrationTest {
 
+	/** Test nghiệp vụ tắt filter bảo mật → tự đăng nhập bằng giảng viên chủ các khoá học trong test. */
+	@BeforeEach
+	void loginAsInstructor() {
+		TestLogin.asInstructor();
+	}
+
+	@AfterEach
+	void logout() {
+		TestLogin.logout();
+	}
+
 	private static final String OBJECT_KEY = "courses/1/lessons/1/abc-bai-giang.mp4";
 
 	@Autowired
@@ -77,7 +89,7 @@ class MaterialUploadIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		Course course = courseRepository.save(Course.builder()
-				.instructorId(java.util.UUID.randomUUID()).title("Khoá upload").status(CourseStatus.DRAFT).build());
+				.instructorId(java.util.UUID.fromString(TestLogin.INSTRUCTOR_ID)).title("Khoá upload").status(CourseStatus.DRAFT).build());
 		Section section = sectionRepository.save(Section.builder()
 				.course(course).title("Chương 1").position(1).build());
 		lesson = lessonRepository.save(Lesson.builder()
@@ -232,7 +244,7 @@ class MaterialUploadIntegrationTest {
 				.isEqualTo("minio:courses/1/thumbnail/a-bia.png");
 
 		// Danh sách khoá học cũng trả link xem được, không trả khoá minio:
-		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/courses"))
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/instructor/courses"))
 				.andExpect(jsonPath("$[0].thumbnailUrl").value("http://minio.local/presigned/courses/1/thumbnail/a-bia.png"));
 	}
 

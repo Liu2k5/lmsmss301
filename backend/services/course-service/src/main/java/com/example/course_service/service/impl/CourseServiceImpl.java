@@ -9,12 +9,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
@@ -34,6 +36,7 @@ import com.example.course_service.dto.MaterialResponse;
 import com.example.course_service.dto.PublishedCurriculumResponse;
 import com.example.course_service.dto.SectionRequest;
 import com.example.course_service.dto.SectionResponse;
+import com.example.course_service.entity.Category;
 import com.example.course_service.entity.Course;
 import com.example.course_service.entity.CourseStatus;
 import com.example.course_service.entity.Lesson;
@@ -45,15 +48,15 @@ import com.example.course_service.entity.Section;
 import com.example.course_service.exception.BusinessRuleException;
 import com.example.course_service.exception.ConflictException;
 import com.example.course_service.exception.ResourceNotFoundException;
-import com.example.course_service.repository.CourseCount;
+import com.example.course_service.repository.CategoryRepository;
 import com.example.course_service.repository.CourseRepository;
 import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.MaterialRepository;
 import com.example.course_service.repository.QuizRepository;
 import com.example.course_service.repository.SectionRepository;
-import com.example.course_service.security.CourseAccessGuard;
 import com.example.course_service.service.CourseService;
 import com.example.course_service.service.StorageService;
+import com.example.course_service.security.LoginUser;
 
 import lombok.RequiredArgsConstructor;
 
@@ -77,12 +80,12 @@ public class CourseServiceImpl implements CourseService {
 	}
 
 	private final CourseRepository courseRepository;
+	private final CategoryRepository categoryRepository;
 	private final SectionRepository sectionRepository;
 	private final LessonRepository lessonRepository;
 	private final MaterialRepository materialRepository;
 	private final QuizRepository quizRepository;
 	private final StorageService storageService;
-	private final CourseAccessGuard courseAccessGuard;
 	private final PlatformTransactionManager transactionManager;
 
 	private static final Logger log = LoggerFactory.getLogger(CourseServiceImpl.class);
@@ -92,36 +95,74 @@ public class CourseServiceImpl implements CourseService {
 
 	private static final long MAX_THUMBNAIL_BYTES = 5L * 1024 * 1024;
 
-	// ================================================================ khoá học
+
 
 	@Override
-	public List<CourseSummaryResponse> search(String keyword, CourseStatus status, UUID instructorId) {
-		String pattern = keyword == null || keyword.isBlank()
-				? null
-				: "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
+	public List<CourseSummaryResponse> search(String keyword, CourseStatus status, UUID instructorId, UUID categoryId) {
+		List<Course> courses = courseRepository.search(toPattern(keyword), status, instructorId, categoryId);
 
-		Map<UUID, Long> sectionCounts = toMap(sectionRepository.countByCourse());
-		Map<UUID, Long> lessonCounts = toMap(lessonRepository.countByCourse());
-
-		return courseRepository.search(pattern, status, instructorId).stream()
-				.filter(course -> course.getStatus() != CourseStatus.DRAFT || courseAccessGuard.canSeeDraft(course))
-				.map(course -> new CourseSummaryResponse(
-						course.getId(), course.getInstructorId(), course.getTitle(), course.getDescription(),
-						viewUrl(course.getThumbnailUrl()), course.getStatus(),
-						sectionCounts.getOrDefault(course.getId(), 0L),
-						lessonCounts.getOrDefault(course.getId(), 0L),
-						course.getCreatedAt(), course.getUpdatedAt()))
-				.toList();
+		List<CourseSummaryResponse> result = new ArrayList<>();
+		for (Course course : courses) {
+			if (course.getStatus() == CourseStatus.DRAFT) {
+				continue;
+			}
+			result.add(toSummary(course));
+		}
+		return result;
 	}
 
 	@Override
 	public CourseDetailResponse getDetail(UUID id) {
 		Course course = requireCourse(id);
-		// Khoá học nháp không hiện với học viên: coi như không tồn tại để không lộ nội dung đang soạn.
-		if (course.getStatus() == CourseStatus.DRAFT && !courseAccessGuard.canSeeDraft(course)) {
+		// Khoá nháp: coi như không tồn tại với API công khai.
+		if (course.getStatus() == CourseStatus.DRAFT) {
 			throw new ResourceNotFoundException("Không tìm thấy khoá học id=" + id);
 		}
 		return toDetail(course);
+	}
+
+	@Override
+	public List<CourseSummaryResponse> searchMine(LoginUser user, String keyword, CourseStatus status, UUID categoryId) {
+		// Chỉ lấy khoá đứng tên giảng viên đang đăng nhập → bản nháp của mình cũng hiện.
+		List<Course> courses = courseRepository.search(toPattern(keyword), status, user.id(), categoryId);
+
+		List<CourseSummaryResponse> result = new ArrayList<>();
+		for (Course course : courses) {
+			result.add(toSummary(course));
+		}
+		return result;
+	}
+
+	@Override
+	public CourseDetailResponse getMyDetail(LoginUser user, UUID id) {
+		Course course = requireCourse(id);
+		// Khoá của giảng viên khác: coi như không tồn tại.
+		if (!course.getInstructorId().equals(user.id())) {
+			throw new ResourceNotFoundException("Không tìm thấy khoá học id=" + id);
+		}
+		return toDetail(course);
+	}
+
+	/** Từ khoá tìm kiếm → mẫu LIKE; để trống → null (không lọc). */
+	private static String toPattern(String keyword) {
+		if (keyword == null || keyword.isBlank()) {
+			return null;
+		}
+		return "%" + keyword.trim().toLowerCase() + "%";
+	}
+
+	private CourseSummaryResponse toSummary(Course course) {
+		return new CourseSummaryResponse(
+				course.getId(),
+				course.getInstructorId(),
+				course.getTitle(),
+				course.getDescription(),
+				viewUrl(course.getThumbnailUrl()),
+				course.getStatus(),
+				categoryIdOf(course),
+				categoryNameOf(course),
+				course.getCreatedAt(),
+				course.getUpdatedAt());
 	}
 
 	@Override
@@ -134,9 +175,6 @@ public class CourseServiceImpl implements CourseService {
 		List<Lesson> allLessons = lessonRepository.findByCourseIdOrdered(id);
 		Map<UUID, UUID> quizIdByLesson = quizIdsByLesson(allLessons);
 
-		// Giảng viên vẫn sửa được nội dung khi khoá đang xuất bản, nên có thể có bài Quiz chưa tạo quiz
-		// hoặc chương chưa có bài. Chỉ đưa ra những gì học viên học được: bỏ bài Quiz chưa có quiz và
-		// chương rỗng, để Progress Service không phải xử lý bài không thể hoàn thành.
 		List<Lesson> readyLessons = allLessons.stream()
 				.filter(lesson -> lesson.getType() != LessonType.QUIZ || quizIdByLesson.containsKey(lesson.getId()))
 				.toList();
@@ -161,13 +199,14 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse create(CourseRequest request) {
-		courseAccessGuard.checkCanAssignInstructor(request.instructorId());
+	public CourseDetailResponse create(LoginUser user, CourseRequest request) {
+		checkCanAssignInstructor(user, request.instructorId());
 		Course course = Course.builder()
 				.instructorId(request.instructorId())
 				.title(request.title().trim())
 				.description(trimToNull(request.description()))
 				.thumbnailUrl(trimToNull(request.thumbnailUrl()))
+				.category(findCategoryOrNull(request.categoryId()))
 				.status(CourseStatus.DRAFT)
 				.build();
 		return toDetail(courseRepository.saveAndFlush(course));
@@ -175,16 +214,15 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse update(UUID id, CourseRequest request) {
-		Course course = requireManageableCourse(id);
+	public CourseDetailResponse update(LoginUser user, UUID id, CourseRequest request) {
+		Course course = requireManageableCourse(user, id);
 		ensureEditable(course);
-		courseAccessGuard.checkCanAssignInstructor(request.instructorId());
+		checkCanAssignInstructor(user, request.instructorId());
 		course.setInstructorId(request.instructorId());
 		course.setTitle(request.title().trim());
 		course.setDescription(trimToNull(request.description()));
+		course.setCategory(findCategoryOrNull(request.categoryId()));
 
-		// Để trống thumbnailUrl = giữ nguyên ảnh bìa hiện tại (có thể là ảnh đã upload lên MinIO).
-		// Muốn bỏ ảnh bìa dùng DELETE /courses/{id}/thumbnail.
 		String newThumbnail = trimToNull(request.thumbnailUrl());
 		if (newThumbnail != null) {
 			replaceThumbnail(course, newThumbnail);
@@ -192,10 +230,9 @@ public class CourseServiceImpl implements CourseService {
 		return toDetail(courseRepository.saveAndFlush(course));
 	}
 
-	/** Giống {@link #uploadMaterial}: upload ngoài transaction, lưu DB trong transaction ngắn. */
 	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
-	public CourseDetailResponse uploadThumbnail(UUID id, MultipartFile file) {
+	public CourseDetailResponse uploadThumbnail(LoginUser user, UUID id, MultipartFile file) {
 		if (file == null || file.isEmpty()) {
 			throw new BusinessRuleException("File ảnh bìa đang trống");
 		}
@@ -205,7 +242,7 @@ public class CourseServiceImpl implements CourseService {
 		if (file.getSize() > MAX_THUMBNAIL_BYTES) {
 			throw new BusinessRuleException("Ảnh bìa tối đa 5 MB");
 		}
-		readTransaction().executeWithoutResult(status -> ensureEditable(requireManageableCourse(id)));
+		readTransaction().executeWithoutResult(status -> ensureEditable(requireManageableCourse(user, id)));
 
 		StorageService.StoredFile stored = storageService.upload("courses/" + id + "/thumbnail", file);
 
@@ -240,8 +277,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse removeThumbnail(UUID id) {
-		Course course = requireManageableCourse(id);
+	public CourseDetailResponse removeThumbnail(LoginUser user, UUID id) {
+		Course course = requireManageableCourse(user, id);
 		ensureEditable(course);
 		replaceThumbnail(course, null);
 		return toDetail(courseRepository.saveAndFlush(course));
@@ -249,17 +286,29 @@ public class CourseServiceImpl implements CourseService {
 
 	/** Đổi ảnh bìa; nếu ảnh cũ nằm trên MinIO thì xoá file cũ sau khi commit. */
 	private void replaceThumbnail(Course course, String newValue) {
+		// Lấy key của ảnh cũ (null nếu ảnh cũ là link ngoài hoặc chưa có ảnh)
 		String oldKey = storedKey(course.getThumbnailUrl());
 		course.setThumbnailUrl(newValue);
-		if (oldKey != null && !(STORED_PREFIX + oldKey).equals(newValue)) {
-			deleteStoredFilesAfterCommit(List.of(oldKey));
+
+		// Ảnh cũ không nằm trên MinIO → không có gì để xoá
+		if (oldKey == null) {
+			return;
 		}
+		// Ảnh mới vẫn là đúng file cũ → không xoá
+		String oldStoredValue = STORED_PREFIX + oldKey;
+		if (oldStoredValue.equals(newValue)) {
+			return;
+		}
+		// Ảnh đã đổi → xoá file cũ trên MinIO (sau khi DB commit)
+		List<String> keysToDelete = new ArrayList<>();
+		keysToDelete.add(oldKey);
+		deleteStoredFilesAfterCommit(keysToDelete);
 	}
 
 	@Override
 	@Transactional
-	public CourseDetailResponse changeStatus(UUID id, CourseStatus target) {
-		Course course = requireManageableCourse(id);
+	public CourseDetailResponse changeStatus(LoginUser user, UUID id, CourseStatus target) {
+		Course course = requireManageableCourse(user, id);
 		CourseStatus current = course.getStatus();
 
 		if (current == target) {
@@ -278,8 +327,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public void delete(UUID id) {
-		Course course = requireManageableCourse(id);
+	public void delete(LoginUser user, UUID id) {
+		Course course = requireManageableCourse(user, id);
 		// Chỉ xoá hẳn khoá học chưa từng xuất bản (bản nháp) hoặc đã lưu trữ.
 		if (course.getStatus() != CourseStatus.DRAFT && course.getStatus() != CourseStatus.ARCHIVED) {
 			throw new ConflictException("Khoá học đang " + course.getStatus()
@@ -296,8 +345,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse addSection(UUID courseId, SectionRequest request) {
-		Course course = requireManageableCourse(courseId);
+	public CourseDetailResponse addSection(LoginUser user, UUID courseId, SectionRequest request) {
+		Course course = requireManageableCourse(user, courseId);
 		ensureEditable(course);
 
 		sectionRepository.save(Section.builder()
@@ -311,8 +360,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse updateSection(UUID sectionId, SectionRequest request) {
-		Section section = requireEditableSection(sectionId);
+	public CourseDetailResponse updateSection(LoginUser user, UUID sectionId, SectionRequest request) {
+		Section section = requireEditableSection(user, sectionId);
 		section.setTitle(request.title().trim());
 		section.setDescription(trimToNull(request.description()));
 		return refreshed(section.getCourse().getId());
@@ -320,8 +369,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse deleteSection(UUID sectionId) {
-		Section section = requireEditableSection(sectionId);
+	public CourseDetailResponse deleteSection(LoginUser user, UUID sectionId) {
+		Section section = requireEditableSection(user, sectionId);
 		UUID courseId = section.getCourse().getId();
 
 		deleteLessons(lessonRepository.findBySectionIdOrderByPositionAscIdAsc(sectionId));
@@ -334,8 +383,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse reorderSections(UUID courseId, List<UUID> orderedIds) {
-		Course course = requireManageableCourse(courseId);
+	public CourseDetailResponse reorderSections(LoginUser user, UUID courseId, List<UUID> orderedIds) {
+		Course course = requireManageableCourse(user, courseId);
 		ensureEditable(course);
 
 		List<Section> sections = sectionRepository.findByCourseIdOrderByPositionAscIdAsc(courseId);
@@ -347,8 +396,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse addLesson(UUID sectionId, LessonRequest request) {
-		Section section = requireEditableSection(sectionId);
+	public CourseDetailResponse addLesson(LoginUser user, UUID sectionId, LessonRequest request) {
+		Section section = requireEditableSection(user, sectionId);
 
 		lessonRepository.save(Lesson.builder()
 				.section(section)
@@ -363,8 +412,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse updateLesson(UUID lessonId, LessonRequest request) {
-		Lesson lesson = requireEditableLesson(lessonId);
+	public CourseDetailResponse updateLesson(LoginUser user, UUID lessonId, LessonRequest request) {
+		Lesson lesson = requireEditableLesson(user, lessonId);
 
 		if (lesson.getType() == LessonType.QUIZ && request.type() != LessonType.QUIZ
 				&& quizRepository.existsByLessonId(lessonId)) {
@@ -380,8 +429,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse deleteLesson(UUID lessonId) {
-		Lesson lesson = requireEditableLesson(lessonId);
+	public CourseDetailResponse deleteLesson(LoginUser user, UUID lessonId) {
+		Lesson lesson = requireEditableLesson(user, lessonId);
 		UUID sectionId = lesson.getSection().getId();
 		UUID courseId = lesson.getSection().getCourse().getId();
 
@@ -392,8 +441,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse reorderLessons(UUID sectionId, List<UUID> orderedIds) {
-		Section section = requireEditableSection(sectionId);
+	public CourseDetailResponse reorderLessons(LoginUser user, UUID sectionId, List<UUID> orderedIds) {
+		Section section = requireEditableSection(user, sectionId);
 		List<Lesson> lessons = lessonRepository.findBySectionIdOrderByPositionAscIdAsc(sectionId);
 		applyOrder(lessons, Lesson::getId, Lesson::setPosition, orderedIds, "bài học");
 		return refreshed(section.getCourse().getId());
@@ -403,8 +452,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse addMaterial(UUID lessonId, MaterialRequest request) {
-		Lesson lesson = requireEditableLesson(lessonId);
+	public CourseDetailResponse addMaterial(LoginUser user, UUID lessonId, MaterialRequest request) {
+		Lesson lesson = requireEditableLesson(user, lessonId);
 		if (trimToNull(request.url()) == null) {
 			throw new BusinessRuleException("URL học liệu không được để trống. Muốn đưa file lên hãy dùng Upload.");
 		}
@@ -425,24 +474,44 @@ public class CourseServiceImpl implements CourseService {
 	 */
 	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
-	public CourseDetailResponse uploadMaterial(UUID lessonId, MultipartFile file, String name, MaterialType type) {
+	public CourseDetailResponse uploadMaterial(LoginUser user, UUID lessonId, MultipartFile file, String name, MaterialType type) {
 		if (file == null || file.isEmpty()) {
 			throw new BusinessRuleException("File upload đang trống");
 		}
 		UUID courseId = readTransaction().execute(
-				status -> requireEditableLesson(lessonId).getSection().getCourse().getId());
+				status -> requireEditableLesson(user, lessonId).getSection().getCourse().getId());
 
 		StorageService.StoredFile stored = storageService.upload(
 				"courses/" + courseId + "/lessons/" + lessonId, file);
-		String displayName = trimToNull(name) != null ? name.trim() : trimToNull(file.getOriginalFilename());
+
+		// Tên hiển thị: ưu tiên tên người dùng nhập → tên file gốc → "Học liệu"
+		String displayName;
+		if (trimToNull(name) != null) {
+			displayName = name.trim();
+		}
+		else if (trimToNull(file.getOriginalFilename()) != null) {
+			displayName = file.getOriginalFilename().trim();
+		}
+		else {
+			displayName = "Học liệu";
+		}
+
+		// Loại học liệu: người dùng chọn thì dùng, không chọn thì đoán theo MIME type của file
+		MaterialType materialType;
+		if (type != null) {
+			materialType = type;
+		}
+		else {
+			materialType = guessType(stored.contentType());
+		}
 
 		return saveOrDiscardUpload(stored, () -> {
 			// Kiểm tra lại: bài học có thể vừa bị xoá / khoá học vừa bị lưu trữ trong lúc upload.
-			Lesson lesson = requireEditableLesson(lessonId);
+			Lesson lesson = requireEditableLesson(user, lessonId);
 			materialRepository.saveAndFlush(Material.builder()
 					.lesson(lesson)
-					.name(truncate(displayName == null ? "Học liệu" : displayName, 255))
-					.type(type != null ? type : guessType(stored.contentType()))
+					.name(truncate(displayName, 255))
+					.type(materialType)
 					.url(STORED_PREFIX + stored.objectKey())
 					.fileSize(stored.size())
 					.mimeType(truncate(stored.contentType(), 100))
@@ -454,8 +523,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse updateMaterial(UUID materialId, MaterialRequest request) {
-		Material material = requireEditableMaterial(materialId);
+	public CourseDetailResponse updateMaterial(LoginUser user, UUID materialId, MaterialRequest request) {
+		Material material = requireEditableMaterial(user, materialId);
 		String oldStoredKey = storedKey(material);
 		String newUrl = trimToNull(request.url());
 
@@ -478,8 +547,8 @@ public class CourseServiceImpl implements CourseService {
 
 	@Override
 	@Transactional
-	public CourseDetailResponse deleteMaterial(UUID materialId) {
-		Material material = requireEditableMaterial(materialId);
+	public CourseDetailResponse deleteMaterial(LoginUser user, UUID materialId) {
+		Material material = requireEditableMaterial(user, materialId);
 		Lesson lesson = material.getLesson();
 		UUID courseId = lesson.getSection().getCourse().getId();
 
@@ -535,12 +604,28 @@ public class CourseServiceImpl implements CourseService {
 		}
 	}
 
+	// ============================================================ kiểm tra quyền
+
+	/** Chỉ giảng viên phụ trách khoá học mới được sửa nội dung khoá học. */
+	private static void checkCanManage(LoginUser user, Course course) {
+		if (!user.canManage(course.getInstructorId())) {
+			throw new AccessDeniedException("Chỉ giảng viên phụ trách khoá học mới được chỉnh sửa nội dung khoá học này");
+		}
+	}
+
+	/** Giảng viên chỉ được tạo / sửa khoá học đứng tên chính mình. */
+	private static void checkCanAssignInstructor(LoginUser user, UUID instructorId) {
+		if (!instructorId.equals(user.id())) {
+			throw new AccessDeniedException("Mã giảng viên phải là tài khoản đang đăng nhập");
+		}
+	}
+
 	// ============================================================ tìm & kiểm tra
 
-	/** Như {@link #requireCourse} nhưng chặn nếu người gọi không phải giảng viên phụ trách (Admin bỏ qua). */
-	private Course requireManageableCourse(UUID id) {
+	/** Như {@link #requireCourse} nhưng chặn nếu người gọi không phải giảng viên phụ trách. */
+	private Course requireManageableCourse(LoginUser user, UUID id) {
 		Course course = requireCourse(id);
-		courseAccessGuard.checkCanManage(course);
+		checkCanManage(user, course);
 		return course;
 	}
 
@@ -549,26 +634,26 @@ public class CourseServiceImpl implements CourseService {
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khoá học id=" + id));
 	}
 
-	private Section requireEditableSection(UUID sectionId) {
+	private Section requireEditableSection(LoginUser user, UUID sectionId) {
 		Section section = sectionRepository.findByIdWithCourse(sectionId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chương id=" + sectionId));
-		courseAccessGuard.checkCanManage(section.getCourse());
+		checkCanManage(user, section.getCourse());
 		ensureEditable(section.getCourse());
 		return section;
 	}
 
-	private Lesson requireEditableLesson(UUID lessonId) {
+	private Lesson requireEditableLesson(LoginUser user, UUID lessonId) {
 		Lesson lesson = lessonRepository.findByIdWithContext(lessonId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài học id=" + lessonId));
-		courseAccessGuard.checkCanManage(lesson.getSection().getCourse());
+		checkCanManage(user, lesson.getSection().getCourse());
 		ensureEditable(lesson.getSection().getCourse());
 		return lesson;
 	}
 
-	private Material requireEditableMaterial(UUID materialId) {
+	private Material requireEditableMaterial(LoginUser user, UUID materialId) {
 		Material material = materialRepository.findByIdWithContext(materialId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy học liệu id=" + materialId));
-		courseAccessGuard.checkCanManage(material.getLesson().getSection().getCourse());
+		checkCanManage(user, material.getLesson().getSection().getCourse());
 		ensureEditable(material.getLesson().getSection().getCourse());
 		return material;
 	}
@@ -585,8 +670,14 @@ public class CourseServiceImpl implements CourseService {
 		}
 		List<UUID> lessonIds = lessons.stream().map(Lesson::getId).toList();
 		List<Material> materials = materialRepository.findByLessonIdIn(lessonIds);
-		List<String> storedKeys = materials.stream().map(CourseServiceImpl::storedKey)
-				.filter(java.util.Objects::nonNull).toList();
+		// Gom key của những học liệu là file trên MinIO (bỏ qua học liệu dạng link)
+		List<String> storedKeys = new ArrayList<>();
+		for (Material material : materials) {
+			String key = storedKey(material);
+			if (key != null) {
+				storedKeys.add(key);
+			}
+		}
 
 		materialRepository.deleteAll(materials);
 		quizRepository.deleteAll(quizRepository.findByLessonIdIn(lessonIds));
@@ -604,9 +695,17 @@ public class CourseServiceImpl implements CourseService {
 
 	/** Khoá object nếu giá trị lưu trong DB có dạng {@code minio:<key>}, ngược lại null (link ngoài / trống). */
 	private static String storedKey(String storedValue) {
-		return storedValue != null && storedValue.startsWith(STORED_PREFIX)
-				? storedValue.substring(STORED_PREFIX.length())
-				: null;
+		// Không có giá trị → không phải file
+		if (storedValue == null) {
+			return null;
+		}
+		// Có tiền tố "minio:" → là file đã upload, bỏ tiền tố để lấy key
+		// Ví dụ: "minio:courses/abc/thumb.png" → "courses/abc/thumb.png"
+		if (storedValue.startsWith(STORED_PREFIX)) {
+			return storedValue.substring(STORED_PREFIX.length());
+		}
+		// Không có tiền tố → là link ngoài (YouTube, Google Drive…)
+		return null;
 	}
 
 	/** Chỉ xoá file trên MinIO khi DB đã commit, tránh mất file khi transaction bị rollback. */
@@ -719,7 +818,8 @@ public class CourseServiceImpl implements CourseService {
 	/** Đẩy thay đổi xuống DB rồi đọc lại chi tiết khoá học sau thao tác ghi. */
 	private CourseDetailResponse refreshed(UUID courseId) {
 		sectionRepository.flush();
-		return getDetail(courseId);
+		// Người gọi đã qua kiểm tra quyền sửa nên không cần kiểm tra quyền xem nháp nữa
+		return toDetail(requireCourse(courseId));
 	}
 
 	private CourseDetailResponse toDetail(Course course) {
@@ -752,6 +852,7 @@ public class CourseServiceImpl implements CourseService {
 		return new CourseDetailResponse(
 				courseId, course.getInstructorId(), course.getTitle(), course.getDescription(),
 				viewUrl(course.getThumbnailUrl()), course.getStatus(),
+				categoryIdOf(course), categoryNameOf(course),
 				allowedTransitions(course.getStatus()),
 				isEditable(course.getStatus()),
 				course.getCreatedAt(), course.getUpdatedAt(), sectionResponses);
@@ -780,8 +881,34 @@ public class CourseServiceImpl implements CourseService {
 				material.getFileSize(), material.getMimeType(), material.getPosition());
 	}
 
-	private static Map<UUID, Long> toMap(List<CourseCount> counts) {
-		return counts.stream().collect(Collectors.toMap(CourseCount::getCourseId, CourseCount::getTotal));
+	// ============================================================ danh mục
+
+	/** categoryId null → khoá học không có danh mục; có id mà không tìm thấy → 404. */
+	private Category findCategoryOrNull(UUID categoryId) {
+		if (categoryId == null) {
+			return null;
+		}
+		Optional<Category> found = categoryRepository.findById(categoryId);
+		if (found.isEmpty()) {
+			throw new ResourceNotFoundException("Không tìm thấy danh mục id=" + categoryId);
+		}
+		return found.get();
+	}
+
+	private static UUID categoryIdOf(Course course) {
+		Category category = course.getCategory();
+		if (category == null) {
+			return null;
+		}
+		return category.getId();
+	}
+
+	private static String categoryNameOf(Course course) {
+		Category category = course.getCategory();
+		if (category == null) {
+			return null;
+		}
+		return category.getName();
 	}
 
 	private static String trimToNull(String value) {

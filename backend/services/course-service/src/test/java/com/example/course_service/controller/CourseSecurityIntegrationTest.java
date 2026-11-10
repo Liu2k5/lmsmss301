@@ -65,9 +65,19 @@ class CourseSecurityIntegrationTest {
 	// ------------------------------------------------------------- đọc công khai
 
 	@Test
-	void khachVanXemDuocCatalog() throws Exception {
-		mockMvc.perform(get("/api/v1/courses")).andExpect(status().isOk());
-		mockMvc.perform(get("/api/v1/courses/" + courseId)).andExpect(status().isOk());
+	void khachVanXemDuocCatalogNhungKhongThayKhoaHocNhap() throws Exception {
+		mockMvc.perform(get("/api/v1/courses"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id == '%s')]".formatted(courseId), hasSize(0)));
+		mockMvc.perform(get("/api/v1/courses/" + courseId)).andExpect(status().isNotFound());
+
+		// Khoá đã xuất bản thì khách xem được
+		Course published = courseRepository.save(Course.builder()
+				.instructorId(UUID.fromString(INSTRUCTOR))
+				.title("Khoá học đã xuất bản")
+				.status(CourseStatus.PUBLISHED)
+				.build());
+		mockMvc.perform(get("/api/v1/courses/" + published.getId())).andExpect(status().isOk());
 	}
 
 	// ------------------------------------------------------------- khoá học nháp
@@ -82,14 +92,44 @@ class CourseSecurityIntegrationTest {
 	}
 
 	@Test
-	void giangVienSoHuuVaAdminVanThayKhoaHocNhap() throws Exception {
+	void chiGiangVienSoHuuThayKhoaHocNhap() throws Exception {
+		// API công khai không trả bản nháp, kể cả cho chính chủ
 		mockMvc.perform(as(get("/api/v1/courses"), INSTRUCTOR, "instructor"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id == '%s')]".formatted(courseId), hasSize(0)));
+		// Chủ khoá xem bản nháp qua "Khoá học của tôi"
+		mockMvc.perform(as(get("/api/v1/instructor/courses"), INSTRUCTOR, "instructor"))
+				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[?(@.id == '%s')]".formatted(courseId), hasSize(1)));
-		mockMvc.perform(as(get("/api/v1/courses/" + courseId), INSTRUCTOR, "instructor"))
+		mockMvc.perform(as(get("/api/v1/instructor/courses/" + courseId), INSTRUCTOR, "instructor"))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void giangVienKhacKhongThayKhoaHocCuaDongNghiepQuaApiGiangVien() throws Exception {
+		mockMvc.perform(as(get("/api/v1/instructor/courses"), OTHER_INSTRUCTOR, "instructor"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id == '%s')]".formatted(courseId), hasSize(0)));
+		mockMvc.perform(as(get("/api/v1/instructor/courses/" + courseId), OTHER_INSTRUCTOR, "instructor"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void hocVienVaAdminKhongGoiDuocApiGiangVien() throws Exception {
+		mockMvc.perform(as(get("/api/v1/instructor/courses"), STUDENT, "student"))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(as(get("/api/v1/instructor/courses/" + courseId), ADMIN, "admin"))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void adminKhongThayKhoaHocNhap() throws Exception {
+		// Admin chỉ quản lý hệ thống, không xem nội dung khoá học giảng viên đang soạn
+		mockMvc.perform(as(get("/api/v1/courses"), ADMIN, "admin"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id == '%s')]".formatted(courseId), hasSize(0)));
 		mockMvc.perform(as(get("/api/v1/courses/" + courseId), ADMIN, "admin"))
-				.andExpect(status().isOk());
+				.andExpect(status().isNotFound());
 	}
 
 	@Test
@@ -173,12 +213,16 @@ class CourseSecurityIntegrationTest {
 	}
 
 	@Test
-	void adminQuanLyDuocMoiKhoaHoc() throws Exception {
+	void adminKhongTaoSuaXoaDuocKhoaHoc() throws Exception {
+		// Admin chỉ quản lý hệ thống (danh mục, người dùng), không soạn khoá học
+		mockMvc.perform(as(post("/api/v1/courses"), ADMIN, "admin")
+						.contentType(MediaType.APPLICATION_JSON).content(courseJson(ADMIN)))
+				.andExpect(status().isForbidden());
 		mockMvc.perform(as(put("/api/v1/courses/" + courseId), ADMIN, "admin")
 						.contentType(MediaType.APPLICATION_JSON).content(courseJson(INSTRUCTOR)))
-				.andExpect(status().isOk());
+				.andExpect(status().isForbidden());
 		mockMvc.perform(as(delete("/api/v1/courses/" + courseId), ADMIN, "admin"))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isForbidden());
 	}
 
 	// ------------------------------------------------------------- helpers

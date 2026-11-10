@@ -23,17 +23,7 @@ import com.example.course_service.security.KeycloakRoleConverter;
 
 import jakarta.servlet.http.HttpServletResponse;
 
-/**
- * Đọc catalog (khoá học / chương / bài học / học liệu) vẫn công khai để khách xem;
- * mọi thao tác ghi nội dung (UC-C01…C13) chỉ dành cho INSTRUCTOR và ADMIN (kèm kiểm tra
- * giảng viên sở hữu khoá học ở tầng service).
- * Riêng quiz bị hạn chế theo bảng use case UC-C14…C19:
- * <ul>
- *   <li>Tạo / sửa / xoá quiz, câu hỏi, nhân bản, sắp xếp: chỉ INSTRUCTOR và ADMIN</li>
- *   <li>Xem chi tiết quiz (kèm đáp án đúng) và danh sách bài học để gắn quiz: chỉ INSTRUCTOR và ADMIN</li>
- *   <li>Liệt kê quiz và bản xem trước (không có đáp án): mọi người dùng đã đăng nhập</li>
- * </ul>
- */
+
 @Configuration
 public class SecurityConfig {
 
@@ -56,30 +46,32 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-						// Soạn nội dung khoá học (UC-C01…C13): chỉ giảng viên/admin.
+						// Danh mục khoá học (UC-C25…C27): ai cũng xem được, chỉ Admin được tạo / sửa / xoá.
+						.requestMatchers(HttpMethod.GET, "/api/v1/categories", "/api/v1/categories/**").permitAll()
+						.requestMatchers("/api/v1/categories", "/api/v1/categories/**")
+						.hasAnyRole("ADMIN", "ADMINISTRATOR")
+						// Soạn nội dung khoá học (UC-C01…C13): chỉ giảng viên. Admin quản lý hệ thống, không soạn khoá học.
 						.requestMatchers(HttpMethod.POST,
 								"/api/v1/courses/**", "/api/v1/sections/**", "/api/v1/lessons/**",
 								"/api/v1/materials/**")
-						.hasAnyRole("INSTRUCTOR", "ADMIN")
+						.hasRole("INSTRUCTOR")
 						.requestMatchers(HttpMethod.PUT,
 								"/api/v1/courses/**", "/api/v1/sections/**", "/api/v1/lessons/**",
 								"/api/v1/materials/**")
-						.hasAnyRole("INSTRUCTOR", "ADMIN")
+						.hasRole("INSTRUCTOR")
 						.requestMatchers(HttpMethod.PATCH, "/api/v1/courses/**")
-						.hasAnyRole("INSTRUCTOR", "ADMIN")
+						.hasRole("INSTRUCTOR")
 						.requestMatchers(HttpMethod.DELETE,
 								"/api/v1/courses/**", "/api/v1/sections/**", "/api/v1/lessons/**",
 								"/api/v1/materials/**")
-						.hasAnyRole("INSTRUCTOR", "ADMIN")
-						// Sửa nội dung quiz (UC-C14…C19): chỉ giảng viên soạn được quiz.
-						.requestMatchers(HttpMethod.POST, "/api/v1/quizzes/**").hasAnyRole("INSTRUCTOR", "ADMIN")
-						.requestMatchers(HttpMethod.PUT, "/api/v1/quizzes/**").hasAnyRole("INSTRUCTOR", "ADMIN")
-						.requestMatchers(HttpMethod.DELETE, "/api/v1/quizzes/**").hasAnyRole("INSTRUCTOR", "ADMIN")
-						// Chi tiết quiz trả về đáp án đúng; danh sách bài học để gắn quiz cũng là công cụ soạn bài.
-						.requestMatchers(HttpMethod.GET, "/api/v1/quizzes/*").hasAnyRole("INSTRUCTOR", "ADMIN")
-						// Danh sách quiz và bản xem trước (không có đáp án): cần đăng nhập.
+						.hasRole("INSTRUCTOR")
+						.requestMatchers(HttpMethod.POST, "/api/v1/quizzes/**").hasRole("INSTRUCTOR")
+						.requestMatchers(HttpMethod.PUT, "/api/v1/quizzes/**").hasRole("INSTRUCTOR")
+						.requestMatchers(HttpMethod.DELETE, "/api/v1/quizzes/**").hasRole("INSTRUCTOR")
+						.requestMatchers(HttpMethod.GET, "/api/v1/quizzes/*").hasRole("INSTRUCTOR")
 						.requestMatchers("/api/v1/quizzes/**").authenticated()
-						// Phần còn lại giữ nguyên như trước khi nối xác thực.
+						// "Khoá học của tôi" (gồm cả bản nháp): chỉ giảng viên.
+						.requestMatchers("/api/v1/instructor/**").hasRole("INSTRUCTOR")
 						.anyRequest().permitAll())
 				.oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter)))
 				.exceptionHandling(ex -> ex
