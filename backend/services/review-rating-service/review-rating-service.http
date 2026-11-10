@@ -6,6 +6,8 @@
 @baseUrl = http://localhost:8085
 @gatewayUrl = http://localhost:8080
 
+@course1Id = 33333333-3333-3333-3333-333333333303
+@course2Id = 33333333-3333-3333-3333-333333333302
 @student101Id = 11111111-1111-1111-1111-000000000101
 @student102Id = 11111111-1111-1111-1111-000000000102
 @student105Id = 11111111-1111-1111-1111-000000000105
@@ -21,31 +23,31 @@ GET {{baseUrl}}/actuator/health
 ### ------------------------------------------------------------------------------
 
 ### 2. Xem tổng hợp điểm & phân bố sao của Khóa học 1 (UC-R05)
-GET {{baseUrl}}/api/v1/courses/1/ratings/summary
+GET {{baseUrl}}/api/v1/courses/{{course1Id}}/ratings/summary
 
 ### 3. Xem danh sách đánh giá của Khóa học 1 (UC-R04 - Mới nhất)
-GET {{baseUrl}}/api/v1/courses/1/reviews?sort=newest&page=0&size=10
+GET {{baseUrl}}/api/v1/courses/{{course1Id}}/reviews?sort=newest&page=0&size=10
 
 ### 4. Xem danh sách đánh giá lọc theo 5 sao (UC-R04)
-GET {{baseUrl}}/api/v1/courses/1/reviews?rating=5&page=0&size=10
+GET {{baseUrl}}/api/v1/courses/{{course1Id}}/reviews?rating=5&page=0&size=10
 
 ### 5. Xem danh sách sắp xếp theo nhiều người thấy hữu ích nhất (UC-R04)
-GET {{baseUrl}}/api/v1/courses/1/reviews?sort=most_helpful&page=0&size=10
+GET {{baseUrl}}/api/v1/courses/{{course1Id}}/reviews?sort=most_helpful&page=0&size=10
 
 ### ------------------------------------------------------------------------------
-### STUDENT APIS (Yêu cầu X-User-Id và X-User-Role: STUDENT)
+### STUDENT APIS (Yêu cầu X-User-Id và X-User-Role: student)
 ### ------------------------------------------------------------------------------
 
 ### 6. Kiểm tra quyền đánh giá Khóa học 1 của học viên 105 (UC-R11)
-GET {{baseUrl}}/api/v1/courses/1/reviews/eligibility
+GET {{baseUrl}}/api/v1/courses/{{course1Id}}/reviews/eligibility
 X-User-Id: {{student105Id}}
-X-User-Role: STUDENT
+X-User-Role: student
 
 ### 7. Tạo đánh giá cho Khóa học 1 (UC-R01)
-POST {{baseUrl}}/api/v1/courses/1/reviews
+POST {{baseUrl}}/api/v1/courses/{{course1Id}}/reviews
 Content-Type: application/json
 X-User-Id: {{student105Id}}
-X-User-Role: STUDENT
+X-User-Role: student
 
 {
   "rating": 5,
