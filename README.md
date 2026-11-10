@@ -20,6 +20,9 @@ Hệ thống học trực tuyến theo kiến trúc microservices: **API Gateway
 
 ## Chạy toàn bộ hệ thống
 
+> Phát triển trên máy (Docker cho hạ tầng + IntelliJ cho service): [docs/local-run-guide.md](docs/local-run-guide.md).
+> Kịch bản kiểm thử thủ công: [docs/manual-test-plan.md](docs/manual-test-plan.md).
+
 ```bash
 cd backend
 cp .env.example .env          # đổi mật khẩu nếu cần
