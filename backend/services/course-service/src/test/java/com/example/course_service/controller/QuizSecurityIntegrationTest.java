@@ -111,7 +111,7 @@ class QuizSecurityIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.questions[0].options[0].correct").doesNotExist());
 
-		// Chi tiết kèm đáp án đúng chỉ dành cho giảng viên/admin.
+		// Chi tiết kèm đáp án đúng chỉ dành cho giảng viên.
 		mockMvc.perform(as(get("/api/v1/quizzes/" + quizId), STUDENT, "student"))
 				.andExpect(status().isForbidden());
 	}
@@ -164,16 +164,17 @@ class QuizSecurityIntegrationTest {
 	}
 
 	@Test
-	void adminDuocQuanLyQuizCuaMoiKhoaHoc() throws Exception {
+	void adminKhongQuanLyDuocQuiz() throws Exception {
 		UUID quizId = createQuizAsInstructor();
 
+		// Admin chỉ quản lý hệ thống, không soạn / xem đáp án quiz
 		mockMvc.perform(as(get("/api/v1/quizzes/" + quizId), ADMIN, "admin"))
-				.andExpect(status().isOk());
+				.andExpect(status().isForbidden());
 		mockMvc.perform(as(put("/api/v1/quizzes/" + quizId), ADMIN, "admin")
 						.contentType(MediaType.APPLICATION_JSON).content(payload()))
-				.andExpect(status().isOk());
+				.andExpect(status().isForbidden());
 		mockMvc.perform(as(delete("/api/v1/quizzes/" + quizId), ADMIN, "admin"))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isForbidden());
 	}
 
 	// ------------------------------------------------------------- helpers

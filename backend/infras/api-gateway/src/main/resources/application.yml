@@ -23,6 +23,15 @@ spring:
               uri: lb://course-service
               predicates:
                 - Path=/api/v1/courses/**
+            # "Khoá học của tôi" của giảng viên (gồm cả bản nháp)
+            - id: course-instructor
+              uri: lb://course-service
+              predicates:
+                - Path=/api/v1/instructor/**
+            - id: course-categories
+              uri: lb://course-service
+              predicates:
+                - Path=/api/v1/categories,/api/v1/categories/**
             - id: course-quizzes
               uri: lb://course-service
               predicates:

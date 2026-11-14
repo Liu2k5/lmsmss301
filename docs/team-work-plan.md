@@ -202,7 +202,7 @@ không giẫm chân nhau.
 
 **P2 — Course: Catalog & Media**
 
-- [ ] CRUD course / section / lesson / material / category
+- [x] CRUD course / section / lesson / material / category
 - [ ] Upload material lên Cloudinary (UC-C11…C13)
 - [ ] Reorder sections & lessons (UC-C10)
 - [ ] Publish / approve / unpublish / archive course (UC-C21…C24)

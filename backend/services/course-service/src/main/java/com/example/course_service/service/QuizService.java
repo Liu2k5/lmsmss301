@@ -11,6 +11,7 @@ import com.example.course_service.dto.QuizPreviewResponse;
 import com.example.course_service.dto.QuizRequest;
 import com.example.course_service.dto.QuizResponse;
 import com.example.course_service.dto.QuizSummaryResponse;
+import com.example.course_service.security.LoginUser;
 
 /**
  * Quản lý quiz của bài học loại QUIZ (UC-C14 → UC-C19).
@@ -40,27 +41,27 @@ public interface QuizService {
 	/** Bài học loại QUIZ kèm quiz hiện có (nếu đã có) để client chọn khi tạo mới. */
 	List<LessonOptionResponse> findLessonOptions();
 
-	QuizResponse create(QuizRequest request);
+	QuizResponse create(LoginUser user, QuizRequest request);
 
-	QuizResponse update(UUID id, QuizRequest request);
+	QuizResponse update(LoginUser user, UUID id, QuizRequest request);
 
 	/** Xoá quiz; câu hỏi và đáp án bị xoá theo (cascade + orphanRemoval). */
-	void delete(UUID id);
+	void delete(LoginUser user, UUID id);
 
 	/** Nhân bản quiz (kèm toàn bộ câu hỏi/đáp án) sang bài học khác chưa có quiz. */
-	QuizResponse duplicate(UUID id, UUID targetLessonId);
+	QuizResponse duplicate(LoginUser user, UUID id, UUID targetLessonId);
 
 	/** Bản xem trước như học viên thấy — không có đáp án đúng. */
 	QuizPreviewResponse preview(UUID id);
 
 	// ------------------------------------------------------------ câu hỏi
 
-	QuestionResponse addQuestion(UUID quizId, QuestionRequest request);
+	QuestionResponse addQuestion(LoginUser user, UUID quizId, QuestionRequest request);
 
-	QuestionResponse updateQuestion(UUID quizId, UUID questionId, QuestionRequest request);
+	QuestionResponse updateQuestion(LoginUser user, UUID quizId, UUID questionId, QuestionRequest request);
 
-	void deleteQuestion(UUID quizId, UUID questionId);
+	void deleteQuestion(LoginUser user, UUID quizId, UUID questionId);
 
 	/** Sắp xếp lại câu hỏi; {@code orderedIds} phải chứa đúng toàn bộ id câu hỏi của quiz. */
-	List<QuestionResponse> reorderQuestions(UUID quizId, List<UUID> orderedIds);
+	List<QuestionResponse> reorderQuestions(LoginUser user, UUID quizId, List<UUID> orderedIds);
 }

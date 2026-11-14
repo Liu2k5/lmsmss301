@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,8 +43,8 @@ import com.example.course_service.exception.ResourceNotFoundException;
 import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.QuestionRepository;
 import com.example.course_service.repository.QuizRepository;
-import com.example.course_service.security.QuizAccessGuard;
 import com.example.course_service.service.QuizService;
+import com.example.course_service.security.LoginUser;
 
 import lombok.RequiredArgsConstructor;
 
@@ -57,7 +58,6 @@ public class QuizServiceImpl implements QuizService {
 	private final QuizRepository quizRepository;
 	private final LessonRepository lessonRepository;
 	private final QuestionRepository questionRepository;
-	private final QuizAccessGuard quizAccessGuard;
 
 	// ================================================================ truy vấn
 
@@ -136,7 +136,7 @@ public class QuizServiceImpl implements QuizService {
 					return new LessonOptionResponse(
 							lesson.getId(), lesson.getTitle(),
 							section.getId(), section.getTitle(),
-							course.getId(), course.getTitle(),
+							course.getId(), course.getTitle(), course.getInstructorId(),
 							existing == null ? null : existing.getId(),
 							existing == null ? null : existing.getTitle());
 				})
@@ -147,9 +147,9 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public QuizResponse create(QuizRequest request) {
+	public QuizResponse create(LoginUser user, QuizRequest request) {
 		Lesson lesson = requireQuizLesson(request.lessonId());
-		quizAccessGuard.checkCanManage(lesson.getSection().getCourse());
+		checkCanManage(user, lesson.getSection().getCourse());
 		if (quizRepository.existsByLessonId(lesson.getId())) {
 			throw new ConflictException("Bài học này đã có quiz. Mỗi bài học chỉ có một quiz.");
 		}
@@ -170,11 +170,11 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public QuizResponse update(UUID id, QuizRequest request) {
+	public QuizResponse update(LoginUser user, UUID id, QuizRequest request) {
 		Quiz quiz = requireQuiz(id);
-		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
+		checkCanManage(user, quiz.getLesson().getSection().getCourse());
 		Lesson lesson = requireQuizLesson(request.lessonId());
-		quizAccessGuard.checkCanManage(lesson.getSection().getCourse());
+		checkCanManage(user, lesson.getSection().getCourse());
 
 		if (!quiz.getLesson().getId().equals(lesson.getId())
 				&& quizRepository.existsByLessonIdAndIdNot(lesson.getId(), id)) {
@@ -195,19 +195,19 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public void delete(UUID id) {
+	public void delete(LoginUser user, UUID id) {
 		Quiz quiz = requireQuiz(id);
-		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
+		checkCanManage(user, quiz.getLesson().getSection().getCourse());
 		quizRepository.delete(quiz);
 	}
 
 	@Override
 	@Transactional
-	public QuizResponse duplicate(UUID id, UUID targetLessonId) {
+	public QuizResponse duplicate(LoginUser user, UUID id, UUID targetLessonId) {
 		Quiz source = requireQuiz(id);
-		quizAccessGuard.checkCanManage(source.getLesson().getSection().getCourse());
+		checkCanManage(user, source.getLesson().getSection().getCourse());
 		Lesson targetLesson = requireQuizLesson(targetLessonId);
-		quizAccessGuard.checkCanManage(targetLesson.getSection().getCourse());
+		checkCanManage(user, targetLesson.getSection().getCourse());
 		if (quizRepository.existsByLessonId(targetLesson.getId())) {
 			throw new ConflictException("Bài học đích đã có quiz. Mỗi bài học chỉ có một quiz.");
 		}
@@ -245,9 +245,9 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public QuestionResponse addQuestion(UUID quizId, QuestionRequest request) {
+	public QuestionResponse addQuestion(LoginUser user, UUID quizId, QuestionRequest request) {
 		Quiz quiz = requireQuiz(quizId);
-		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
+		checkCanManage(user, quiz.getLesson().getSection().getCourse());
 		validateQuestion(request, quiz.getQuestions().size() + 1);
 
 		Question question = Question.builder()
@@ -263,9 +263,9 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public QuestionResponse updateQuestion(UUID quizId, UUID questionId, QuestionRequest request) {
+	public QuestionResponse updateQuestion(LoginUser user, UUID quizId, UUID questionId, QuestionRequest request) {
 		Quiz quiz = requireQuiz(quizId);
-		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
+		checkCanManage(user, quiz.getLesson().getSection().getCourse());
 		Question question = requireQuestion(quiz, questionId);
 		validateQuestion(request, question.getPosition() == null ? 1 : question.getPosition());
 
@@ -278,9 +278,9 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public void deleteQuestion(UUID quizId, UUID questionId) {
+	public void deleteQuestion(LoginUser user, UUID quizId, UUID questionId) {
 		Quiz quiz = requireQuiz(quizId);
-		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
+		checkCanManage(user, quiz.getLesson().getSection().getCourse());
 		Question question = requireQuestion(quiz, questionId);
 		if (quiz.getQuestions().size() <= 1) {
 			throw new BusinessRuleException("Quiz phải có ít nhất 1 câu hỏi. Hãy thêm câu hỏi khác trước khi xoá.");
@@ -293,9 +293,9 @@ public class QuizServiceImpl implements QuizService {
 
 	@Override
 	@Transactional
-	public List<QuestionResponse> reorderQuestions(UUID quizId, List<UUID> orderedIds) {
+	public List<QuestionResponse> reorderQuestions(LoginUser user, UUID quizId, List<UUID> orderedIds) {
 		Quiz quiz = requireQuiz(quizId);
-		quizAccessGuard.checkCanManage(quiz.getLesson().getSection().getCourse());
+		checkCanManage(user, quiz.getLesson().getSection().getCourse());
 		List<Question> questions = new ArrayList<>(quiz.getQuestions());
 
 		Set<UUID> expected = questions.stream().map(Question::getId).collect(Collectors.toSet());
@@ -318,6 +318,13 @@ public class QuizServiceImpl implements QuizService {
 	}
 
 	// ================================================================ nội bộ
+
+	/** Chỉ giảng viên phụ trách khoá học mới được sửa quiz của khoá học đó. */
+	private static void checkCanManage(LoginUser user, Course course) {
+		if (!user.canManage(course.getInstructorId())) {
+			throw new AccessDeniedException("Chỉ giảng viên phụ trách khoá học mới được sửa quiz của khoá học này");
+		}
+	}
 
 	private Quiz requireQuiz(UUID id) {
 		return quizRepository.findByIdWithContext(id)
@@ -473,7 +480,7 @@ public class QuizServiceImpl implements QuizService {
 		return new QuizSummaryResponse(
 				quiz.getId(), lesson.getId(), lesson.getTitle(),
 				section.getId(), section.getTitle(),
-				course.getId(), course.getTitle(),
+				course.getId(), course.getTitle(), course.getInstructorId(),
 				quiz.getTitle(), quiz.getPassingScore(), quiz.getMaxAttempts(),
 				quiz.getQuestions().size(), quiz.getUpdatedAt());
 	}

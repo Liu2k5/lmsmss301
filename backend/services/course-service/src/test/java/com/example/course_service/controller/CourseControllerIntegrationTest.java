@@ -1,5 +1,8 @@
 package com.example.course_service.controller;
 
+import com.example.course_service.support.TestLogin;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -20,6 +23,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.course_service.config.CourseDemoDataSeeder;
+import com.example.course_service.repository.CategoryRepository;
 import com.example.course_service.repository.CourseRepository;
 import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.MaterialRepository;
@@ -34,6 +38,17 @@ import tools.jackson.databind.ObjectMapper;
 @Transactional
 class CourseControllerIntegrationTest {
 
+	/** Test nghiệp vụ tắt filter bảo mật → tự đăng nhập bằng giảng viên chủ các khoá học trong test. */
+	@BeforeEach
+	void loginAsInstructor() {
+		TestLogin.asInstructor();
+	}
+
+	@AfterEach
+	void logout() {
+		TestLogin.logout();
+	}
+
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -42,6 +57,9 @@ class CourseControllerIntegrationTest {
 
 	@Autowired
 	private CourseRepository courseRepository;
+
+	@Autowired
+	private CategoryRepository categoryRepository;
 
 	@Autowired
 	private SectionRepository sectionRepository;
@@ -80,17 +98,22 @@ class CourseControllerIntegrationTest {
 		createCourse("Spring Boot nâng cao");
 		createCourse("ReactJS thực chiến");
 
-		mockMvc.perform(get("/api/v1/courses").param("keyword", "react"))
+		// Khoá mới tạo là bản nháp → tìm qua "Khoá học của tôi"
+		mockMvc.perform(get("/api/v1/instructor/courses").param("keyword", "react"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(1)))
-				.andExpect(jsonPath("$[0].title").value("ReactJS thực chiến"))
-				.andExpect(jsonPath("$[0].sectionCount").value(0));
+				.andExpect(jsonPath("$[0].title").value("ReactJS thực chiến"));
 
-		mockMvc.perform(get("/api/v1/courses").param("status", "PUBLISHED"))
+		mockMvc.perform(get("/api/v1/instructor/courses").param("status", "PUBLISHED"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(0)));
 
-		mockMvc.perform(get("/api/v1/courses").param("status", "KHONG_TON_TAI"))
+		// API công khai không trả bản nháp
+		mockMvc.perform(get("/api/v1/courses").param("keyword", "react"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
+
+		mockMvc.perform(get("/api/v1/instructor/courses").param("status", "KHONG_TON_TAI"))
 				.andExpect(status().isBadRequest());
 	}
 
@@ -175,7 +198,7 @@ class CourseControllerIntegrationTest {
 				.get("sections").get(0).get("lessons").get(0).get("id").asText();
 		createQuiz(lessonId);
 
-		mockMvc.perform(get("/api/v1/courses/{id}", courseId))
+		mockMvc.perform(get("/api/v1/instructor/courses/{id}", courseId))
 				.andExpect(jsonPath("$.sections[0].lessons[0].quizId").isString());
 
 		send(put("/api/v1/lessons/{id}", lessonId), """
@@ -212,6 +235,10 @@ class CourseControllerIntegrationTest {
 		changeStatus(courseId, "PUBLISHED").andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("PUBLISHED"));
 
+		// Đã xuất bản → có trong danh sách công khai
+		mockMvc.perform(get("/api/v1/courses").param("keyword", "Khoá vòng đời"))
+				.andExpect(jsonPath("$", hasSize(1)));
+
 		mockMvc.perform(get("/api/v1/courses/{id}/curriculum/published", courseId))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.totalLessons").value(1))
@@ -224,8 +251,20 @@ class CourseControllerIntegrationTest {
 		mockMvc.perform(get("/api/v1/courses/{id}/curriculum/published", courseId))
 				.andExpect(status().isNotFound());
 
+		// Đã ẩn → không còn trong danh sách công khai, kể cả khi lọc đúng trạng thái
+		mockMvc.perform(get("/api/v1/courses").param("keyword", "Khoá vòng đời"))
+				.andExpect(jsonPath("$", hasSize(0)));
+		mockMvc.perform(get("/api/v1/courses").param("status", "UNPUBLISHED"))
+				.andExpect(jsonPath("$", hasSize(0)));
+
 		changeStatus(courseId, "ARCHIVED").andExpect(status().isOk())
 				.andExpect(jsonPath("$.editable").value(false));
+
+		// Đã lưu trữ → cũng không hiện công khai; giảng viên vẫn thấy trong "Khoá học của tôi"
+		mockMvc.perform(get("/api/v1/courses").param("status", "ARCHIVED"))
+				.andExpect(jsonPath("$", hasSize(0)));
+		mockMvc.perform(get("/api/v1/instructor/courses").param("status", "ARCHIVED").param("keyword", "Khoá vòng đời"))
+				.andExpect(jsonPath("$", hasSize(1)));
 
 		// Đã lưu trữ → không sửa được curriculum
 		send(post("/api/v1/courses/{id}/sections", courseId), "{\"title\": \"Chương mới\"}")
@@ -282,12 +321,13 @@ class CourseControllerIntegrationTest {
 	@Test
 	void seederChayNhieuLanKhongTaoTrung() throws Exception {
 		CourseDemoDataSeeder seeder = new CourseDemoDataSeeder(
-				courseRepository, sectionRepository, lessonRepository, materialRepository);
+				courseRepository, categoryRepository, sectionRepository, lessonRepository, materialRepository);
 		seeder.run(null);
 		materialRepository.deleteAll(); // trước đây xoá hết học liệu là lần sau seed lại
 		seeder.run(null);
 
-		mockMvc.perform(get("/api/v1/courses").param("keyword", "ReactJS từ cơ bản"))
+		// Khoá ReactJS mẫu là bản nháp của giảng viên đang đăng nhập; khoá Docker đã xuất bản
+		mockMvc.perform(get("/api/v1/instructor/courses").param("keyword", "ReactJS từ cơ bản"))
 				.andExpect(jsonPath("$", hasSize(1)));
 		mockMvc.perform(get("/api/v1/courses").param("keyword", "Docker cho lập trình viên"))
 				.andExpect(jsonPath("$", hasSize(1)));

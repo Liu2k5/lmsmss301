@@ -1,5 +1,7 @@
 package com.example.course_service.controller;
 
+import com.example.course_service.support.TestLogin;
+import org.junit.jupiter.api.AfterEach;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.contains;
@@ -38,6 +40,17 @@ import tools.jackson.databind.ObjectMapper;
 @Transactional
 class QuizQuestionApiIntegrationTest {
 
+	/** Test nghiệp vụ tắt filter bảo mật → tự đăng nhập bằng giảng viên chủ các khoá học trong test. */
+	@BeforeEach
+	void loginAsInstructor() {
+		TestLogin.asInstructor();
+	}
+
+	@AfterEach
+	void logout() {
+		TestLogin.logout();
+	}
+
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -59,7 +72,7 @@ class QuizQuestionApiIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		Course course = courseRepository.save(Course.builder()
-				.instructorId(UUID.randomUUID()).title("Khoá học A").status(CourseStatus.PUBLISHED).build());
+				.instructorId(UUID.fromString(TestLogin.INSTRUCTOR_ID)).title("Khoá học A").status(CourseStatus.PUBLISHED).build());
 		Section section = sectionRepository.save(Section.builder()
 				.course(course).title("Chương 1").position(1).build());
 		quizLesson = lessonRepository.save(Lesson.builder()
@@ -70,7 +83,7 @@ class QuizQuestionApiIntegrationTest {
 				.position(2).isPreview(false).build());
 
 		Course other = courseRepository.save(Course.builder()
-				.instructorId(UUID.randomUUID()).title("Khoá học B").status(CourseStatus.DRAFT).build());
+				.instructorId(UUID.fromString(TestLogin.INSTRUCTOR_ID)).title("Khoá học B").status(CourseStatus.DRAFT).build());
 		Section otherSection = sectionRepository.save(Section.builder()
 				.course(other).title("Chương B1").position(1).build());
 		lessonRepository.save(Lesson.builder()

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { courseApi } from '../../api/courseApi.js'
+import { categoryApi, courseApi } from '../../api/courseApi.js'
 import { enrollmentApi } from '../../api/enrollmentApi.js'
 import { progressApi } from '../../api/progressApi.js'
 import { reviewApi } from '../../api/reviewApi.js'
+import CourseRatingSummary from './CourseRatingSummary.jsx'
+import CourseReviewsList from './CourseReviewsList.jsx'
 import ReviewModal from './ReviewModal.jsx'
 import { useAuth } from '../../auth/AuthContext.js'
 import StatusBadge from './StatusBadge.jsx'
@@ -16,7 +18,14 @@ import {
   lessonTypeMeta,
   transitionLabel,
 } from './courseMeta.js'
-import { COURSE_FIELDS, LESSON_FIELDS, MATERIAL_FIELDS, SECTION_FIELDS, UPLOADED_MATERIAL_FIELDS } from './formFields.js'
+import {
+  LESSON_FIELDS,
+  MATERIAL_FIELDS,
+  NEW_LESSON_FIELDS,
+  SECTION_FIELDS,
+  UPLOADED_MATERIAL_FIELDS,
+  courseFields,
+} from './formFields.js'
 
 function moved(ids, index, delta) {
   const next = [...ids]
@@ -26,9 +35,13 @@ function moved(ids, index, delta) {
 }
 
 export default function CourseDetail({ courseId, onBack, openDialog, closeDialog, notify }) {
-  // Chỉ giảng viên/admin được sửa nội dung; học viên và khách chỉ xem.
+  // canManage: người đăng nhập là giảng viên (không đăng ký học như học viên).
+  // isOwner (tính sau khi tải khoá học): chính giảng viên phụ trách → mới được sửa nội dung.
+  // Admin chỉ quản lý hệ thống nên không sửa khoá học.
+  // isLearner: học viên (đăng ký học, làm quiz). Admin chỉ quản lý hệ thống nên không phải người học.
   const { authenticated, isInstructor, isAdmin, login, user } = useAuth()
-  const canManage = authenticated && (isInstructor || isAdmin)
+  const canManage = authenticated && isInstructor
+  const isLearner = authenticated && !isInstructor && !isAdmin
 
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -44,30 +57,58 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
   const [reviewOpen, setReviewOpen] = useState(false)
   const [existingReview, setExistingReview] = useState(null)
   const [loadingReview, setLoadingReview] = useState(false)
+  // UC-R05: tổng hợp điểm đánh giá & bộ lọc sao
+  const [ratingSummary, setRatingSummary] = useState(null)
+  const [activeRatingFilter, setActiveRatingFilter] = useState(null)
+  const [reviewsKey, setReviewsKey] = useState(0)
   // UC-P02: tiến độ học của học viên trong khoá (để biết bài nào đã hoàn thành).
   const [courseProgress, setCourseProgress] = useState(null)
   const [completingId, setCompletingId] = useState(null)
+
+  const loadRatingSummary = useCallback(async () => {
+    try {
+      const summary = await reviewApi.summary(courseId)
+      setRatingSummary(summary)
+    } catch {
+      setRatingSummary(null)
+    }
+  }, [courseId])
+
+  useEffect(() => {
+    loadRatingSummary()
+  }, [loadRatingSummary])
 
   const load = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
     try {
-      setCourse(await courseApi.get(courseId))
+      // Giảng viên: xem khoá của mình ở mọi trạng thái. Khách / học viên: chỉ khoá công khai.
+      setCourse(await (canManage ? courseApi.getMine(courseId) : courseApi.get(courseId)))
     } catch (error) {
       setLoadError(error)
     } finally {
       setLoading(false)
     }
-  }, [courseId])
+  // authenticated nằm trong deps: đăng nhập / hết phiên thì tải lại để bài học được mở / khoá đúng.
+  }, [courseId, canManage, authenticated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tải chi tiết khi mở khoá học
     load()
   }, [load])
 
+  /** Tải lại chi tiết khoá học không hiện loading (sau khi tham gia / huỷ: bài học được mở / khoá lại). */
+  async function reloadCourse() {
+    try {
+      setCourse(await (canManage ? courseApi.getMine(courseId) : courseApi.get(courseId)))
+    } catch {
+      // Giữ nội dung đang hiện; lần mở lại trang sẽ tải lại.
+    }
+  }
+
   // Học viên: kiểm tra đã đăng ký khoá học này chưa để hiện đúng nút tham gia.
   useEffect(() => {
-    if (!authenticated || canManage) return undefined
+    if (!isLearner) return undefined
     let active = true
     enrollmentApi
       .myEnrollments()
@@ -81,7 +122,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     return () => {
       active = false
     }
-  }, [authenticated, canManage, courseId])
+  }, [isLearner, courseId])
 
   /**
    * Nạp tiến độ học của học viên trong khoá: dùng cho nút "Đánh dấu đã hoàn thành" (UC-P02)
@@ -89,7 +130,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
    */
   const studentId = user?.id ?? null
   const refreshStudentProgress = useCallback(async () => {
-    if (!authenticated || canManage || !enrolled || !studentId) {
+    if (!isLearner || !enrolled || !studentId) {
       return
     }
     const [progress, eligibility] = await Promise.all([
@@ -106,7 +147,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
       canReview: Boolean(eligibility?.canReview),
       reason: eligibility?.reason ?? null,
     })
-  }, [authenticated, canManage, enrolled, courseId, studentId])
+  }, [isLearner, enrolled, courseId, studentId])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tải tiến độ khi mở khoá học
@@ -157,11 +198,13 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     try {
       await enrollmentApi.enroll(courseId)
       setEnrolled(true)
+      await reloadCourse()
       notify('success', `Đã tham gia khoá học "${course?.title ?? ''}". Tiến độ học tập đã được khởi tạo.`)
     } catch (error) {
       // 409 = đã đăng ký trước đó (ví dụ mở hai tab); coi như đã tham gia.
       if (error.status === 409) {
         setEnrolled(true)
+        await reloadCourse()
         notify('success', 'Bạn đã tham gia khoá học này rồi.')
       } else {
         notify('error', error.message)
@@ -185,6 +228,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         try {
           await enrollmentApi.cancel(courseId)
           setEnrolled(false)
+          await reloadCourse()
           notify('success', `Đã huỷ đăng ký khoá học "${course?.title ?? ''}".`)
         } catch (error) {
           // 404 = chưa từng đăng ký (ví dụ huỷ ở tab khác); coi như đã huỷ.
@@ -259,7 +303,8 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     )
   }
 
-  const editable = course.editable && canManage
+  const isOwner = canManage && course.instructorId === user?.id
+  const editable = course.editable && isOwner
   const totalLessons = course.sections.reduce((sum, section) => sum + section.lessons.length, 0)
   const totalMaterials = course.sections.reduce(
     (sum, section) => sum + section.lessons.reduce((acc, lesson) => acc + lesson.materials.length, 0),
@@ -271,12 +316,19 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
 
   // ---------------------------------------------------------------- course
 
-  function editCourse() {
+  async function editCourse() {
+    // Tải danh mục mới nhất cho ô chọn; lỗi thì vẫn mở form (chỉ giữ danh mục hiện tại).
+    let categories = []
+    try {
+      categories = await categoryApi.list()
+    } catch {
+      if (course.categoryId) categories = [{ id: course.categoryId, name: course.categoryName }]
+    }
     openDialog({
       kind: 'form',
       title: 'Sửa thông tin khoá học',
-      fields: COURSE_FIELDS,
-      initialValues: { ...course, thumbnail: course.thumbnailUrl },
+      fields: courseFields(categories),
+      initialValues: { ...course, categoryId: course.categoryId ?? '', thumbnail: course.thumbnailUrl },
       onSubmit: formSubmit(async ({ thumbnail, ...info }) => {
         // thumbnailUrl để trống = backend giữ nguyên ảnh bìa; đổi / bỏ ảnh đi qua endpoint riêng.
         let detail = await courseApi.update(course.id, { ...info, thumbnailUrl: null })
@@ -383,10 +435,42 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
       kind: 'form',
       title: 'Thêm bài học',
       subtitle: section.title,
-      fields: LESSON_FIELDS,
+      fields: NEW_LESSON_FIELDS,
       initialValues: { type: 'VIDEO', preview: false },
       submitLabel: 'Thêm bài học',
-      onSubmit: formSubmit((payload) => courseApi.addLesson(section.id, payload), 'Đã thêm bài học.'),
+      onSubmit: async ({ materialUrl, ...lessonInfo }) => {
+        // 1. Tạo bài học (lỗi ở bước này để form hiện lỗi, không đóng form)
+        let detail = await courseApi.addLesson(section.id, lessonInfo)
+
+        // 2. Có nhập link (và không phải bài Quiz) → gắn link làm học liệu đầu tiên
+        let materialError = null
+        if (materialUrl && lessonInfo.type !== 'QUIZ') {
+          // Bài học mới luôn nằm cuối chương
+          const updatedSection = detail.sections.find((item) => item.id === section.id)
+          const newLesson = updatedSection?.lessons[updatedSection.lessons.length - 1]
+          if (newLesson) {
+            try {
+              detail = await courseApi.addMaterial(newLesson.id, {
+                name: lessonInfo.title,
+                type: lessonInfo.type === 'VIDEO' ? 'VIDEO' : 'DOCUMENT',
+                url: materialUrl,
+              })
+              setExpanded((current) => new Set(current).add(newLesson.id))
+            } catch (error) {
+              materialError = error
+            }
+          }
+        }
+
+        setCourse(detail)
+        closeDialog()
+        if (materialError) {
+          // Bài học đã tạo xong; chỉ link bị lỗi → báo để giảng viên thêm lại bằng nút "+ Thêm link"
+          notify('error', `Đã thêm bài học nhưng chưa gắn được link: ${materialError.message}`)
+        } else {
+          notify('success', materialUrl && lessonInfo.type !== 'QUIZ' ? 'Đã thêm bài học kèm video / link.' : 'Đã thêm bài học.')
+        }
+      },
     })
   }
 
@@ -470,6 +554,32 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     })
   }
 
+  /** Thay file của học liệu (kể cả học liệu dạng link): upload file mới, file cũ trên MinIO bị xoá. */
+  function replaceMaterialFile(material) {
+    openDialog({
+      kind: 'upload',
+      title: 'Thay file học liệu',
+      subtitle: material.name,
+      notice: material.uploaded
+        ? 'File hiện tại trên MinIO sẽ bị xoá sau khi file mới được lưu.'
+        : 'Học liệu đang là link. Sau khi thay, học liệu sẽ dùng file bạn upload lên MinIO.',
+      initialName: material.name,
+      defaultType: material.type,
+      submitLabel: 'Thay file',
+      onUpload: (file, meta, onProgress) => {
+        const upload = courseApi.replaceMaterialFile(material.id, file, meta, onProgress)
+        return {
+          abort: upload.abort,
+          promise: upload.promise.then((detail) => {
+            setCourse(detail)
+            closeDialog()
+            notify('success', `Đã thay file cho "${material.name}".`)
+          }),
+        }
+      },
+    })
+  }
+
   function deleteMaterial(material) {
     openDialog({
       kind: 'confirm',
@@ -488,7 +598,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
     (courseProgress?.lessons ?? []).filter((item) => item.completed).map((item) => item.lessonId),
   )
   // Video và Bài đọc do học viên tự đánh dấu hoàn thành (UC-P02); Quiz hoàn thành khi đạt điểm.
-  const canSelfComplete = (lesson) => !canManage && enrolled && (lesson.type === 'VIDEO' || lesson.type === 'ARTICLE')
+  const canSelfComplete = (lesson) => isLearner && enrolled && !lesson.locked && (lesson.type === 'VIDEO' || lesson.type === 'ARTICLE')
 
   // ------------------------------------------------------------------ view
 
@@ -509,22 +619,32 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         <div className="detail-hero__info">
           <div className="detail-hero__top">
             <StatusBadge status={course.status} />
-            <span className="muted">#{course.id.slice(0, 8)} · Giảng viên #{course.instructorId.slice(0, 8)}</span>
+            <span className="muted">
+              #{course.id.slice(0, 8)} · Giảng viên #{course.instructorId.slice(0, 8)} · Danh mục:{' '}
+              {course.categoryName ?? 'Chưa có'}
+            </span>
           </div>
           <h1>{course.title}</h1>
           {course.description && <p className="detail-hero__desc">{course.description}</p>}
           <p className="muted small">
-            {course.sections.length} chương · {totalLessons} bài học · {totalMaterials} học liệu · Cập nhật{' '}
-            {formatDate(course.updatedAt)}
+            {course.sections.length} chương · {totalLessons} bài học · {totalMaterials} học liệu
+            {ratingSummary && ratingSummary.totalReviews > 0 && (
+              <>
+                {' · '}
+                <strong style={{ color: '#d97706' }}>★ {Number(ratingSummary.averageRating).toFixed(1)}</strong> (
+                {ratingSummary.totalReviews} đánh giá)
+              </>
+            )}
+            {' · '}Cập nhật {formatDate(course.updatedAt)}
           </p>
           <div className="detail-hero__actions">
-            {canManage && (
+            {isOwner && (
               <button type="button" className="button button--ghost" onClick={editCourse}
                 disabled={!editable || busy}>
                 ✎ Sửa thông tin
               </button>
             )}
-            {canManage && DELETABLE_STATUSES.has(course.status) && (
+            {isOwner && DELETABLE_STATUSES.has(course.status) && (
               <button type="button" className="button button--danger-ghost" onClick={deleteCourse} disabled={busy}>
                 Xoá khoá học
               </button>
@@ -534,15 +654,15 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                 ＋ Tham gia khoá học
               </button>
             )}
-            {!canManage && authenticated && enrolled === false && course.status === 'PUBLISHED' && (
+            {isLearner && enrolled === false && course.status === 'PUBLISHED' && (
               <button type="button" className="button button--primary" onClick={joinCourse} disabled={joining}>
                 {joining ? 'Đang đăng ký…' : '＋ Tham gia khoá học'}
               </button>
             )}
-            {!canManage && authenticated && enrolled === true && (
+            {isLearner && enrolled === true && (
               <>
                 <span className="badge badge--joined">✓ Đã tham gia khoá học</span>
-                {reviewState?.completed && (
+                {(reviewState?.completed || reviewState?.canReview) && (
                   <button
                     type="button"
                     className="button button--secondary"
@@ -551,7 +671,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                   >
                     {loadingReview
                       ? 'Đang tải…'
-                      : reviewState.existingReviewId
+                      : reviewState?.existingReviewId
                         ? '★ Sửa đánh giá'
                         : '★ Gửi đánh giá'}
                   </button>
@@ -566,10 +686,10 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                 </button>
               </>
             )}
-            {!canManage && authenticated && enrolled === false && course.status !== 'PUBLISHED' && (
+            {isLearner && enrolled === false && course.status !== 'PUBLISHED' && (
               <span className="muted small">Khoá học chưa mở đăng ký.</span>
             )}
-            {!canManage && authenticated && enrolled === true && reviewState && !reviewState.completed && (
+            {isLearner && enrolled === true && reviewState && !reviewState.completed && !reviewState.canReview && (
               <span className="muted small">
                 Hoàn thành 100% khoá học để gửi đánh giá (hiện {Math.round(reviewState.percent)}%).
               </span>
@@ -578,7 +698,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         </div>
       </section>
 
-      {canManage && (
+      {isOwner && (
       <section className="workflow" aria-label="Trạng thái khoá học">
         <div>
           <h2>Quy trình xuất bản</h2>
@@ -608,12 +728,12 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
       </section>
       )}
 
-      {!editable && canManage && (
+      {!editable && isOwner && (
         <div className="alert alert--warning" role="note">
           Khoá học đang lưu trữ nên chỉ xem được. Bấm <strong>Khôi phục</strong> để chỉnh sửa tiếp.
         </div>
       )}
-      {canManage && editable && missingQuiz.length > 0 && (
+      {isOwner && editable && missingQuiz.length > 0 && (
         <div className="alert alert--warning" role="note">
           {missingQuiz.length} bài học loại Quiz chưa có quiz:{' '}
           {missingQuiz.map((lesson) => lesson.title).join(', ')}.{' '}
@@ -684,6 +804,11 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                           <span className="lesson__tags">
                             <span className="tag">{meta.label}</span>
                             {lesson.preview && <span className="tag tag--info">Xem thử</span>}
+                            {lesson.locked && (
+                              <span className="tag tag--warning" title="Đăng ký khoá học để xem nội dung bài này">
+                                🔒 Cần đăng ký
+                              </span>
+                            )}
                             {canSelfComplete(lesson) &&
                               (completedLessonIds.has(lesson.id) ? (
                                 <span className="tag tag--success">✓ Đã hoàn thành</span>
@@ -699,7 +824,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                               ))}
                             {lesson.type === 'QUIZ' &&
                               (lesson.quizId ? (
-                                canManage ? (
+                                isOwner ? (
                                   <a
                                     className="tag tag--success tag--link"
                                     href={`#/quizzes?quizId=${lesson.quizId}`}
@@ -707,7 +832,7 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                                   >
                                     Đã có quiz · Sửa →
                                   </a>
-                                ) : (
+                                ) : isLearner && !lesson.locked ? (
                                   <a
                                     className="tag tag--success tag--link"
                                     href={`#/quiz-attempt?quizId=${lesson.quizId}&courseId=${course.id}`}
@@ -715,8 +840,10 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                                   >
                                     Đã có quiz · Làm bài →
                                   </a>
+                                ) : (
+                                  <span className="tag">Có quiz</span>
                                 )
-                              ) : canManage ? (
+                              ) : isOwner ? (
                                 <a
                                   className="tag tag--warning tag--link"
                                   href={`#/quizzes?lessonId=${lesson.id}`}
@@ -760,6 +887,11 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
 
                       {isOpen && (
                         <div className="materials">
+                          {lesson.locked && (
+                            <p className="muted small">
+                              🔒 Nội dung bài này chỉ dành cho học viên đã đăng ký khoá học.
+                            </p>
+                          )}
                           {lesson.materials.length === 0 ? (
                             <p className="muted small">Chưa có học liệu.</p>
                           ) : (
@@ -777,6 +909,10 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                                     <a href={material.url} target="_blank" rel="noreferrer" className="material__name">
                                       {material.name}
                                     </a>
+                                  ) : lesson.locked ? (
+                                    <span className="material__name" title="Đăng ký khoá học để xem">
+                                      🔒 {material.name}
+                                    </span>
                                   ) : (
                                     <span className="material__name" title="Không tạo được link xem file (MinIO chưa chạy?)">
                                       {material.name} ⚠
@@ -796,6 +932,11 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
                                       <button type="button" className="icon-button icon-button--neutral icon-button--small"
                                         aria-label="Sửa học liệu" onClick={() => editMaterial(material)} disabled={busy}>
                                         ✎
+                                      </button>
+                                      <button type="button" className="icon-button icon-button--neutral icon-button--small"
+                                        aria-label="Thay file học liệu" title="Thay file"
+                                        onClick={() => replaceMaterialFile(material)} disabled={busy}>
+                                        ⇪
                                       </button>
                                       <button type="button" className="icon-button icon-button--small"
                                         aria-label="Xoá học liệu" onClick={() => deleteMaterial(material)} disabled={busy}>
@@ -845,6 +986,38 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
         )}
       </section>
 
+      <section className="reviews-section" aria-label="Đánh giá và nhận xét">
+        <div className="reviews-section__head">
+          <h2>Đánh giá từ học viên</h2>
+          <p className="muted small">Phản hồi thực tế từ những người đã trải nghiệm khoá học.</p>
+        </div>
+
+        <CourseRatingSummary
+          summary={ratingSummary}
+          activeRatingFilter={activeRatingFilter}
+          onSelectRating={setActiveRatingFilter}
+        />
+
+        <CourseReviewsList
+          key={reviewsKey}
+          courseId={course.id}
+          activeRatingFilter={activeRatingFilter}
+          currentUserId={user?.id}
+          canManage={canManage}
+          isAdmin={isAdmin}
+          onEditReview={(review) => {
+            setExistingReview(review)
+            setReviewOpen(true)
+          }}
+          onReviewsChanged={() => {
+            loadRatingSummary()
+            refreshStudentProgress()
+            setReviewsKey((k) => k + 1)
+          }}
+          notify={notify}
+        />
+      </section>
+
       {reviewOpen && (
         <ReviewModal
           courseTitle={course.title}
@@ -856,6 +1029,8 @@ export default function CourseDetail({ courseId, onBack, openDialog, closeDialog
             setReviewOpen(false)
             setExistingReview(null)
             setReviewState((current) => ({ ...current, existingReviewId: review.id, completed: true }))
+            loadRatingSummary()
+            setReviewsKey((k) => k + 1)
             notify('success', wasEditing ? 'Đã cập nhật đánh giá.' : 'Cảm ơn bạn đã gửi đánh giá!')
           }}
         />

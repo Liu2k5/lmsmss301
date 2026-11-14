@@ -24,11 +24,20 @@ import com.example.course_service.dto.QuizRequest;
 import com.example.course_service.dto.QuizResponse;
 import com.example.course_service.dto.QuizSummaryResponse;
 import com.example.course_service.dto.ReorderRequest;
+import com.example.course_service.security.LoginUser;
 import com.example.course_service.service.QuizService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Quiz (UC-C14…C19). Quyền theo vai trò được chặn trong SecurityConfig:
+ * <ul>
+ *   <li>Danh sách quiz, bản xem trước (không có đáp án): mọi người đã đăng nhập</li>
+ *   <li>Chi tiết quiz (có đáp án đúng), danh sách bài học để gắn quiz, tạo / sửa / xoá: INSTRUCTOR và ADMIN;
+ *       khi sửa, service kiểm tra thêm có phải giảng viên phụ trách khoá học không</li>
+ * </ul>
+ */
 @RestController
 @RequestMapping("/api/v1/quizzes")
 @RequiredArgsConstructor
@@ -53,6 +62,7 @@ public class QuizController {
 		return quizService.findLessonOptions();
 	}
 
+	/** Chi tiết quiz kèm đáp án đúng: chỉ người soạn quiz được xem. */
 	@GetMapping("/{id}")
 	public QuizResponse findById(@PathVariable UUID id) {
 		return quizService.findById(id);
@@ -67,25 +77,31 @@ public class QuizController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public QuizResponse create(@Valid @RequestBody QuizRequest request) {
-		return quizService.create(request);
+		LoginUser loginUser = LoginUser.current();
+		return quizService.create(loginUser, request);
 	}
 
 	@PutMapping("/{id}")
-	public QuizResponse update(@PathVariable UUID id, @Valid @RequestBody QuizRequest request) {
-		return quizService.update(id, request);
+	public QuizResponse update(@PathVariable UUID id,
+			@Valid @RequestBody QuizRequest request) {
+		LoginUser loginUser = LoginUser.current();
+		return quizService.update(loginUser, id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable UUID id) {
-		quizService.delete(id);
+		LoginUser loginUser = LoginUser.current();
+		quizService.delete(loginUser, id);
 	}
 
 	/** Nhân bản quiz sang bài học khác chưa có quiz. */
 	@PostMapping("/{id}/duplicate")
 	@ResponseStatus(HttpStatus.CREATED)
-	public QuizResponse duplicate(@PathVariable UUID id, @Valid @RequestBody DuplicateQuizRequest request) {
-		return quizService.duplicate(id, request.lessonId());
+	public QuizResponse duplicate(@PathVariable UUID id,
+			@Valid @RequestBody DuplicateQuizRequest request) {
+		LoginUser loginUser = LoginUser.current();
+		return quizService.duplicate(loginUser, id, request.lessonId());
 	}
 
 	// ================================================================ câu hỏi
@@ -94,25 +110,30 @@ public class QuizController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public QuestionResponse addQuestion(@PathVariable UUID quizId,
 			@Valid @RequestBody QuestionRequest request) {
-		return quizService.addQuestion(quizId, request);
+		LoginUser loginUser = LoginUser.current();
+		return quizService.addQuestion(loginUser, quizId, request);
 	}
 
 	@PutMapping("/{quizId}/questions/{questionId}")
-	public QuestionResponse updateQuestion(@PathVariable UUID quizId, @PathVariable UUID questionId,
-			@Valid @RequestBody QuestionRequest request) {
-		return quizService.updateQuestion(quizId, questionId, request);
+	public QuestionResponse updateQuestion(@PathVariable UUID quizId,
+			@PathVariable UUID questionId, @Valid @RequestBody QuestionRequest request) {
+		LoginUser loginUser = LoginUser.current();
+		return quizService.updateQuestion(loginUser, quizId, questionId, request);
 	}
 
 	@DeleteMapping("/{quizId}/questions/{questionId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteQuestion(@PathVariable UUID quizId, @PathVariable UUID questionId) {
-		quizService.deleteQuestion(quizId, questionId);
+	public void deleteQuestion(@PathVariable UUID quizId,
+			@PathVariable UUID questionId) {
+		LoginUser loginUser = LoginUser.current();
+		quizService.deleteQuestion(loginUser, quizId, questionId);
 	}
 
 	/** Sắp xếp lại câu hỏi: danh sách id đầy đủ theo thứ tự mong muốn. */
 	@PutMapping("/{quizId}/questions/order")
 	public List<QuestionResponse> reorderQuestions(@PathVariable UUID quizId,
 			@Valid @RequestBody ReorderRequest request) {
-		return quizService.reorderQuestions(quizId, request.orderedIds());
+		LoginUser loginUser = LoginUser.current();
+		return quizService.reorderQuestions(loginUser, quizId, request.orderedIds());
 	}
 }

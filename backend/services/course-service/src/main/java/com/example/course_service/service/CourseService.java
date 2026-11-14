@@ -14,6 +14,7 @@ import com.example.course_service.dto.PublishedCurriculumResponse;
 import com.example.course_service.dto.SectionRequest;
 import com.example.course_service.entity.CourseStatus;
 import com.example.course_service.entity.MaterialType;
+import com.example.course_service.security.LoginUser;
 
 /**
  * Quản lý khoá học cho giảng viên: khoá học, chương, bài học, học liệu và vòng đời xuất bản.
@@ -23,64 +24,74 @@ public interface CourseService {
 
 	// ---------------------------------------------------------------- khoá học
 
-	/** Tìm khoá học; mọi tham số đều tuỳ chọn (UC-C28). */
-	List<CourseSummaryResponse> search(String keyword, CourseStatus status, UUID instructorId);
+	List<CourseSummaryResponse>  search(String keyword, CourseStatus status, UUID instructorId, UUID categoryId);
 
-	/** Chi tiết khoá học kèm toàn bộ curriculum (UC-C29). */
-	CourseDetailResponse getDetail(UUID id);
+	/** Chi tiết khoá học công khai kèm curriculum (UC-C29); khoá nháp → 404. */
+	CourseDetailResponse getDetail(LoginUser user, UUID id);
+
+	/** Khoá học của chính giảng viên đang đăng nhập, gồm cả bản nháp. */
+	List<CourseSummaryResponse> searchMine(LoginUser user, String keyword, CourseStatus status, UUID categoryId);
+
+	/** Chi tiết khoá học của chính giảng viên đang đăng nhập (mọi trạng thái); khoá của người khác → 404. */
+	CourseDetailResponse getMyDetail(LoginUser user, UUID id);
 
 	/** Curriculum của khoá học đang PUBLISHED, dùng cho Progress Service (UC-P07). */
 	PublishedCurriculumResponse getPublishedCurriculum(UUID id);
 
-	CourseDetailResponse create(CourseRequest request);
+	CourseDetailResponse create(LoginUser user, CourseRequest request);
 
-	/** Sửa thông tin; {@code thumbnailUrl} để trống = giữ nguyên ảnh bìa hiện tại. */
-	CourseDetailResponse update(UUID id, CourseRequest request);
+	CourseDetailResponse update(LoginUser user, UUID id, CourseRequest request);
 
-	/** Upload ảnh bìa (image/*, tối đa 5 MB) lên MinIO, thay ảnh cũ nếu có. */
-	CourseDetailResponse uploadThumbnail(UUID id, MultipartFile file);
+	CourseDetailResponse uploadThumbnail(LoginUser user, UUID id, MultipartFile file);
 
-	/** Bỏ ảnh bìa; ảnh trên MinIO bị xoá theo. */
-	CourseDetailResponse removeThumbnail(UUID id);
+	CourseDetailResponse removeThumbnail(LoginUser user, UUID id);
 
 	/** Xuất bản / ẩn / lưu trữ / khôi phục (UC-C21 → UC-C24). */
-	CourseDetailResponse changeStatus(UUID id, CourseStatus target);
+	CourseDetailResponse changeStatus(LoginUser user, UUID id, CourseStatus target);
 
-	void delete(UUID id);
+	void delete(LoginUser user, UUID id);
 
 	// ------------------------------------------------------------------ chương
 
-	CourseDetailResponse addSection(UUID courseId, SectionRequest request);
+	CourseDetailResponse addSection(LoginUser user, UUID courseId, SectionRequest request);
 
-	CourseDetailResponse updateSection(UUID sectionId, SectionRequest request);
+	CourseDetailResponse updateSection(LoginUser user, UUID sectionId, SectionRequest request);
 
-	CourseDetailResponse deleteSection(UUID sectionId);
+	CourseDetailResponse deleteSection(LoginUser user, UUID sectionId);
 
 	/** Sắp xếp lại chương (UC-C10); {@code orderedIds} phải gồm đúng và đủ id hiện có. */
-	CourseDetailResponse reorderSections(UUID courseId, List<UUID> orderedIds);
+	CourseDetailResponse reorderSections(LoginUser user, UUID courseId, List<UUID> orderedIds);
 
 	// ----------------------------------------------------------------- bài học
 
-	CourseDetailResponse addLesson(UUID sectionId, LessonRequest request);
+	CourseDetailResponse addLesson(LoginUser user, UUID sectionId, LessonRequest request);
 
-	CourseDetailResponse updateLesson(UUID lessonId, LessonRequest request);
+	CourseDetailResponse updateLesson(LoginUser user, UUID lessonId, LessonRequest request);
 
-	CourseDetailResponse deleteLesson(UUID lessonId);
+	CourseDetailResponse deleteLesson(LoginUser user, UUID lessonId);
 
-	CourseDetailResponse reorderLessons(UUID sectionId, List<UUID> orderedIds);
+	CourseDetailResponse reorderLessons(LoginUser user, UUID sectionId, List<UUID> orderedIds);
 
 	// ----------------------------------------------------------------- học liệu
 
 	/** Thêm học liệu dạng link ngoài (URL bắt buộc). */
-	CourseDetailResponse addMaterial(UUID lessonId, MaterialRequest request);
+	CourseDetailResponse addMaterial(LoginUser user, UUID lessonId, MaterialRequest request);
 
 	/**
 	 * Upload file (video, tài liệu, hình ảnh) lên MinIO rồi gắn vào bài học (UC-C11).
 	 * {@code name} / {@code type} có thể null: mặc định lấy tên file và đoán loại theo MIME type.
 	 */
-	CourseDetailResponse uploadMaterial(UUID lessonId, MultipartFile file, String name, MaterialType type);
+	CourseDetailResponse uploadMaterial(LoginUser user, UUID lessonId, MultipartFile file, String name, MaterialType type);
 
-	CourseDetailResponse updateMaterial(UUID materialId, MaterialRequest request);
+	CourseDetailResponse updateMaterial(LoginUser user, UUID materialId, MaterialRequest request);
 
-	CourseDetailResponse deleteMaterial(UUID materialId);
+	/**
+	 * Thay file của một học liệu: upload file mới lên MinIO, cập nhật học liệu, rồi xoá file cũ (nếu có)
+	 * sau khi lưu thành công. Học liệu dạng link cũng thay được, khi đó nó trở thành học liệu file.
+	 * {@code name} / {@code type} null thì giữ nguyên tên và loại hiện tại.
+	 */
+	CourseDetailResponse replaceMaterialFile(LoginUser user, UUID materialId, MultipartFile file, String name,
+			MaterialType type);
+
+	CourseDetailResponse deleteMaterial(LoginUser user, UUID materialId);
 }

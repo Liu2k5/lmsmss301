@@ -43,6 +43,9 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 	@Query("select coalesce(max(l.position), 0) from Lesson l where l.section.id = :sectionId")
 	int findMaxPosition(@Param("sectionId") UUID sectionId);
 
-	@Query("select l.section.course.id as courseId, count(l) as total from Lesson l group by l.section.course.id")
-	List<CourseCount> countByCourse();
+	/** Chương đã có bài học trùng tên chưa (không phân biệt hoa thường) — dùng khi thêm bài học. */
+	boolean existsBySectionIdAndTitleIgnoreCase(UUID sectionId, String title);
+
+	/** Như trên nhưng bỏ qua chính bài học đang sửa. */
+	boolean existsBySectionIdAndTitleIgnoreCaseAndIdNot(UUID sectionId, String title, UUID id);
 }

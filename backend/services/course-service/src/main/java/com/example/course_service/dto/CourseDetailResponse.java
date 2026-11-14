@@ -14,6 +14,8 @@ public record CourseDetailResponse(
 		String description,
 		String thumbnailUrl,
 		CourseStatus status,
+		UUID categoryId,
+		String categoryName,
 		/** Các trạng thái có thể chuyển tới từ trạng thái hiện tại. */
 		List<CourseStatus> allowedTransitions,
 		boolean editable,

@@ -1,0 +1,15 @@
+# File này được Docker Compose tự đọc kèm docker-compose.yml (không cần thêm -f).
+#
+# Image MinIO "aistor" (quay.io/minio/aistor/*) là bản thương mại: không có license thì
+# không tạo được bucket ("Access denied. No license is installed"), còn image cộng đồng
+# minio/minio đã bị gỡ khỏi Docker Hub. Tạm thay bằng bản build cộng đồng của Bitnami.
+services:
+  minio:
+    image: bitnamilegacy/minio:latest
+    # Bỏ entrypoint riêng của Bitnami để chạy đúng lệnh "server /data ..." trong docker-compose.yml
+    entrypoint: ["minio"]
+    # Image Bitnami mặc định chạy bằng user 1001, không ghi được vào volume /data (thuộc root)
+    user: "0"
+
+  minio-init:
+    image: bitnamilegacy/minio-client:latest

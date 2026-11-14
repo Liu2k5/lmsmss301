@@ -1,19 +1,20 @@
 package com.example.course_service.controller;
 
 import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.course_service.dto.CourseDetailResponse;
 import com.example.course_service.dto.LessonRequest;
@@ -21,12 +22,16 @@ import com.example.course_service.dto.MaterialRequest;
 import com.example.course_service.dto.ReorderRequest;
 import com.example.course_service.dto.SectionRequest;
 import com.example.course_service.entity.MaterialType;
+import com.example.course_service.security.LoginUser;
 import com.example.course_service.service.CourseService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-
+/**
+ * Soạn nội dung khoá học: chương, bài học, học liệu.
+ * Mọi method chỉ cho INSTRUCTOR và ADMIN (chặn trong SecurityConfig); service kiểm tra thêm có phải giảng viên phụ trách không.
+ */
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
@@ -38,65 +43,83 @@ public class CurriculumController {
 	@PutMapping("/sections/{sectionId}")
 	public CourseDetailResponse updateSection(@PathVariable UUID sectionId,
 			@Valid @RequestBody SectionRequest request) {
-		return courseService.updateSection(sectionId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.updateSection(loginUser, sectionId, request);
 	}
 
 	@DeleteMapping("/sections/{sectionId}")
 	public CourseDetailResponse deleteSection(@PathVariable UUID sectionId) {
-		return courseService.deleteSection(sectionId);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.deleteSection(loginUser, sectionId);
 	}
 
 	@PostMapping("/sections/{sectionId}/lessons")
 	@ResponseStatus(HttpStatus.CREATED)
 	public CourseDetailResponse addLesson(@PathVariable UUID sectionId,
 			@Valid @RequestBody LessonRequest request) {
-		return courseService.addLesson(sectionId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.addLesson(loginUser, sectionId, request);
 	}
 
 	@PutMapping("/sections/{sectionId}/lessons/order")
 	public CourseDetailResponse reorderLessons(@PathVariable UUID sectionId,
 			@Valid @RequestBody ReorderRequest request) {
-		return courseService.reorderLessons(sectionId, request.orderedIds());
+		LoginUser loginUser = LoginUser.current();
+		return courseService.reorderLessons(loginUser, sectionId, request.orderedIds());
 	}
 
 
 	@PutMapping("/lessons/{lessonId}")
 	public CourseDetailResponse updateLesson(@PathVariable UUID lessonId,
 			@Valid @RequestBody LessonRequest request) {
-		return courseService.updateLesson(lessonId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.updateLesson(loginUser, lessonId, request);
 	}
 
 	@DeleteMapping("/lessons/{lessonId}")
 	public CourseDetailResponse deleteLesson(@PathVariable UUID lessonId) {
-		return courseService.deleteLesson(lessonId);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.deleteLesson(loginUser, lessonId);
 	}
 
 	@PostMapping("/lessons/{lessonId}/materials")
 	@ResponseStatus(HttpStatus.CREATED)
 	public CourseDetailResponse addMaterial(@PathVariable UUID lessonId,
 			@Valid @RequestBody MaterialRequest request) {
-		return courseService.addMaterial(lessonId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.addMaterial(loginUser, lessonId, request);
 	}
 
-	/** Upload video / tài liệu lên MinIO (multipart/form-data: file, name?, type?). */
 	@PostMapping(value = "/lessons/{lessonId}/materials/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
 	public CourseDetailResponse uploadMaterial(@PathVariable UUID lessonId,
 			@RequestPart("file") MultipartFile file,
 			@RequestParam(required = false) String name,
 			@RequestParam(required = false) MaterialType type) {
-		return courseService.uploadMaterial(lessonId, file, name, type);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.uploadMaterial(loginUser, lessonId, file, name, type);
 	}
 
 
 	@PutMapping("/materials/{materialId}")
 	public CourseDetailResponse updateMaterial(@PathVariable UUID materialId,
 			@Valid @RequestBody MaterialRequest request) {
-		return courseService.updateMaterial(materialId, request);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.updateMaterial(loginUser, materialId, request);
+	}
+
+	@PostMapping(value = "/materials/{materialId}/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public CourseDetailResponse replaceMaterialFile(@PathVariable UUID materialId,
+			@RequestPart("file") MultipartFile file,
+			@RequestParam(required = false) String name,
+			@RequestParam(required = false) MaterialType type) {
+		LoginUser loginUser = LoginUser.current();
+		return courseService.replaceMaterialFile(loginUser, materialId, file, name, type);
 	}
 
 	@DeleteMapping("/materials/{materialId}")
 	public CourseDetailResponse deleteMaterial(@PathVariable UUID materialId) {
-		return courseService.deleteMaterial(materialId);
+		LoginUser loginUser = LoginUser.current();
+		return courseService.deleteMaterial(loginUser, materialId);
 	}
 }

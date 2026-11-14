@@ -1,6 +1,7 @@
 package com.example.course_service.config;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.course_service.entity.Category;
 import com.example.course_service.entity.Course;
 import com.example.course_service.entity.CourseStatus;
 import com.example.course_service.entity.Lesson;
@@ -20,6 +22,7 @@ import com.example.course_service.entity.Question;
 import com.example.course_service.entity.QuestionType;
 import com.example.course_service.entity.Quiz;
 import com.example.course_service.entity.Section;
+import com.example.course_service.repository.CategoryRepository;
 import com.example.course_service.repository.CourseRepository;
 import com.example.course_service.repository.LessonRepository;
 import com.example.course_service.repository.QuizRepository;
@@ -40,6 +43,7 @@ public class DemoDataSeeder implements ApplicationRunner {
 	private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
 
 	private final CourseRepository courseRepository;
+	private final CategoryRepository categoryRepository;
 	private final SectionRepository sectionRepository;
 	private final LessonRepository lessonRepository;
 	private final QuizRepository quizRepository;
@@ -55,6 +59,7 @@ public class DemoDataSeeder implements ApplicationRunner {
 				.title("Lập trình Java Spring Boot")
 				.description("Khoá học nhập môn Spring Boot dành cho sinh viên.")
 				.thumbnailUrl("https://placehold.co/600x340?text=Spring+Boot")
+				.category(category("Lập trình Backend", "Xây dựng API và xử lý phía server"))
 				.status(CourseStatus.PUBLISHED)
 				.build());
 
@@ -230,5 +235,14 @@ public class DemoDataSeeder implements ApplicationRunner {
 		log.info("Đã tạo dữ liệu mẫu: course='{}', lesson video='{}', quiz='{}', quiz='{}', quiz='{}'",
 				springCourse.getTitle(), videoLesson.getTitle(),
 				quiz.getTitle(), restQuiz.getTitle(), finalQuiz.getTitle());
+	}
+
+	/** Lấy danh mục mẫu theo tên, chưa có thì tạo mới (chạy lại nhiều lần không bị trùng). */
+	private Category category(String name, String description) {
+		Optional<Category> existing = categoryRepository.findByNameIgnoreCase(name);
+		if (existing.isPresent()) {
+			return existing.get();
+		}
+		return categoryRepository.save(Category.builder().name(name).description(description).build());
 	}
 }

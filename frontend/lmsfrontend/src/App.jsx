@@ -11,6 +11,8 @@ import RegisterPage from './pages/RegisterPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import AdminUsersPage from './pages/AdminUsersPage.jsx'
 import AdminRequestsPage from './pages/AdminRequestsPage.jsx'
+import AdminCategoriesPage from './pages/AdminCategoriesPage.jsx'
+import AdminReviewsPage from './pages/AdminReviewsPage.jsx'
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import { useAuth } from './auth/AuthContext.js'
 
@@ -18,6 +20,7 @@ import { useAuth } from './auth/AuthContext.js'
  * Điều hướng đơn giản bằng hash:
  * #/courses, #/courses/:id, #/quizzes, #/quizzes?quizId=<uuid>, #/quizzes?lessonId=<uuid>
  * #/quiz-attempt?quizId=<uuid>&courseId=<uuid>  — học viên làm bài (UC-P04)
+ * #/admin/users, #/admin/requests, #/admin/categories, #/admin/reviews — trang quản trị (chỉ Admin)
  */
 function parseHash(hash) {
   const raw = hash.replace(/^#\/?/, '')
@@ -49,6 +52,12 @@ function parseHash(hash) {
   }
   if (parts[0] === 'admin' && parts[1] === 'requests') {
     return { page: 'admin-requests' }
+  }
+  if (parts[0] === 'admin' && parts[1] === 'categories') {
+    return { page: 'admin-categories' }
+  }
+  if (parts[0] === 'admin' && parts[1] === 'reviews') {
+    return { page: 'admin-reviews' }
   }
   if (!parts.length) return { page: 'home' }
   const id = uuid(parts[1])
@@ -85,10 +94,13 @@ export default function App() {
             aria-current={route.page === 'courses' ? 'page' : undefined}>
             Khoá học
           </a>
-          <a href="#/quizzes" className={`top-nav__link${route.page === 'quizzes' ? ' is-active' : ''}`}
-            aria-current={route.page === 'quizzes' ? 'page' : undefined}>
-            Quiz
-          </a>
+          {/* Admin chỉ quản lý hệ thống: không học, không soạn quiz */}
+          {!isAdmin && (
+            <a href="#/quizzes" className={`top-nav__link${route.page === 'quizzes' ? ' is-active' : ''}`}
+              aria-current={route.page === 'quizzes' ? 'page' : undefined}>
+              Quiz
+            </a>
+          )}
           {authenticated ? (
             <>
               <a href="#/profile" className={`top-nav__link${route.page === 'profile' ? ' is-active' : ''}`}
@@ -104,6 +116,14 @@ export default function App() {
                   <a href="#/admin/requests" className={`top-nav__link${route.page === 'admin-requests' ? ' is-active' : ''}`}
                     aria-current={route.page === 'admin-requests' ? 'page' : undefined}>
                     Yêu cầu
+                  </a>
+                  <a href="#/admin/categories" className={`top-nav__link${route.page === 'admin-categories' ? ' is-active' : ''}`}
+                    aria-current={route.page === 'admin-categories' ? 'page' : undefined}>
+                    Danh mục
+                  </a>
+                  <a href="#/admin/reviews" className={`top-nav__link${route.page === 'admin-reviews' ? ' is-active' : ''}`}
+                    aria-current={route.page === 'admin-reviews' ? 'page' : undefined}>
+                    Kiểm duyệt đánh giá
                   </a>
                 </>
               )}
@@ -125,6 +145,8 @@ export default function App() {
           route.page === 'profile' ? <ProfilePage /> :
             route.page === 'admin-users' ? <AdminUsersPage /> :
               route.page === 'admin-requests' ? <AdminRequestsPage /> :
+              route.page === 'admin-categories' ? <AdminCategoriesPage /> :
+              route.page === 'admin-reviews' ? <AdminReviewsPage /> :
       route.page === 'quiz-attempt' ? (
         <QuizAttemptPage quizId={route.quizId} courseId={route.quizCourseId} />
       ) :

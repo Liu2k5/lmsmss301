@@ -46,6 +46,7 @@ public class SecurityConfig {
 								"/api/v1/users/password/reset").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/v1/universities/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/v1/courses/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/v1/categories", "/api/v1/categories/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/v1/courses/*/reviews/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/v1/courses/*/ratings/**").permitAll()
 						.anyRequest().authenticated())

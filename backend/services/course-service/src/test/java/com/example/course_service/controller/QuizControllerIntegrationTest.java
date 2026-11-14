@@ -1,5 +1,7 @@
 package com.example.course_service.controller;
 
+import com.example.course_service.support.TestLogin;
+import org.junit.jupiter.api.AfterEach;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -35,6 +37,17 @@ import tools.jackson.databind.ObjectMapper;
 @Transactional
 class QuizControllerIntegrationTest {
 
+	/** Test nghiệp vụ tắt filter bảo mật → tự đăng nhập bằng giảng viên chủ các khoá học trong test. */
+	@BeforeEach
+	void loginAsInstructor() {
+		TestLogin.asInstructor();
+	}
+
+	@AfterEach
+	void logout() {
+		TestLogin.logout();
+	}
+
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -60,7 +73,7 @@ class QuizControllerIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		Course course = courseRepository.save(Course.builder()
-				.instructorId(UUID.randomUUID())
+				.instructorId(UUID.fromString(TestLogin.INSTRUCTOR_ID))
 				.title("Khoá học test")
 				.status(CourseStatus.PUBLISHED)
 				.build());

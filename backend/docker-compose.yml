@@ -138,6 +138,8 @@ services:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       EUREKA_URL: http://eureka-server:8761/eureka
+      # Kiểm tra đăng ký khoá học trước khi trả link học liệu (UC-C30).
+      ENROLLMENT_SERVICE_URL: http://enrollment-service:8083
       # JWT cho API quiz (bên trong network phải dùng tên keycloak, không phải localhost).
       JWT_JWK_SET_URI: ${JWT_JWK_SET_URI}
     depends_on:
@@ -172,6 +174,12 @@ services:
       JWT_ISSUER_URI: ${JWT_ISSUER}
       JWT_JWK_SET_URI: ${JWT_JWK_SET_URI}
       SEED_DEMO_DATA: "true"
+      # SMTP cho "Quên mật khẩu" (gửi mã xác nhận qua email) — lấy từ backend/.env
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     depends_on:
       postgres:
         condition: service_healthy

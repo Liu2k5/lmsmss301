@@ -20,6 +20,9 @@ Hệ thống học trực tuyến theo kiến trúc microservices: **API Gateway
 
 ## Chạy toàn bộ hệ thống
 
+> Phát triển trên máy (Docker cho hạ tầng + IntelliJ cho service): [docs/local-run-guide.md](docs/local-run-guide.md).
+> Kịch bản kiểm thử thủ công: [docs/manual-test-plan.md](docs/manual-test-plan.md).
+
 ```bash
 cd backend
 cp .env.example .env          # đổi mật khẩu nếu cần
@@ -136,5 +139,6 @@ mvn test                                           # toàn bộ 7 module
 - **Nộp quiz (UC-P04)**: học viên nộp bài ở `#/quiz-attempt?quizId=&courseId=`; Progress Service chấm điểm
   bằng đề + đáp án lấy từ API nội bộ `/internal/quizzes/{id}/answer-key` của Course Service
   (Gateway chặn `/internal/**`), lưu lịch sử lượt làm và chặn khi hết `maxAttempts`.
-- **Email**: chưa cấu hình SMTP nên `POST /api/v1/users/password/forgot` trả `503`
-  (`Email could not be sent`) cho tới khi bổ sung SMTP/MailHog.
+- **Email (Quên mật khẩu)**: user-service gửi mã xác nhận qua SMTP lấy từ `MAIL_*` trong `backend/.env`
+  (xem `.env.example`; Gmail cần App Password). Thiếu/sai cấu hình thì `POST /api/v1/users/password/forgot`
+  trả `503` (`Email could not be sent`). Chạy bằng IntelliJ thì phải tự đặt các biến `MAIL_*`.

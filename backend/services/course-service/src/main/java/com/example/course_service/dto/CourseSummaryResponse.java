@@ -12,8 +12,8 @@ public record CourseSummaryResponse(
 		String description,
 		String thumbnailUrl,
 		CourseStatus status,
-		long sectionCount,
-		long lessonCount,
+		UUID categoryId,
+		String categoryName,
 		LocalDateTime createdAt,
 		LocalDateTime updatedAt) {
 }

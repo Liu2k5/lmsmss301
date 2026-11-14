@@ -5,8 +5,8 @@ spring:
     name: enrollment-service
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/enrollment_db}
-    username: ${DB_USER:lms}
-    password: ${DB_PASSWORD:}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:sa}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -15,7 +15,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: 6379
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:redis123}
   cache:
     type: redis
     redis:
@@ -24,8 +24,8 @@ spring:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:lms}
-    password: ${RABBITMQ_PASSWORD:lms}
-    virtual-host: ${RABBITMQ_VHOST:/}
+    password: ${RABBITMQ_PASSWORD:rabbit123}
+    virtual-host: ${RABBITMQ_VHOST:lms}
 app:
   services:
     course:

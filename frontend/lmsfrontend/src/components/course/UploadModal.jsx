@@ -14,9 +14,11 @@ function guessType(file) {
 /**
  * Upload video / tài liệu lên MinIO. onUpload(file, { name, type }, onProgress) trả về { promise, abort }.
  */
-export default function UploadModal({ subtitle, defaultType, onUpload, onCancel }) {
+export default function UploadModal({
+  title = 'Upload học liệu', subtitle, defaultType, initialName, submitLabel = 'Upload', notice, onUpload, onCancel,
+}) {
   const [file, setFile] = useState(null)
-  const [name, setName] = useState('')
+  const [name, setName] = useState(initialName ?? '')
   const [type, setType] = useState(defaultType ?? '')
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
@@ -38,7 +40,8 @@ export default function UploadModal({ subtitle, defaultType, onUpload, onCancel 
     if (!selected) return
     setFile(selected)
     setError(null)
-    setName(selected.name.replace(/\.[^.]+$/, ''))
+    // Thay file: giữ tên học liệu hiện tại; upload mới: lấy tên file làm tên hiển thị.
+    if (initialName == null) setName(selected.name.replace(/\.[^.]+$/, ''))
     setType(guessType(selected) || defaultType || '')
   }
 
@@ -76,7 +79,7 @@ export default function UploadModal({ subtitle, defaultType, onUpload, onCancel 
         onSubmit={handleSubmit} noValidate>
         <header className="modal__header">
           <div>
-            <h2 id="upload-title">Upload học liệu</h2>
+            <h2 id="upload-title">{title}</h2>
             {subtitle && <p className="modal__subtitle">{subtitle}</p>}
           </div>
           <button type="button" className="icon-button" aria-label="Đóng" onClick={onCancel} disabled={uploading}>
@@ -85,6 +88,7 @@ export default function UploadModal({ subtitle, defaultType, onUpload, onCancel 
         </header>
 
         <div className="modal__body">
+          {notice && <p className="muted small">{notice}</p>}
           {error && (
             <div className="alert alert--error" role="alert">
               <strong>{error}</strong>
@@ -167,7 +171,7 @@ export default function UploadModal({ subtitle, defaultType, onUpload, onCancel 
             {uploading ? 'Huỷ upload' : 'Huỷ'}
           </button>
           <button type="submit" className="button button--primary" disabled={uploading || !file}>
-            {uploading ? 'Đang upload…' : 'Upload'}
+            {uploading ? 'Đang upload…' : submitLabel}
           </button>
         </footer>
       </form>
